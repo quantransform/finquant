@@ -2,3 +2,4 @@
 members = [
     "finquant",
 ]
+resolver = "2"
