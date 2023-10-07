@@ -11,3 +11,4 @@ readme = "../README.md"
 [features]
 
 [dependencies]
+chrono = "^0.4.31"
