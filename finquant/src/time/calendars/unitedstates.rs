@@ -19,78 +19,51 @@ pub struct UnitedStates {
 impl UnitedStates {
     fn is_washington_birthday(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        if ((y >= 1971)
-            && ((15..=21).contains(&d) && w == Weekday::Mon && m == 2))
-            || ((y < 1971)
-            && (d == 22 || (d == 23 && w == Weekday::Mon) || (d == 21 && w == Weekday::Fri)) && (m == 2)) {
-            true
-        } else {
-            false
-        }
+        ((y >= 1971)
+            && ((15..=21).contains(&d) && w == Weekday::Mon && m == 2)) || ((y < 1971)
+            && (d == 22 || (d == 23 && w == Weekday::Mon) || (d == 21 && w == Weekday::Fri)) && (m == 2))
     }
 
     fn is_memorial_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        if ((y >= 1971)
-            && (d >= 25 && w == Weekday::Mon && m == 5))
-            || ((y < 1971)
-            && ((d == 30 || (d == 31 && w == Weekday::Mon) || (d == 29 && w == Weekday::Fri)) && m == 5)) {
-            true
-        } else {
-            false
-        }
+        ((y >= 1971)
+            && (d >= 25 && w == Weekday::Mon && m == 5)) || ((y < 1971)
+            && ((d == 30 || (d == 31 && w == Weekday::Mon) || (d == 29 && w == Weekday::Fri)) && m == 5))
     }
 
     fn is_labor_day(&self, date: NaiveDate) -> bool {
-        let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        if d <= 7 && w == Weekday::Mon && m == 9 {
-            true
-        } else {
-            false
-        }
+        let (d, w, m, _y, _) = self.naive_date_to_dkmy(date);
+        d <= 7 && w == Weekday::Mon && m == 9
     }
 
     fn is_columbus_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        if (d >= 8 && d <= 14) && w == Weekday::Mon && m == 10
-            && y >= 1971 {
-            true
-        } else { false }
+        (8..=14).contains(&d) && w == Weekday::Mon && m == 10 && y >= 1971
     }
 
     fn is_veterans_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
         // 11 11th, adjusted (before 1970, after 1978)
         // Fourth Monday in 10 (1970 - 1978)
-        if ((y <= 1970 || y >= 1978)
+        ((y <= 1970 || y >= 1978)
             && ((d == 11 || (d == 12 && w == Weekday::Mon) ||
-            (d == 10 && w == Weekday::Fri)) && m == 11)) ||
-            ((y > 1970 && y < 1978) &&
-                ((d >= 22 && d <= 28) && w == Weekday::Mon && m == 10)) { true } else {
-            false
-        }
+            (d == 10 && w == Weekday::Fri)) && m == 11)) || ((y > 1970 && y < 1978) &&
+                ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
     }
 
     fn is_veterans_day_no_saturday(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
         // 11 11th, adjusted, but no Saturday to Friday (before 1970, after 1978)
         // Fourth Monday in 10 (1970 - 1978)
-        if ((y <= 1970 || y >= 1978) &&
-            ((d == 11 || (d == 12 && w == Weekday::Mon)) && m == 11)) ||
-            ((y > 1970 && y < 1978) &&
-                ((d >= 22 && d <= 28) && w == Weekday::Mon && m == 10)) {
-            true
-        } else {
-            false
-        }
+        ((y <= 1970 || y >= 1978) &&
+            ((d == 11 || (d == 12 && w == Weekday::Mon)) && m == 11)) || ((y > 1970 && y < 1978) &&
+                ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
     }
 
     fn is_juneteenth(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        if (d == 19 || (d == 20 && w == Weekday::Mon) || (d == 18 && w == Weekday::Fri))
-            && m == 6 && y >= 2022 {
-            true
-        } else { false }
+        (d == 19 || (d == 20 && w == Weekday::Mon) || (d == 18 && w == Weekday::Fri))
+            && m == 6 && y >= 2022
     }
 
     fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
@@ -101,7 +74,7 @@ impl UnitedStates {
             // (or to Friday if on Saturday)
             || (d == 31 && w == Weekday::Fri && m == 12)
             // Martin Luther King's birthday (third Monday in 1)
-            || ((d >= 15 && d <= 21) && w == Weekday::Mon && m == 1 && y >= 1983)
+            || ((15..=21).contains(&d) && w == Weekday::Mon && m == 1 && y >= 1983)
             // Washington's birthday (third Monday in 2)
             || self.is_washington_birthday(date)
             // Memorial Day (last Monday in May)
@@ -117,7 +90,7 @@ impl UnitedStates {
             // Veteran's Day (Monday if Sunday or Friday if Saturday)
             || self.is_veterans_day(date)
             // Thanksgiving Day (fourth Thursday in 11)
-            || ((d >= 22 && d <= 28) && w == Weekday::Thu && m == 11)
+            || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday or Friday if Saturday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon) ||
             (d == 24 && w == Weekday::Fri)) && m == 12) {
@@ -132,7 +105,7 @@ impl UnitedStates {
         if ((d == 5 && w == Weekday::Mon) || (d == 3 && w == Weekday::Fri)) && m == 7 && y >= 2015 {
             return true
         }
-        return self.settlement_is_business_day(date)
+        self.settlement_is_business_day(date)
     }
 
     fn nyse_is_business_day(&self, date: NaiveDate) -> bool {
@@ -155,14 +128,14 @@ impl UnitedStates {
             // Labor Day (first Monday in 9)
             || self.is_labor_day(date)
             // Thanksgiving Day (fourth Thursday in November)
-            || ((d >= 22 && d <= 28) && w == Weekday::Thu && m == 11)
+            || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday or Friday if Saturday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon) || (d == 24 && w == Weekday::Fri)) && m == 12){
             return false;
         }
 
         // Martin Luther King's birthday (third Monday in 1)
-        if y >= 1998 && (d >= 15 && d <= 21) && w == Weekday::Mon && m == 1{
+        if y >= 1998 && (15..=21).contains(&d) && w == Weekday::Mon && m == 1{
             return false;
         }
 
@@ -181,7 +154,7 @@ impl UnitedStates {
                 // President Reagan's funeral
                 || (y == 2004 && m == 6 && d == 11)
                 // 9 11-14, 2001
-                || (y == 2001 && m == 9 && (11 <= d && d <= 14))
+                || (y == 2001 && m == 9 && (11..=14).contains(&d))
                 // President Nixon's funeral
                 || (y == 1994 && m == 4 && d == 27)
                 // Hurricane Gloria
@@ -228,7 +201,7 @@ impl UnitedStates {
             // New Year's Day (possibly moved to Monday if on Sunday)
             || ((d == 1 || (d == 2 && w == Weekday::Mon)) && m == 1)
             // Martin Luther King's birthday (third Monday in January)
-            || ((d >= 15 && d <= 21) && w == Weekday::Mon && m == 1 && y >= 1983)
+            || ((15..=21).contains(&d) && w == Weekday::Mon && m == 1 && y >= 1983)
             // Washington's birthday (third Monday in February)
             || self.is_washington_birthday(date)
             // Good Friday (2015, 2021, 2023 are half day due to NFP/SIFMA;
@@ -247,7 +220,7 @@ impl UnitedStates {
             // Veteran's Day (Monday if Sunday)
             || self.is_veterans_day_no_saturday(date)
             // Thanksgiving Day (fourth Thursday in November)
-            || ((d >= 22 && d <= 28) && w == Weekday::Thu && m == 11)
+            || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday or Friday if Saturday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon) || (d == 24 && w == Weekday::Fri)) && m == 12)
         {
@@ -288,7 +261,7 @@ impl UnitedStates {
             // Labor Day (first Monday in September)
             || self.is_labor_day(date)
             // Thanksgiving Day (fourth Thursday in November)
-            || ((d >= 22 && d <= 28) && w == Weekday::Thu && m == 11)
+            || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12){
             false
@@ -296,13 +269,13 @@ impl UnitedStates {
     }
 
     fn federal_reserve_is_holiday(&self, date: NaiveDate) -> bool {
-        let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
+        let (d, w, m, y, _dd) = self.naive_date_to_dkmy(date);
 
         if self.is_weekend(date)
             // New Year's Day (possibly moved to Monday if on Sunday)
             || ((d == 1 || (d == 2 && w == Weekday::Mon)) && m == 1)
             // Martin Luther King's birthday (third Monday in January)
-            || ((d >= 15 && d <= 21) && w == Weekday::Mon && m == 1 && y >= 1983)
+            || ((15..=21).contains(&d) && w == Weekday::Mon && m == 1 && y >= 1983)
             // Washington's birthday (third Monday in February)
             || self.is_washington_birthday(date)
             // Memorial Day (last Monday in May)
@@ -318,7 +291,7 @@ impl UnitedStates {
             // Veteran's Day (Monday if Sunday)
             || self.is_veterans_day_no_saturday(date)
             // Thanksgiving Day (fourth Thursday in November)
-            || ((d >= 22 && d <= 28) && w == Weekday::Thu && m == 11)
+            || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12) {
             false
