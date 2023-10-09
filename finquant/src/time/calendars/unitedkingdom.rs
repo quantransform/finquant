@@ -1,34 +1,20 @@
-use chrono::{NaiveDate, Weekday, Datelike};
+// Holidays in United Kingdom.
+use chrono::{NaiveDate, Weekday};
+use crate::time::calendars::Calendar;
 
-#[allow(dead_code)]
-pub enum UnitedKingdomMaret {
-    Basic,
+pub enum UnitedKingdomMarket {
     Settlement,
     Exchange,
     Metals,
 }
 
-#[allow(dead_code)]
 pub struct UnitedKingdom {
-    market: UnitedKingdomMaret,
+    market: Option<UnitedKingdomMarket>,
 }
 
-#[allow(dead_code)]
 impl UnitedKingdom {
-    pub fn new(market: UnitedKingdomMaret) -> Self {
-        Self { market }
-    }
-
-    pub fn is_weekend(date: NaiveDate) -> bool {
-        let weekday = date.weekday();
-        matches!(weekday, Weekday::Sat | Weekday::Sun)
-    }
-
-    pub fn is_bank_holiday(date: NaiveDate) -> bool {
-        let d = date.day();
-        let w = date.weekday();
-        let m = date.month();
-        let y = date.year();
+    fn is_bank_holiday(&self, date: NaiveDate) -> bool {
+        let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
 
         // first Monday of May (Early May Bank Holiday)
         // moved to May 8th in 1995 and 2020 for V.E. day
@@ -52,24 +38,47 @@ impl UnitedKingdom {
             true
         } else { false }
     }
-    pub fn basic_is_business_day(&self, date: NaiveDate) -> bool {
-        UnitedKingdom::is_weekend(date) || UnitedKingdom::is_bank_holiday(date)
+    fn basic_is_business_day(&self, date: NaiveDate) -> bool {
+        self.is_weekend(date) || self.is_bank_holiday(date)
     }
-    pub fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
-        UnitedKingdom::is_weekend(date) || UnitedKingdom::is_bank_holiday(date)
+    fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
+        let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
+        let em = self.easter_monday(y);
+        if self.is_weekend(date)
+            // New Year's Day (possibly moved to Monday)
+            || ((d == 1 || ((d == 2 || d == 3) && w == Weekday::Mon)) && m == 1)
+            // Good Friday
+            || (dd == em - 3)
+            // Easter Monday
+            || (dd == em)
+            || self.is_bank_holiday(date)
+            // Christmas (possibly moved to Monday or Tuesday)
+            || ((d == 25 || (d == 27 && (w == Weekday::Mon || w == Weekday::Tue))) && m == 12)
+            // Boxing Day (possibly moved to Monday or Tuesday)
+            || ((d == 26 || (d == 28 && (w == Weekday::Mon || w == Weekday::Tue))) && m == 12)
+            // December 31st, 1999 only
+            || (d == 31 && m == 12 && y == 1999)
+        {
+            false
+        } else {
+            true
+        }
     }
-    pub fn exchange_is_business_day(&self, date: NaiveDate) -> bool {
-        UnitedKingdom::is_weekend(date) || UnitedKingdom::is_bank_holiday(date)
+    fn exchange_is_business_day(&self, date: NaiveDate) -> bool {
+        self.settlement_is_business_day(date)
     }
     pub fn metals_is_business_day(&self, date: NaiveDate) -> bool {
-        UnitedKingdom::is_weekend(date) || UnitedKingdom::is_bank_holiday(date)
+        self.settlement_is_business_day(date)
     }
-    pub fn is_business_day(&self, date: NaiveDate) -> bool {
+}
+
+impl Calendar for UnitedKingdom {
+    fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {
-            UnitedKingdomMaret::Settlement => UnitedKingdom::settlement_is_business_day(self, date),
-            UnitedKingdomMaret::Exchange => UnitedKingdom::exchange_is_business_day(self, date),
-            UnitedKingdomMaret::Metals => UnitedKingdom::metals_is_business_day(self, date),
-            UnitedKingdomMaret::Basic => UnitedKingdom::basic_is_business_day(self, date),
+            Some(UnitedKingdomMarket::Settlement) => self.settlement_is_business_day(date),
+            Some(UnitedKingdomMarket::Exchange) => self.exchange_is_business_day(date),
+            Some(UnitedKingdomMarket::Metals) => self.metals_is_business_day(date),
+            None => self.basic_is_business_day(date),
         }
     }
 }

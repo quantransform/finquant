@@ -1,1 +1,1 @@
-mod time;
+pub mod time;
