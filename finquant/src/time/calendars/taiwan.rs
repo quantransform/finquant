@@ -1,5 +1,5 @@
 // Holidays in Taiwan.
-use chrono::{NaiveDate, Month};
+use chrono::{NaiveDate};
 use crate::time::calendars::Calendar;
 
 pub struct Taiwan;
@@ -96,7 +96,7 @@ impl Calendar for Taiwan {
         // Moon Festival 09-25
         if (y == 2007)
             && (
-            (d >= 17 && d <= 25 && m == 2)
+            ((17..=25).contains(&d) && m == 2)
                 || (d == 5 && m == 4)
                 || (d == 6 && m == 4)
                 || (d == 18 && m == 6)
@@ -112,7 +112,7 @@ impl Calendar for Taiwan {
         // Tomb Sweeping Day 04-04
         if (y == 2008)
             && (
-            (d >= 4 && d <= 11 && m == 2)
+            ((4..=11).contains(&d) && m == 2)
                 || (d == 4 && m == 4)
         ) {
             return false;
@@ -140,7 +140,7 @@ impl Calendar for Taiwan {
         // Moon Festival 09-22
         if (y == 2010)
             && (
-            (d >= 13 && d <= 21 && m == 1)
+            ((13..=21).contains(&d) && m == 1)
                 || (d == 5 && m == 4)
                 || (d == 16 && m == 5)
                 || (d == 22 && m == 9)
@@ -149,7 +149,7 @@ impl Calendar for Taiwan {
         }
         if (y == 2011)
             && (// Spring Festival
-            (d >= 2 && d <= 7 && m == 2)
+            ((2..=7).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
                 // Tomb Sweeping Day
@@ -166,7 +166,7 @@ impl Calendar for Taiwan {
 
         if (y == 2012)
             && (// Spring Festival
-            (d >= 23 && d <= 27 && m == 1)
+            ((23..=27).contains(&d) && m == 1)
                 // Peace Memorial Day
                 || (d == 27 && m == 2)
                 // Children's Day
@@ -187,7 +187,7 @@ impl Calendar for Taiwan {
 
         if (y == 2013)
             && (// Spring Festival
-            (d >= 10 && d <= 15 && m == 2)
+            ((10..=15).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
                 // Tomb Sweeping Day
@@ -197,14 +197,14 @@ impl Calendar for Taiwan {
                 // Dragon Boat Festival
                 || (d == 12 && m == 6)
                 // Mid-Autumn Festival
-                || (d >= 19 && d <= 20 && m == 9)
+                || ((19..=20).contains(&d) && m == 9)
         ) {
             return false;
         }
 
         if (y == 2014)
             && (// Lunar New Year
-            (d >= 28 && d <= 30 && m == 1)
+            ((28..=30).contains(&d) && m == 1)
                 // Spring Festival
                 || ((d == 31 && m == 1) || (d <= 4 && m == 2))
                 // Children's Day
@@ -223,7 +223,7 @@ impl Calendar for Taiwan {
             && (// adjusted holidays
             (d == 2 && m == 1)
                 // Lunar New Year
-                || (d >= 18 && d <= 23 && m == 2)
+                || ((18..=23).contains(&d) && m == 2)
                 // adjusted holidays
                 || (d == 27 && m == 2)
                 // adjusted holidays
@@ -242,7 +242,7 @@ impl Calendar for Taiwan {
 
         if (y == 2016)
             && (// Lunar New Year
-            (d >= 8 && d <= 12 && m == 2)
+            ((8..=12).contains(&d) && m == 2)
                 // adjusted holidays
                 || (d == 29 && m == 2)
                 // Children's Day
@@ -288,7 +288,7 @@ impl Calendar for Taiwan {
 
         if (y == 2018)
             && (// Lunar New Year
-            (d >= 15 && d <= 20 && m == 2)
+            ((15..=20).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
                 // Tomb Sweeping Day
@@ -307,7 +307,7 @@ impl Calendar for Taiwan {
 
         if (y == 2019)
             && (// Lunar New Year
-            (d >= 4 && d <= 8 && m == 2)
+            ((4..=8).contains(&d) && m == 2)
                 // adjusted holidays
                 || (d == 1 && m == 3)
                 // Children's Day
@@ -328,7 +328,7 @@ impl Calendar for Taiwan {
             && (// adjusted holiday
             (d == 23 && m == 1)
                 // Lunar New Year
-                || (d >= 24 && d <= 29 && m == 1)
+                || ((24..=29).contains(&d) && m == 1)
                 // adjusted holiday
                 || (d == 2 && m == 4)
                 // adjusted holiday
@@ -352,7 +352,7 @@ impl Calendar for Taiwan {
             && (// adjusted holiday
             (d == 10 && m == 2)
                 // Lunar New Year
-                || (d >= 11 && d <= 16 && m == 2)
+                || ((11..=16).contains(&d) && m == 2)
                 // adjusted holiday
                 || (d == 1 && m == 3)
                 // Children's Day
@@ -395,13 +395,11 @@ impl Calendar for Taiwan {
 
         if (y == 2023)
             && (// adjusted holiday
-            (d == 2 && m == 1)
-                // adjusted holiday
-                || (d == 20 && m == 1)
+            ((d == 20 || d == 2) && m == 1)
                 // Lunar New Year
-                || (d >= 21 && d <= 24 && m == 1)
+                || ((21..=24).contains(&d) && m == 1)
                 // adjusted holiday
-                || (d >= 25 && d <= 27 && m == 1)
+                || ((25..=27).contains(&d) && m == 1)
                 // adjusted holiday
                 || (d == 27 && m == 2)
                 // adjusted holiday
