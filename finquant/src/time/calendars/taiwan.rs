@@ -125,8 +125,7 @@ impl Calendar for Taiwan {
         // Moon Festival 10-03
         if (y == 2009)
             && (
-            (d == 2 && m == 1)
-                || (d >= 24 && m == 1)
+            ((d >= 24 || d == 2) && m == 1)
                 || (d == 4 && m == 4)
                 || ((d == 28 || d == 29) && m == 5)
                 || (d == 3 && m == 10)
@@ -241,10 +240,8 @@ impl Calendar for Taiwan {
         }
 
         if (y == 2016)
-            && (// Lunar New Year
-            ((8..=12).contains(&d) && m == 2)
-                // adjusted holidays
-                || (d == 29 && m == 2)
+            && (// Lunar New Year and adjusted holidays
+            ((d == 29 || (8..=12).contains(&d)) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
                 // adjusted holidays
@@ -325,10 +322,8 @@ impl Calendar for Taiwan {
         }
 
         if (y == 2020)
-            && (// adjusted holiday
-            (d == 23 && m == 1)
-                // Lunar New Year
-                || ((24..=29).contains(&d) && m == 1)
+            && (// adjusted holiday and Lunar New Year
+            (((24..=29).contains(&d) || d == 23) && m == 1)
                 // adjusted holiday
                 || (d == 2 && m == 4)
                 // adjusted holiday
@@ -349,10 +344,8 @@ impl Calendar for Taiwan {
 
         if (y == 2021)
             // Tomb Sweeping Day falls on Sunday
-            && (// adjusted holiday
-            (d == 10 && m == 2)
-                // Lunar New Year
-                || ((11..=16).contains(&d) && m == 2)
+            && (// adjusted holiday and Lunar New Year
+            (((11..=16).contains(&d) || d == 10) && m == 2)
                 // adjusted holiday
                 || (d == 1 && m == 3)
                 // Children's Day
@@ -394,12 +387,8 @@ impl Calendar for Taiwan {
         }
 
         if (y == 2023)
-            && (// adjusted holiday
-            ((d == 20 || d == 2) && m == 1)
-                // Lunar New Year
-                || ((21..=24).contains(&d) && m == 1)
-                // adjusted holiday
-                || ((25..=27).contains(&d) && m == 1)
+            && (// adjusted holiday and Lunar New Year
+            (((25..=27).contains(&d) || d == 20 || d == 2 || (21..=24).contains(&d)) && m == 1)
                 // adjusted holiday
                 || (d == 27 && m == 2)
                 // adjusted holiday
