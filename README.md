@@ -5,7 +5,7 @@
 >
 > FinQuant is an experimental project, currently incomplete and not fit for production.
 
-## Roadmaps (no set agenda yet)
+## Roadmap (no set agenda yet)
 
 1. Basic settings 
    1. Calendar
