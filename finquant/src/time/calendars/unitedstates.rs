@@ -1,6 +1,6 @@
 // Holidays in United States.
-use chrono::{NaiveDate, Weekday};
 use crate::time::calendars::Calendar;
+use chrono::{NaiveDate, Weekday};
 
 pub enum UnitedStatesMarket {
     Settlement,
@@ -19,16 +19,18 @@ pub struct UnitedStates {
 impl UnitedStates {
     fn is_washington_birthday(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        ((y >= 1971)
-            && ((15..=21).contains(&d) && w == Weekday::Mon && m == 2)) || ((y < 1971)
-            && (d == 22 || (d == 23 && w == Weekday::Mon) || (d == 21 && w == Weekday::Fri)) && (m == 2))
+        ((y >= 1971) && ((15..=21).contains(&d) && w == Weekday::Mon && m == 2))
+            || ((y < 1971)
+                && (d == 22 || (d == 23 && w == Weekday::Mon) || (d == 21 && w == Weekday::Fri))
+                && (m == 2))
     }
 
     fn is_memorial_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
-        ((y >= 1971)
-            && (d >= 25 && w == Weekday::Mon && m == 5)) || ((y < 1971)
-            && ((d == 30 || (d == 31 && w == Weekday::Mon) || (d == 29 && w == Weekday::Fri)) && m == 5))
+        ((y >= 1971) && (d >= 25 && w == Weekday::Mon && m == 5))
+            || ((y < 1971)
+                && ((d == 30 || (d == 31 && w == Weekday::Mon) || (d == 29 && w == Weekday::Fri))
+                    && m == 5))
     }
 
     fn is_labor_day(&self, date: NaiveDate) -> bool {
@@ -46,24 +48,24 @@ impl UnitedStates {
         // 11 11th, adjusted (before 1970, after 1978)
         // Fourth Monday in 10 (1970 - 1978)
         ((y <= 1970 || y >= 1978)
-            && ((d == 11 || (d == 12 && w == Weekday::Mon) ||
-            (d == 10 && w == Weekday::Fri)) && m == 11)) || ((y > 1970 && y < 1978) &&
-                ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
+            && ((d == 11 || (d == 12 && w == Weekday::Mon) || (d == 10 && w == Weekday::Fri))
+                && m == 11))
+            || ((y > 1970 && y < 1978) && ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
     }
 
     fn is_veterans_day_no_saturday(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
         // 11 11th, adjusted, but no Saturday to Friday (before 1970, after 1978)
         // Fourth Monday in 10 (1970 - 1978)
-        ((y <= 1970 || y >= 1978) &&
-            ((d == 11 || (d == 12 && w == Weekday::Mon)) && m == 11)) || ((y > 1970 && y < 1978) &&
-                ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
+        ((y <= 1970 || y >= 1978) && ((d == 11 || (d == 12 && w == Weekday::Mon)) && m == 11))
+            || ((y > 1970 && y < 1978) && ((22..=28).contains(&d) && w == Weekday::Mon && m == 10))
     }
 
     fn is_juneteenth(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
         (d == 19 || (d == 20 && w == Weekday::Mon) || (d == 18 && w == Weekday::Fri))
-            && m == 6 && y >= 2022
+            && m == 6
+            && y >= 2022
     }
 
     fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
@@ -93,7 +95,8 @@ impl UnitedStates {
             || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday or Friday if Saturday)
             || ((d == 25 || (d == 26 && w == Weekday::Mon) ||
-            (d == 24 && w == Weekday::Fri)) && m == 12) {
+            (d == 24 && w == Weekday::Fri)) && m == 12)
+        {
             false
         } else {
             true
@@ -103,7 +106,7 @@ impl UnitedStates {
     fn libor_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
         if ((d == 5 && w == Weekday::Mon) || (d == 3 && w == Weekday::Fri)) && m == 7 && y >= 2015 {
-            return true
+            return true;
         }
         self.settlement_is_business_day(date)
     }
@@ -130,23 +133,25 @@ impl UnitedStates {
             // Thanksgiving Day (fourth Thursday in November)
             || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday or Friday if Saturday)
-            || ((d == 25 || (d == 26 && w == Weekday::Mon) || (d == 24 && w == Weekday::Fri)) && m == 12){
+            || ((d == 25 || (d == 26 && w == Weekday::Mon) || (d == 24 && w == Weekday::Fri)) && m == 12)
+        {
             return false;
         }
 
         // Martin Luther King's birthday (third Monday in 1)
-        if y >= 1998 && (15..=21).contains(&d) && w == Weekday::Mon && m == 1{
+        if y >= 1998 && (15..=21).contains(&d) && w == Weekday::Mon && m == 1 {
             return false;
         }
 
         // Presidential election days
-        if (y <= 1968 || (y <= 1980 && y % 4 == 0)) && m == 11 && d <= 7 && w == Weekday::Tue{
+        if (y <= 1968 || (y <= 1980 && y % 4 == 0)) && m == 11 && d <= 7 && w == Weekday::Tue {
             return false;
         }
 
         // Special closings
-        if // President Bush's Funeral
-            (y == 2018 && m == 12 && d == 5)
+        if
+        // President Bush's Funeral
+        (y == 2018 && m == 12 && d == 5)
                 // Hurricane Sandy
                 || (y == 2012 && m == 10 && (d == 29 || d == 30))
                 // President Ford's funeral
@@ -187,12 +192,13 @@ impl UnitedStates {
                 // Christmas Eve
                 || ((y == 1954 || y == 1956 || y == 1965)
                 && m == 12 && d == 24)
-        {return false;}
+        {
+            return false;
+        }
 
         true
-
     }
-    
+
     fn government_bond_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
@@ -228,16 +234,18 @@ impl UnitedStates {
         }
 
         // Special closings
-        if // President Bush's Funeral
-            (y == 2018 && m == 12 && d == 5)
+        if
+        // President Bush's Funeral
+        (y == 2018 && m == 12 && d == 5)
                 // Hurricane Sandy
                 || (y == 2012 && m == 10 && (d == 30))
                 // President Reagan's funeral
                 || (y == 2004 && m == 6 && d == 11)
-        { return false; }
+        {
+            return false;
+        }
 
         true
-
     }
 
     fn sofr_is_business_day(&self, date: NaiveDate) -> bool {
@@ -263,9 +271,12 @@ impl UnitedStates {
             // Thanksgiving Day (fourth Thursday in November)
             || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday)
-            || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12){
+            || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12)
+        {
             false
-        } else { true }
+        } else {
+            true
+        }
     }
 
     fn federal_reserve_is_holiday(&self, date: NaiveDate) -> bool {
@@ -293,11 +304,13 @@ impl UnitedStates {
             // Thanksgiving Day (fourth Thursday in November)
             || ((22..=28).contains(&d) && w == Weekday::Thu && m == 11)
             // Christmas (Monday if Sunday)
-            || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12) {
+            || ((d == 25 || (d == 26 && w == Weekday::Mon)) && m == 12)
+        {
             false
-        } else { true }
+        } else {
+            true
+        }
     }
-
 }
 
 impl Calendar for UnitedStates {
@@ -311,6 +324,60 @@ impl Calendar for UnitedStates {
             Some(UnitedStatesMarket::NERC) => self.nerc_is_business_day(date),
             Some(UnitedStatesMarket::FederalReserve) => self.federal_reserve_is_holiday(date),
             None => self.settlement_is_business_day(date),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Calendar;
+    use super::UnitedStates;
+    use super::UnitedStatesMarket;
+    use chrono::{Duration, NaiveDate};
+
+    #[test]
+    fn test_us_sofr_holiday() {
+        // Test all results from 2023-01-01 to 2023-12-31
+        let expected_results_for_2023 = vec![
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, false, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, false, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, false,
+            true, true, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, false, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, false, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, false, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true,
+            false, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, false, true, true, true, true, false, false,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::days(n as i64);
+            let expected = expected_results_for_2023[n as usize];
+            assert_eq!(
+                UnitedStates {
+                    market: Some(UnitedStatesMarket::SOFR)
+                }
+                .is_business_day(target_date),
+                expected
+            );
         }
     }
 }

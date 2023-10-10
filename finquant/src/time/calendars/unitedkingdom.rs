@@ -1,6 +1,6 @@
 // Holidays in United Kingdom.
-use chrono::{NaiveDate, Weekday};
 use crate::time::calendars::Calendar;
+use chrono::{NaiveDate, Weekday};
 
 pub enum UnitedKingdomMarket {
     Settlement,
@@ -34,9 +34,12 @@ impl UnitedKingdom {
             // September 19th, 2022 only (The Queen's Funeral Bank Holiday)
             || (d == 19 && m == 9 && y == 2022)
             // May 8th, 2023 (King Charles III Coronation Bank Holiday)
-            || (d == 8 && m == 5 && y == 2023) {
+            || (d == 8 && m == 5 && y == 2023)
+        {
             true
-        } else { false }
+        } else {
+            false
+        }
     }
     fn basic_is_business_day(&self, date: NaiveDate) -> bool {
         self.is_weekend(date) || self.is_bank_holiday(date)
@@ -79,6 +82,72 @@ impl Calendar for UnitedKingdom {
             Some(UnitedKingdomMarket::Exchange) => self.exchange_is_business_day(date),
             Some(UnitedKingdomMarket::Metals) => self.metals_is_business_day(date),
             None => self.basic_is_business_day(date),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Calendar;
+    use super::UnitedKingdom;
+    use super::UnitedKingdomMarket;
+    use chrono::{Datelike, Duration, NaiveDate};
+
+    #[test]
+    fn test_easter_monday() {
+        let easter_monday_days = UnitedKingdom {
+            market: Some(UnitedKingdomMarket::Exchange),
+        }
+        .easter_monday(2023);
+        assert_eq!(
+            easter_monday_days,
+            NaiveDate::from_ymd_opt(2023, 4, 10).unwrap().ordinal()
+        );
+    }
+
+    #[test]
+    fn test_uk_holiday() {
+        // Test all results from 2023-01-01 to 2023-12-31
+        let expected_results_for_2023 = vec![
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true,
+            false, false, false, false, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, false, true,
+            true, true, true, false, false, false, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, true, true, true, false, false,
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, false, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, false, true, true, true, false, false,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::days(n as i64);
+            let expected = expected_results_for_2023[n as usize];
+            assert_eq!(
+                UnitedKingdom {
+                    market: Some(UnitedKingdomMarket::Exchange)
+                }
+                .is_business_day(target_date),
+                expected
+            );
         }
     }
 }

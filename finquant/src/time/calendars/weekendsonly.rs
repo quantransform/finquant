@@ -1,6 +1,6 @@
 // Holidays for weekends-only.
-use chrono::{NaiveDate};
 use crate::time::calendars::Calendar;
+use chrono::NaiveDate;
 
 pub struct WeekendsOnly;
 
