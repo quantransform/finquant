@@ -1,18 +1,18 @@
-# FinQuant: Open-source (but experimental) rust library for quantitative financial market modelling.
+# FinQuant: Open-source (experimental) rust library for quantitative financial market modelling.
 
 ---
 > **Warning**
 >
 > FinQuant is an experimental project, currently incomplete and not fit for production.
 
-## Roadmaps (not set agenda yet)
+## Roadmaps (no set agenda yet)
 
 1. Basic settings 
    1. Calendar
    2. Day counts
    3. Schedule generator
 2. Forex markets
-   1. Pricer - we want to more than just BS. For example volatility should not be the key inputs but the surface should be.
+   1. Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
       1. Forward
       2. Option
    2. Simulator
