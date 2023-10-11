@@ -1,7 +1,6 @@
-use crate::derivatives::basic::{BasicInfo};
-use serde::{Serialize, Deserialize};
-use crate::derivatives::fx::basic::{FXDerivatives, Underlying, Currency};
-
+use crate::derivatives::basic::BasicInfo;
+use crate::derivatives::fx::basic::{Currency, FXDerivatives, Underlying};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FXForward {
@@ -26,10 +25,10 @@ impl FXDerivatives for FXForward {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
-    use crate::derivatives::basic::{BasicInfo, Style, Direction};
-    use crate::derivatives::fx::basic::{Currency, Underlying};
     use super::FXForward;
+    use crate::derivatives::basic::{BasicInfo, Direction, Style};
+    use crate::derivatives::fx::basic::{Currency, Underlying};
+    use chrono::NaiveDate;
     #[test]
     fn test_fx_forward_serializer() {
         let trade_date = NaiveDate::from_ymd_opt(2023, 10, 11).unwrap();
@@ -50,5 +49,4 @@ mod tests {
         let deserialized: FXForward = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.basic_info.trade_date, trade_date)
     }
-
 }

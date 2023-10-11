@@ -1,5 +1,4 @@
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Underlying {
@@ -12,7 +11,6 @@ pub enum Currency {
     GBP,
     EUR,
     USD,
-
 }
 
 pub trait FXDerivatives {
