@@ -6,10 +6,11 @@ pub enum UnitedKingdomMarket {
     Settlement,
     Exchange,
     Metals,
+    None,
 }
 
 pub struct UnitedKingdom {
-    market: Option<UnitedKingdomMarket>,
+    market: UnitedKingdomMarket,
 }
 
 impl UnitedKingdom {
@@ -78,10 +79,10 @@ impl UnitedKingdom {
 impl Calendar for UnitedKingdom {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {
-            Some(UnitedKingdomMarket::Settlement) => self.settlement_is_business_day(date),
-            Some(UnitedKingdomMarket::Exchange) => self.exchange_is_business_day(date),
-            Some(UnitedKingdomMarket::Metals) => self.metals_is_business_day(date),
-            None => self.basic_is_business_day(date),
+            UnitedKingdomMarket::Settlement => self.settlement_is_business_day(date),
+            UnitedKingdomMarket::Exchange => self.exchange_is_business_day(date),
+            UnitedKingdomMarket::Metals => self.metals_is_business_day(date),
+            UnitedKingdomMarket::None => self.basic_is_business_day(date),
         }
     }
 }
@@ -96,7 +97,7 @@ mod tests {
     #[test]
     fn test_easter_monday() {
         let easter_monday_days = UnitedKingdom {
-            market: Some(UnitedKingdomMarket::Exchange),
+            market: UnitedKingdomMarket::Exchange,
         }
         .easter_monday(2023);
         assert_eq!(
@@ -143,7 +144,7 @@ mod tests {
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(
                 UnitedKingdom {
-                    market: Some(UnitedKingdomMarket::Exchange)
+                    market: UnitedKingdomMarket::Exchange
                 }
                 .is_business_day(target_date),
                 expected

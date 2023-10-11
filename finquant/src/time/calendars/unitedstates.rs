@@ -10,10 +10,11 @@ pub enum UnitedStatesMarket {
     SOFR,
     NERC,
     FederalReserve,
+    None,
 }
 
 pub struct UnitedStates {
-    market: Option<UnitedStatesMarket>,
+    market: UnitedStatesMarket,
 }
 
 impl UnitedStates {
@@ -316,14 +317,14 @@ impl UnitedStates {
 impl Calendar for UnitedStates {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {
-            Some(UnitedStatesMarket::Settlement) => self.settlement_is_business_day(date),
-            Some(UnitedStatesMarket::Libor) => self.libor_is_business_day(date),
-            Some(UnitedStatesMarket::NYSE) => self.nyse_is_business_day(date),
-            Some(UnitedStatesMarket::GovernmentBond) => self.government_bond_is_business_day(date),
-            Some(UnitedStatesMarket::SOFR) => self.sofr_is_business_day(date),
-            Some(UnitedStatesMarket::NERC) => self.nerc_is_business_day(date),
-            Some(UnitedStatesMarket::FederalReserve) => self.federal_reserve_is_holiday(date),
-            None => self.settlement_is_business_day(date),
+            UnitedStatesMarket::Settlement => self.settlement_is_business_day(date),
+            UnitedStatesMarket::Libor => self.libor_is_business_day(date),
+            UnitedStatesMarket::NYSE => self.nyse_is_business_day(date),
+            UnitedStatesMarket::GovernmentBond => self.government_bond_is_business_day(date),
+            UnitedStatesMarket::SOFR => self.sofr_is_business_day(date),
+            UnitedStatesMarket::NERC => self.nerc_is_business_day(date),
+            UnitedStatesMarket::FederalReserve => self.federal_reserve_is_holiday(date),
+            UnitedStatesMarket::None => self.settlement_is_business_day(date),
         }
     }
 }
@@ -373,7 +374,7 @@ mod tests {
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(
                 UnitedStates {
-                    market: Some(UnitedStatesMarket::SOFR)
+                    market: UnitedStatesMarket::SOFR
                 }
                 .is_business_day(target_date),
                 expected
