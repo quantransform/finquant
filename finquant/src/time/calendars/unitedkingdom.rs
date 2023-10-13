@@ -10,7 +10,7 @@ pub enum UnitedKingdomMarket {
 }
 
 pub struct UnitedKingdom {
-    market: UnitedKingdomMarket,
+    pub market: UnitedKingdomMarket,
 }
 
 impl UnitedKingdom {

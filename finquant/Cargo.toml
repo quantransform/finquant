@@ -1,6 +1,6 @@
 [package]
 name = "finquant"
-version = "0.0.8"
+version = "0.0.9"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>"]
 edition = "2021"
 license = "MIT"
