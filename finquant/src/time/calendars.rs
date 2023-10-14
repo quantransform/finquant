@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, Weekday};
+use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
 static EASTER_MONDAY: [u32; 299] = [
     98, 90, 103, 95, 114, 106, 91, 111, 102, // 1901-1909
@@ -48,6 +48,23 @@ pub trait Calendar {
             date.year(),
             date.ordinal(),
         )
+    }
+
+    fn last_day_of_month(&self, date: NaiveDate) -> NaiveDate {
+        let year = date.year();
+        let month = date.month();
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+            .unwrap_or(NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap())
+            .pred_opt()
+            .unwrap()
+    }
+
+    fn end_of_month(&self, date: NaiveDate) -> NaiveDate {
+        let mut last_day_of_month = self.last_day_of_month(date);
+        while !self.is_business_day(last_day_of_month) {
+            last_day_of_month -= Duration::days(1)
+        }
+        last_day_of_month
     }
     fn easter_monday(&self, year: i32) -> u32 {
         EASTER_MONDAY[year as usize - 1901usize]
