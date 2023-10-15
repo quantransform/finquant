@@ -50,6 +50,8 @@ mod tests {
         };
         let serialized = serde_json::to_string(&fx_forward).unwrap();
         let deserialized: FXForward = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(deserialized.basic_info.trade_date, trade_date)
+        assert_eq!(deserialized.basic_info.trade_date, trade_date);
+        assert_eq!(deserialized.notional_currency.to_string(), "Euro");
+        assert_eq!(deserialized.notional_currency.exponent().unwrap(), 2);
     }
 }
