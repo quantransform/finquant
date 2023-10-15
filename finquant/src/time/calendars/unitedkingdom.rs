@@ -6,20 +6,21 @@ pub enum UnitedKingdomMarket {
     Settlement,
     Exchange,
     Metals,
-    None,
 }
 
+#[derive(Default)]
 pub struct UnitedKingdom {
-    pub market: UnitedKingdomMarket,
+    pub market: Option<UnitedKingdomMarket>,
 }
 
 impl UnitedKingdom {
-    fn is_bank_holiday(&self, date: NaiveDate) -> bool {
+    fn special_bank_holiday(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
 
+        if
         // first Monday of May (Early May Bank Holiday)
         // moved to May 8th in 1995 and 2020 for V.E. day
-        if (d <= 7 && w == Weekday::Mon && m == 5 && y != 1995 && y != 2020)
+        (d <= 7 && w == Weekday::Mon && m == 5 && y != 1995 && y != 2020)
             || (d == 8 && m == 5 && (y == 1995 || y == 2020))
             // last Monday of May (Spring Bank Holiday)
             // moved to in 2002, 2012 and 2022 for the Golden, Diamond and Platinum
@@ -42,9 +43,7 @@ impl UnitedKingdom {
             false
         }
     }
-    fn basic_is_business_day(&self, date: NaiveDate) -> bool {
-        self.is_weekend(date) || self.is_bank_holiday(date)
-    }
+
     fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
@@ -55,7 +54,7 @@ impl UnitedKingdom {
             || (dd == em - 3)
             // Easter Monday
             || (dd == em)
-            || self.is_bank_holiday(date)
+            || self.special_bank_holiday(date)
             // Christmas (possibly moved to Monday or Tuesday)
             || ((d == 25 || (d == 27 && (w == Weekday::Mon || w == Weekday::Tue))) && m == 12)
             // Boxing Day (possibly moved to Monday or Tuesday)
@@ -71,7 +70,7 @@ impl UnitedKingdom {
     fn exchange_is_business_day(&self, date: NaiveDate) -> bool {
         self.settlement_is_business_day(date)
     }
-    pub fn metals_is_business_day(&self, date: NaiveDate) -> bool {
+    fn metals_is_business_day(&self, date: NaiveDate) -> bool {
         self.settlement_is_business_day(date)
     }
 }
@@ -79,10 +78,10 @@ impl UnitedKingdom {
 impl Calendar for UnitedKingdom {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {
-            UnitedKingdomMarket::Settlement => self.settlement_is_business_day(date),
-            UnitedKingdomMarket::Exchange => self.exchange_is_business_day(date),
-            UnitedKingdomMarket::Metals => self.metals_is_business_day(date),
-            UnitedKingdomMarket::None => self.basic_is_business_day(date),
+            Some(UnitedKingdomMarket::Settlement) => self.settlement_is_business_day(date),
+            Some(UnitedKingdomMarket::Exchange) => self.exchange_is_business_day(date),
+            Some(UnitedKingdomMarket::Metals) => self.metals_is_business_day(date),
+            None => self.settlement_is_business_day(date),
         }
     }
 }
@@ -97,7 +96,7 @@ mod tests {
     #[test]
     fn test_easter_monday() {
         let easter_monday_days = UnitedKingdom {
-            market: UnitedKingdomMarket::Exchange,
+            market: Some(UnitedKingdomMarket::Exchange),
         }
         .easter_monday(2023);
         assert_eq!(
@@ -143,10 +142,7 @@ mod tests {
             let target_date = first_date + Duration::days(n as i64);
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(
-                UnitedKingdom {
-                    market: UnitedKingdomMarket::Exchange
-                }
-                .is_business_day(target_date),
+                UnitedKingdom::default().is_business_day(target_date),
                 expected
             );
         }

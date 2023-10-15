@@ -1,5 +1,7 @@
-pub(crate) mod actual360;
-pub(crate) mod actual365;
+pub mod actual360;
+
+pub mod actual365fixed;
+pub mod actualactual;
 
 use chrono::NaiveDate;
 

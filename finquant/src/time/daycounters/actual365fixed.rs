@@ -1,9 +1,10 @@
 use crate::time::daycounters::DayCounters;
 use chrono::NaiveDate;
 
-pub struct Actual365;
+#[derive(Default)]
+pub struct Actual365Fixed;
 
-impl DayCounters for Actual365 {
+impl DayCounters for Actual365Fixed {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         let duration = d2 - d1;
         duration.num_days()

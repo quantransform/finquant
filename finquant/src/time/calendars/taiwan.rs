@@ -2,6 +2,7 @@
 use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 
+#[derive(Default)]
 pub struct Taiwan;
 
 impl Calendar for Taiwan {
@@ -452,7 +453,7 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::days(n as i64);
             let expected = expected_results_for_2023[n as usize];
-            assert_eq!(Taiwan.is_business_day(target_date), expected);
+            assert_eq!(Taiwan::default().is_business_day(target_date), expected);
         }
     }
 }

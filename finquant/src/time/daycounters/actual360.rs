@@ -1,6 +1,7 @@
 use crate::time::daycounters::DayCounters;
 use chrono::NaiveDate;
 
+#[derive(Default)]
 pub struct Actual360;
 
 impl DayCounters for Actual360 {

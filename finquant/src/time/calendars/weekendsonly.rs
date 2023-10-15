@@ -2,6 +2,7 @@
 use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 
+#[derive(Default)]
 pub struct WeekendsOnly;
 
 impl Calendar for WeekendsOnly {
@@ -23,7 +24,7 @@ mod tests {
             let target_date = first_date + Duration::days(n as i64);
 
             assert_eq!(
-                WeekendsOnly.is_business_day(target_date),
+                WeekendsOnly::default().is_business_day(target_date),
                 match target_date.weekday() {
                     Weekday::Sat | Weekday::Sun => false,
                     _ => true,

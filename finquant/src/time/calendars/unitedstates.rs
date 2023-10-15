@@ -10,11 +10,11 @@ pub enum UnitedStatesMarket {
     SOFR,
     NERC,
     FederalReserve,
-    None,
 }
 
+#[derive(Default)]
 pub struct UnitedStates {
-    pub market: UnitedStatesMarket,
+    pub market: Option<UnitedStatesMarket>,
 }
 
 impl UnitedStates {
@@ -317,14 +317,14 @@ impl UnitedStates {
 impl Calendar for UnitedStates {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {
-            UnitedStatesMarket::Settlement => self.settlement_is_business_day(date),
-            UnitedStatesMarket::Libor => self.libor_is_business_day(date),
-            UnitedStatesMarket::NYSE => self.nyse_is_business_day(date),
-            UnitedStatesMarket::GovernmentBond => self.government_bond_is_business_day(date),
-            UnitedStatesMarket::SOFR => self.sofr_is_business_day(date),
-            UnitedStatesMarket::NERC => self.nerc_is_business_day(date),
-            UnitedStatesMarket::FederalReserve => self.federal_reserve_is_holiday(date),
-            UnitedStatesMarket::None => self.settlement_is_business_day(date),
+            Some(UnitedStatesMarket::Settlement) => self.settlement_is_business_day(date),
+            Some(UnitedStatesMarket::Libor) => self.libor_is_business_day(date),
+            Some(UnitedStatesMarket::NYSE) => self.nyse_is_business_day(date),
+            Some(UnitedStatesMarket::GovernmentBond) => self.government_bond_is_business_day(date),
+            Some(UnitedStatesMarket::SOFR) => self.sofr_is_business_day(date),
+            Some(UnitedStatesMarket::NERC) => self.nerc_is_business_day(date),
+            Some(UnitedStatesMarket::FederalReserve) => self.federal_reserve_is_holiday(date),
+            None => self.settlement_is_business_day(date),
         }
     }
 }
@@ -339,7 +339,7 @@ mod tests {
     #[test]
     fn test_us_sofr_holiday() {
         // Test all results from 2023-01-01 to 2023-12-31
-        let expected_results_for_2023 = vec![
+        let expected_results_for_2023_sofr = vec![
             false, false, true, true, true, true, false, false, true, true, true, true, true,
             false, false, false, true, true, true, true, false, false, true, true, true, true,
             true, false, false, true, true, true, true, true, false, false, true, true, true, true,
@@ -371,10 +371,10 @@ mod tests {
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
             let target_date = first_date + Duration::days(n as i64);
-            let expected = expected_results_for_2023[n as usize];
+            let expected = expected_results_for_2023_sofr[n as usize];
             assert_eq!(
                 UnitedStates {
-                    market: UnitedStatesMarket::SOFR
+                    market: Some(UnitedStatesMarket::SOFR)
                 }
                 .is_business_day(target_date),
                 expected

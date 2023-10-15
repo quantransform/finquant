@@ -35,6 +35,7 @@ static EASTER_MONDAY: [u32; 299] = [
 
 pub mod all;
 pub mod taiwan;
+pub mod target;
 pub mod unitedkingdom;
 pub mod unitedstates;
 pub mod weekendsonly;

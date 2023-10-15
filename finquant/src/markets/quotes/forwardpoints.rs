@@ -45,7 +45,7 @@ mod tests {
     fn test_settlement_date() {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 3, 29).unwrap();
         let calendar = UnitedKingdom {
-            market: UnitedKingdomMarket::Exchange,
+            market: Some(UnitedKingdomMarket::Exchange),
         };
         assert_eq!(
             FXForwardPoint::SPOT.settlement_date(valuation_date, &calendar),

@@ -1,5 +1,5 @@
 use crate::time::daycounters::actual360::Actual360;
-use crate::time::daycounters::actual365::Actual365;
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ impl FXUnderlying {
     pub fn day_count(&self) -> Box<dyn DayCounters> {
         match self {
             FXUnderlying::EURUSD | FXUnderlying::USDJPY => Box::new(Actual360),
-            _ => Box::new(Actual365),
+            _ => Box::new(Actual365Fixed),
         }
     }
 
