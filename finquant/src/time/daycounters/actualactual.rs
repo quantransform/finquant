@@ -29,7 +29,7 @@ impl ActualActual {
     fn euro_year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> f32 {
         if d1 == d2 {
             0f32
-        }  else {
+        } else {
             let mut new_d2 = d2;
             let mut temp = d2;
             let mut sum = 0f32;

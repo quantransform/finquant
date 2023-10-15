@@ -2,21 +2,10 @@ use crate::time::daycounters::actual360::Actual360;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use chrono::NaiveTime;
+use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::string::ToString;
 use strum_macros::{Display, EnumString};
-
-#[derive(Serialize, Deserialize, Display, EnumString, PartialEq, Debug)]
-pub enum Currency {
-    EUR,
-    GBP,
-    USD,
-    CAD,
-    JPY,
-}
-
-impl Currency {}
 
 #[derive(Serialize, Deserialize, Display, EnumString, Debug)]
 pub enum FXUnderlying {
@@ -52,11 +41,11 @@ impl FXUnderlying {
     }
 
     pub fn dom_currency(&self) -> Currency {
-        Currency::from_str(&self.to_string()[3..]).unwrap()
+        Currency::from_code(&self.to_string()[3..]).unwrap()
     }
 
     pub fn frn_currency(&self) -> Currency {
-        Currency::from_str(&self.to_string()[..3]).unwrap()
+        Currency::from_code(&self.to_string()[..3]).unwrap()
     }
 }
 
@@ -68,14 +57,20 @@ pub trait FXDerivatives {
 
 #[cfg(test)]
 mod tests {
-    use super::Currency;
     use super::FXUnderlying;
+    use iso_currency::Currency;
 
     #[test]
     fn test_dom_frn_currency() {
         let underlying = FXUnderlying::EURUSD;
-        assert_eq!(underlying.dom_currency(), Currency::USD);
-        assert_eq!(underlying.frn_currency(), Currency::EUR);
+        assert_eq!(
+            underlying.dom_currency(),
+            Currency::from_code("USD").unwrap()
+        );
+        assert_eq!(
+            underlying.frn_currency(),
+            Currency::from_code("EUR").unwrap()
+        );
     }
 
     #[test]

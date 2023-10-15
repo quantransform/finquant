@@ -1,5 +1,6 @@
 use crate::derivatives::basic::BasicInfo;
-use crate::derivatives::fx::basic::{Currency, FXDerivatives, FXUnderlying};
+use crate::derivatives::fx::basic::{FXDerivatives, FXUnderlying};
+use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,8 +28,10 @@ impl FXDerivatives for FXForward {
 mod tests {
     use super::FXForward;
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
-    use crate::derivatives::fx::basic::{Currency, FXUnderlying};
+    use crate::derivatives::fx::basic::FXUnderlying;
     use chrono::NaiveDate;
+    use iso_currency::Currency;
+
     #[test]
     fn test_fx_forward_serializer() {
         let trade_date = NaiveDate::from_ymd_opt(2023, 10, 11).unwrap();
@@ -41,7 +44,7 @@ mod tests {
                 delivery_date: NaiveDate::from_ymd_opt(2023, 12, 31).unwrap(),
             },
             asset: FXUnderlying::EURUSD,
-            notional_currency: Currency::EUR,
+            notional_currency: Currency::from_code("EUR").unwrap(),
             notional_amounts: 123456.78,
             strike: 1.0657,
         };
