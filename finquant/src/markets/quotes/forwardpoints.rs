@@ -86,7 +86,7 @@ impl FXForwardHelper {
         calendar: &impl Calendar,
     ) -> Option<f64> {
         if valuation_date >= target_date {
-            return None;
+            None
         } else {
             let mut before_quotes = vec![];
             let mut after_quotes = vec![];
