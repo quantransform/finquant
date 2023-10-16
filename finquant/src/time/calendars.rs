@@ -35,13 +35,18 @@ static EASTER_MONDAY: [u32; 299] = [
 
 pub mod all;
 pub mod joincalendar;
+pub use joincalendar::JoinCalendar;
+
 pub mod taiwan;
+pub use taiwan::Taiwan;
 pub mod target;
+pub use target::Target;
 pub mod unitedkingdom;
+pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
+pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
-
-
+pub use weekendsonly::WeekendsOnly;
 
 pub trait Calendar {
     fn naive_date_to_dkmy(&self, date: NaiveDate) -> (u32, Weekday, u32, i32, u32) {
