@@ -13,13 +13,13 @@
    - [ ] Schedule generator
 2. Forex markets
    - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
-     - [ ] Forward
+     - Forward
        - [x] forward points generator
        - [ ] discount + other pricing
-     - [ ] Option
-   - [ ] Simulator
+     - Option
+   - Simulator
 3. Interest rate markets
    - Pricer
      - [ ] Swap
      - [ ] Cap/Floor
-   - [ ] Simulator
+   - Simulator
