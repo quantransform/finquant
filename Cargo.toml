@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT"
 description = "Experimental Rust Quant Library"
 keywords = ["quant"]
-readme = "../README.md"
+readme = "README.md"
 
 [features]
 
