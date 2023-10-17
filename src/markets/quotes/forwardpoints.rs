@@ -56,7 +56,7 @@ impl FXForwardHelper {
             if quote.tenor.settlement_date(valuation_date, calendar)
                 > final_quote.tenor.settlement_date(valuation_date, calendar)
             {
-                final_quote = &quote;
+                final_quote = quote;
             }
         }
         final_quote
@@ -73,7 +73,7 @@ impl FXForwardHelper {
             if quote.tenor.settlement_date(valuation_date, calendar)
                 < final_quote.tenor.settlement_date(valuation_date, calendar)
             {
-                final_quote = &quote;
+                final_quote = quote;
             }
         }
         final_quote

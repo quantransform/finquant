@@ -1,5 +1,19 @@
-[workspace]
-members = [
-    "finquant",
-]
-resolver = "2"
+[package]
+name = "finquant"
+version = "0.0.12"
+authors = ["Jeremy Wang <j.wang@quantransform.co.uk>"]
+edition = "2021"
+license = "MIT"
+description = "Experimental Rust Quant Library"
+keywords = ["quant"]
+readme = "../README.md"
+
+[features]
+
+[dependencies]
+chrono = { version = "^0.4.31", features = ["serde"] }
+iso_currency = { version = "0.4.4", features = ["with-serde"] }
+serde = { version = "^1.0.189", features = ["derive"] }
+serde_json = "^1.0.107"
+strum = "0.25.0"
+strum_macros = "^0.25.3"
