@@ -109,7 +109,7 @@ impl FXForwardHelper {
 #[cfg(test)]
 mod tests {
     use super::{FXForwardHelper, FXForwardQuote};
-    use crate::time::calendars::JoinCalendar;
+    use crate::time::calendars::JointCalendar;
     use crate::time::calendars::Target;
     use crate::time::calendars::UnitedKingdom;
     use crate::time::calendars::UnitedStates;
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_settlement_date_gbpusd() {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap();
-        let calendar = JoinCalendar {
+        let calendar = JointCalendar {
             c1: UnitedStates::default(),
             c2: UnitedKingdom::default(),
         };
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn test_forward_points() {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
-        let calendar = JoinCalendar::new(UnitedStates::default(), UnitedKingdom::default());
+        let calendar = JointCalendar::new(UnitedStates::default(), UnitedKingdom::default());
 
         let fx_forward_helper = FXForwardHelper {
             quotes: vec![
