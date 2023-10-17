@@ -34,8 +34,8 @@ static EASTER_MONDAY: [u32; 299] = [
 ];
 
 pub mod all;
-pub mod joincalendar;
-pub use joincalendar::JoinCalendar;
+pub mod jointcalendar;
+pub use jointcalendar::JointCalendar;
 
 pub mod taiwan;
 pub use taiwan::Taiwan;
