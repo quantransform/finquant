@@ -1,6 +1,18 @@
-# FinQuant: Open-source (experimental) rust library for quantitative financial market modelling.
+<div align="center">
+
+# FinQuant
+
+**Open-source (experimental) rust library for quantitative financial market modelling.**
+
+[![CI](https://github.com/quantransform/finquant/actions/workflows/rust.yml/badge.svg)](https://github.com/quantransform/finquant/actions/workflows/rust.yml)
+[![crates-badge]](https://crates.io/crates/finquant)
+[![docs-badge]](https://docs.rs/finquant)
+[![Crates.io](https://img.shields.io/crates/l/finquant)](LICENSE)
+
+</div>
 
 ---
+
 > **Warning**
 >
 > FinQuant is an experimental project, currently incomplete and not fit for production.
@@ -23,3 +35,7 @@
      - [ ] Swap
      - [ ] Cap/Floor
    - Simulator
+
+
+[crates-badge]: https://img.shields.io/crates/v/finquant.svg
+[docs-badge]: https://docs.rs/finquant/badge.svg
