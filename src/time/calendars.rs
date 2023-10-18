@@ -36,7 +36,10 @@ static EASTER_MONDAY: [u32; 299] = [
 pub mod all;
 pub mod jointcalendar;
 pub use jointcalendar::JointCalendar;
-
+pub mod australia;
+pub use australia::Australia;
+pub mod japan;
+pub use japan::Japan;
 pub mod taiwan;
 pub use taiwan::Taiwan;
 pub mod target;
@@ -46,6 +49,7 @@ pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
 pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
+
 pub use weekendsonly::WeekendsOnly;
 
 pub trait Calendar {

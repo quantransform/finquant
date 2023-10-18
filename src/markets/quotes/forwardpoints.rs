@@ -1,13 +1,13 @@
 use crate::time::calendars::Calendar;
-use crate::time::period::Periods;
+use crate::time::period::Period;
 use chrono::{Duration, NaiveDate};
 
 pub struct FXForwardQuote {
-    pub tenor: Periods,
+    pub tenor: Period,
     pub value: f64,
 }
 
-impl Periods {
+impl Period {
     pub fn settlement_date(
         &self,
         valuation_date: NaiveDate,
@@ -15,7 +15,7 @@ impl Periods {
     ) -> NaiveDate {
         // TODO: Change spot as T+2 to be linked to currency.
         let target_date = match self {
-            Periods::ON => valuation_date,
+            Period::ON => valuation_date,
             _ => valuation_date + Duration::days(2),
         };
         let mut settlement_date = target_date + *self;
@@ -111,7 +111,7 @@ mod tests {
     use crate::time::calendars::Target;
     use crate::time::calendars::UnitedKingdom;
     use crate::time::calendars::UnitedStates;
-    use crate::time::period::Periods;
+    use crate::time::period::Period;
     use chrono::NaiveDate;
     use std::f64;
 
@@ -120,67 +120,67 @@ mod tests {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 3, 29).unwrap();
         let calendar = Target::default();
         assert_eq!(
-            Periods::SPOT.settlement_date(valuation_date, &calendar),
+            Period::SPOT.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 3, 31).unwrap()
         );
         assert_eq!(
-            Periods::SN.settlement_date(valuation_date, &calendar),
+            Period::SN.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 4, 3).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(1).settlement_date(valuation_date, &calendar),
+            Period::Weeks(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 4, 11).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(2).settlement_date(valuation_date, &calendar),
+            Period::Weeks(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 4, 14).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(3).settlement_date(valuation_date, &calendar),
+            Period::Weeks(3).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 4, 21).unwrap()
         );
         assert_eq!(
-            Periods::Months(1).settlement_date(valuation_date, &calendar),
+            Period::Months(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 4, 28).unwrap()
         );
         assert_eq!(
-            Periods::Months(2).settlement_date(valuation_date, &calendar),
+            Period::Months(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 5, 31).unwrap()
         );
         assert_eq!(
-            Periods::Months(3).settlement_date(valuation_date, &calendar),
+            Period::Months(3).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 6, 30).unwrap()
         );
         assert_eq!(
-            Periods::Months(4).settlement_date(valuation_date, &calendar),
+            Period::Months(4).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 7, 31).unwrap()
         );
         assert_eq!(
-            Periods::Months(5).settlement_date(valuation_date, &calendar),
+            Period::Months(5).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 8, 31).unwrap()
         );
         assert_eq!(
-            Periods::Months(6).settlement_date(valuation_date, &calendar),
+            Period::Months(6).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 9, 29).unwrap()
         );
         assert_eq!(
-            Periods::Months(9).settlement_date(valuation_date, &calendar),
+            Period::Months(9).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 12, 29).unwrap()
         );
         assert_eq!(
-            Periods::Years(1).settlement_date(valuation_date, &calendar),
+            Period::Years(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 3, 28).unwrap()
         );
         assert_eq!(
-            Periods::Months(15).settlement_date(valuation_date, &calendar),
+            Period::Months(15).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 6, 28).unwrap()
         );
         assert_eq!(
-            Periods::Months(18).settlement_date(valuation_date, &calendar),
+            Period::Months(18).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 9, 30).unwrap()
         );
         assert_eq!(
-            Periods::Years(2).settlement_date(valuation_date, &calendar),
+            Period::Years(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2025, 3, 31).unwrap()
         );
     }
@@ -194,72 +194,72 @@ mod tests {
         };
 
         assert_eq!(
-            Periods::ON.settlement_date(valuation_date, &calendar),
+            Period::ON.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 10, 17).unwrap()
         );
 
         assert_eq!(
-            Periods::SPOT.settlement_date(valuation_date, &calendar),
+            Period::SPOT.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
         );
         assert_eq!(
-            Periods::SN.settlement_date(valuation_date, &calendar),
+            Period::SN.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 10, 19).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(1).settlement_date(valuation_date, &calendar),
+            Period::Weeks(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 10, 25).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(2).settlement_date(valuation_date, &calendar),
+            Period::Weeks(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 11, 1).unwrap()
         );
         assert_eq!(
-            Periods::Weeks(3).settlement_date(valuation_date, &calendar),
+            Period::Weeks(3).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 11, 8).unwrap()
         );
         assert_eq!(
-            Periods::Months(1).settlement_date(valuation_date, &calendar),
+            Period::Months(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 11, 20).unwrap()
         );
         assert_eq!(
-            Periods::Months(2).settlement_date(valuation_date, &calendar),
+            Period::Months(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 12, 18).unwrap()
         );
         assert_eq!(
-            Periods::Months(3).settlement_date(valuation_date, &calendar),
+            Period::Months(3).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 1, 18).unwrap()
         );
         assert_eq!(
-            Periods::Months(4).settlement_date(valuation_date, &calendar),
+            Period::Months(4).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 2, 20).unwrap()
         );
         assert_eq!(
-            Periods::Months(5).settlement_date(valuation_date, &calendar),
+            Period::Months(5).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 3, 18).unwrap()
         );
         assert_eq!(
-            Periods::Months(6).settlement_date(valuation_date, &calendar),
+            Period::Months(6).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 4, 18).unwrap()
         );
         assert_eq!(
-            Periods::Months(9).settlement_date(valuation_date, &calendar),
+            Period::Months(9).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 7, 18).unwrap()
         );
         assert_eq!(
-            Periods::Years(1).settlement_date(valuation_date, &calendar),
+            Period::Years(1).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2024, 10, 18).unwrap()
         );
         assert_eq!(
-            Periods::Months(15).settlement_date(valuation_date, &calendar),
+            Period::Months(15).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2025, 1, 21).unwrap()
         );
         assert_eq!(
-            Periods::Months(18).settlement_date(valuation_date, &calendar),
+            Period::Months(18).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2025, 4, 22).unwrap()
         );
         assert_eq!(
-            Periods::Years(2).settlement_date(valuation_date, &calendar),
+            Period::Years(2).settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2025, 10, 20).unwrap()
         );
     }
@@ -272,55 +272,55 @@ mod tests {
         let fx_forward_helper = FXForwardHelper {
             quotes: vec![
                 FXForwardQuote {
-                    tenor: Periods::SPOT,
+                    tenor: Period::SPOT,
                     value: 0f64,
                 },
                 FXForwardQuote {
-                    tenor: Periods::SN,
+                    tenor: Period::SN,
                     value: 0.06,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Weeks(1),
+                    tenor: Period::Weeks(1),
                     value: 0.39,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Weeks(2),
+                    tenor: Period::Weeks(2),
                     value: 0.85,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Weeks(3),
+                    tenor: Period::Weeks(3),
                     value: 1.24,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(1),
+                    tenor: Period::Months(1),
                     value: 1.83,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(2),
+                    tenor: Period::Months(2),
                     value: 3.40,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(3),
+                    tenor: Period::Months(3),
                     value: 8.05,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(4),
+                    tenor: Period::Months(4),
                     value: 9.94,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(5),
+                    tenor: Period::Months(5),
                     value: 11.54,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(6),
+                    tenor: Period::Months(6),
                     value: 13.12,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Months(9),
+                    tenor: Period::Months(9),
                     value: 15.87,
                 },
                 FXForwardQuote {
-                    tenor: Periods::Years(1),
+                    tenor: Period::Years(1),
                     value: 16.18,
                 },
             ],
