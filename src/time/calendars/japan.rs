@@ -35,7 +35,7 @@ impl Calendar for Japan {
             || (d == 3  && m == 1)
             // Coming of Age Day (2nd Weekday::Mon in 1),
             // was 1 15th until 2000
-            || (w == Weekday::Mon && (d >= 8 && d <= 14) && m == 1
+            || (w == Weekday::Mon && (8..=14).contains(&d) && m == 1
             && y >= 2000)
             || ((d == 15 || (d == 16 && w == Weekday::Mon)) && m == 1
             && y < 2000)
@@ -46,7 +46,7 @@ impl Calendar for Japan {
             && y >= 2020)
             // Emperor's Birthday (Emperor Akihito)
             || ((d == 23 || (d == 24 && w == Weekday::Mon)) && m == 12
-            && (y >= 1989 && y < 2019))
+            && (1989..2019).contains(&y))
             // Vernal Equinox
             || ((d == ve || (d == ve+1 && w == Weekday::Mon)) && m == 3)
             // Greenery Day
@@ -64,28 +64,28 @@ impl Calendar for Japan {
             // was 7 20th until 2003, not a holiday before 1996,
             // 7 23rd in 2020 due to Olympics games
             // 7 22nd in 2021 due to Olympics games
-            || (w == Weekday::Mon && (d >= 15 && d <= 21) && m == 7
-            && ((y >= 2003 && y < 2020) || y >= 2022))
+            || (w == Weekday::Mon && (15..=21).contains(&d) && m == 7
+            && ((2003..2020).contains(&y) || y >= 2022))
             || ((d == 20 || (d == 21 && w == Weekday::Mon)) && m == 7
-            && y >= 1996 && y < 2003)
+            && (1996..2003).contains(&y))
             || (d == 23 && m == 7 && y == 2020)
             || (d == 22 && m == 7 && y == 2021)
             // Mountain Day
             // (moved in 2020 due to Olympics games)
             // (moved in 2021 due to Olympics games)
             || ((d == 11 || (d == 12 && w == Weekday::Mon)) && m == 8
-            && ((y >= 2016 && y < 2020) || y >= 2022))
+            && ((2016..2020).contains(&y) || y >= 2022))
             || (d == 10 && m == 8 && y == 2020)
             || (d == 9 && m == 8 && y == 2021)
             // Respect for the Aged Day (3rd Weekday::Mon in 9),
             // was 9 15th until 2003
-            || (w == Weekday::Mon && (d >= 15 && d <= 21) && m == 9
+            || (w == Weekday::Mon && (15..=21).contains(&d) && m == 9
             && y >= 2003)
             || ((d == 15 || (d == 16 && w == Weekday::Mon)) && m == 9
             && y < 2003)
             // If a single day falls between Respect for the Aged Day
             // and the Autumnal Equinox, it is holiday
-            || (w == Weekday::Tue && d+1 == ae && d >= 16 && d <= 22
+            || (w == Weekday::Tue && d+1 == ae && (16..=22).contains(&d)
             && m == 9 && y >= 2003)
             // Autumnal Equinox
             || ((d == ae || (d == ae+1 && w == Weekday::Mon)) && m == 9)
@@ -93,8 +93,8 @@ impl Calendar for Japan {
             // was 10 10th until 2000,
             // 7 24th in 2020 due to Olympics games
             // 7 23rd in 2021 due to Olympics games
-            || (w == Weekday::Mon && (d >= 8 && d <= 14) && m == 10
-            && ((y >= 2000 && y < 2020) || y >= 2022))
+            || (w == Weekday::Mon && (8..=14).contains(&d) && m == 10
+            && ((2000..2020).contains(&y) || y >= 2022))
             || ((d == 10 || (d == 11 && w == Weekday::Mon)) && m == 10
             && y < 2000)
             || (d == 24 && m == 7 && y == 2020)
