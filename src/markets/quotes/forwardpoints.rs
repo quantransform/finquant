@@ -36,7 +36,7 @@ pub struct FXForwardHelper {
 impl FXForwardHelper {
     fn closest_before<'a>(
         &self,
-        quotes: &'a Vec<&FXForwardQuote>,
+        quotes: &'a [&FXForwardQuote],
         valuation_date: NaiveDate,
         calendar: &impl Calendar,
     ) -> &'a FXForwardQuote {
@@ -53,7 +53,7 @@ impl FXForwardHelper {
 
     fn closest_after<'a>(
         &self,
-        quotes: &'a Vec<&FXForwardQuote>,
+        quotes: &'a [&FXForwardQuote],
         valuation_date: NaiveDate,
         calendar: &impl Calendar,
     ) -> &'a FXForwardQuote {
@@ -87,9 +87,7 @@ impl FXForwardHelper {
                     after_quotes.push(quote);
                 }
             }
-            if before_quotes.is_empty() {
-                None
-            } else if after_quotes.is_empty() {
+            if before_quotes.is_empty() || after_quotes.is_empty() {
                 None
             } else {
                 let before_quote = self.closest_before(&before_quotes, valuation_date, calendar);
