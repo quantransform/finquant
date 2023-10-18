@@ -20,7 +20,25 @@
 ## Roadmap (no set agenda yet)
 
 1. Basic settings 
-   - [x] Calendar - supports Australia, Japan, JointCalendar, Taiwan, Target, UnitedKingdom, UnitedStates, WeekendsOnly.
+   - [x] Calendar - supporting 
+     - Australia,
+     - Brazil,
+     - Canada,
+     - China,
+     - Japan
+     - JointCalendar,
+     - Mexico,
+     - New Zealand,
+     - South Korea,
+     - Sweden,
+     - Switzerland,
+     - Taiwan,
+     - Target, 
+     - Thailand,
+     - Turkey,
+     - UnitedKingdom,
+     - UnitedStates, and
+     - WeekendsOnly.
    - [x] Day counts - supports Actual360, Actual365Fixed, ActualActual.
    - [ ] Schedule generator
 2. Forex markets

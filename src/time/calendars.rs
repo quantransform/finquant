@@ -34,16 +34,39 @@ static EASTER_MONDAY: [u32; 299] = [
 ];
 
 pub mod all;
-pub mod jointcalendar;
-pub use jointcalendar::JointCalendar;
+
 pub mod australia;
 pub use australia::Australia;
+pub mod brazil;
+pub use brazil::Brazil;
+pub mod canada;
+pub use canada::Canada;
+pub mod china;
+pub use china::China;
+
 pub mod japan;
 pub use japan::Japan;
+pub mod jointcalendar;
+pub use jointcalendar::JointCalendar;
+pub mod mexico;
+pub use mexico::Mexico;
+pub mod newzealand;
+pub use newzealand::NewZealand;
+
+pub mod southkorea;
+pub use southkorea::SouthKorea;
+pub mod sweden;
+pub use sweden::Sweden;
+pub mod switzerland;
+pub use switzerland::Switzerland;
 pub mod taiwan;
 pub use taiwan::Taiwan;
 pub mod target;
 pub use target::Target;
+pub mod thailand;
+pub use thailand::Thailand;
+pub mod turkey;
+pub use turkey::Turkey;
 pub mod unitedkingdom;
 pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;

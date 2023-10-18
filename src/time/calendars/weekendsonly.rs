@@ -24,11 +24,8 @@ mod tests {
             let target_date = first_date + Duration::days(n as i64);
 
             assert_eq!(
-                WeekendsOnly::default().is_business_day(target_date),
-                match target_date.weekday() {
-                    Weekday::Sat | Weekday::Sun => false,
-                    _ => true,
-                }
+                WeekendsOnly.is_business_day(target_date),
+                !matches!(target_date.weekday(), Weekday::Sat | Weekday::Sun)
             );
         }
     }

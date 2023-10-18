@@ -1,7 +1,7 @@
 [package]
 name = "finquant"
-version = "0.0.14"
-authors = ["Jeremy Wang <j.wang@quantransform.co.uk>"]
+version = "0.0.15"
+authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 edition = "2021"
 license = "MIT"
 description = "Experimental Rust Quant Library"
