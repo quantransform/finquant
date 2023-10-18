@@ -46,15 +46,10 @@ impl Australia {
     }
     fn extra_holiday(&self, date: NaiveDate) -> bool {
         let (d, w, m, _, _) = self.naive_date_to_dkmy(date);
-        if
+
         // Bank Holiday, first Weekday::Mon in August
         // Labour Day, first Weekday::Mon in October
         (m == 10 || m == 8) && w == Weekday::Mon && d <= 7
-        {
-            true
-        } else {
-            false
-        }
     }
     fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
         !(self.shared_holiday(date) | self.extra_holiday(date))
