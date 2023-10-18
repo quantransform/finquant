@@ -55,7 +55,7 @@ impl Australia {
         !(self.shared_holiday(date) | self.extra_holiday(date))
     }
     fn asx_is_business_day(&self, date: NaiveDate) -> bool {
-        !self.extra_holiday(date)
+        !self.shared_holiday(date)
     }
 }
 

@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn test_settlement_date_target() {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 3, 29).unwrap();
-        let calendar = Target::default();
+        let calendar = Target;
         assert_eq!(
             Period::SPOT.settlement_date(valuation_date, &calendar),
             NaiveDate::from_ymd_opt(2023, 3, 31).unwrap()
