@@ -11,35 +11,32 @@ impl Calendar for Denmark {
         let em = self.easter_monday(y);
 
         if self.is_weekend(date)
-            // New Year's Day
-            || (d == 1 && m == 1)
+            // Maunday Thursday
+            || (dd == em-4)
             // Good Friday
-            || (dd == em - 3 && y >= 2016)
+            || (dd == em-3)
             // Easter Monday
             || (dd == em)
-            // Labour Day
-            || (d == 1 && m == 5)
-            // Liberation Day
-            || (d == 8 && m == 5)
-            // SS. Cyril and Methodius
-            || (d == 5 && m == 7)
-            // Jan Hus Day
-            || (d == 6 && m == 7)
-            // Czech Statehood Day
-            || (d == 28 && m == 9)
-            // Independence Day
-            || (d == 28 && m == 10)
-            // Struggle for Freedom and Democracy Day
-            || (d == 17 && m == 11)
+            // General Prayer Day
+            || (dd == em+25 && y <= 2023)
+            // Ascension
+            || (dd == em+38)
+            // Day after Ascension
+            || (dd == em+39 && y >= 2009)
+            // Whit Monday
+            || (dd == em+49)
+            // New Year's Day
+            || (d == 1  && m == 1)
+            // Constitution Day, 6 5th
+            || (d == 5  && m == 6)
             // Christmas Eve
             || (d == 24 && m == 12)
             // Christmas
             || (d == 25 && m == 12)
-            // St. Stephen
+            // Boxing Day
             || (d == 26 && m == 12)
-            // unidentified closing days for stock exchange
-            || (d == 2 && m == 1 && y == 2004)
-            || (d == 31 && m == 12 && y == 2004)
+            // New Year's Eve
+            || (d == 31 && m == 12)
         {
             false
         } else {

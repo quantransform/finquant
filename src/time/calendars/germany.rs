@@ -99,14 +99,14 @@ impl Calendar for Germany {
             Some(GermanyMarket::Xetra) => self.frankfurt_stock_exchange_is_business_day(date),
             Some(GermanyMarket::Eurex) => self.eurex_is_business_day(date),
             Some(GermanyMarket::Euwax) => self.euwax_is_business_day(date),
-            None => self.settlement_is_business_day(date),
+            None => self.frankfurt_stock_exchange_is_business_day(date),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Germany;
+    use super::{Germany, GermanyMarket};
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
 
@@ -146,7 +146,14 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::days(n as i64);
             let expected = expected_results_for_2023[n as usize];
-            assert_eq!(Germany::default().is_business_day(target_date), expected);
+            println!("{}", target_date);
+            assert_eq!(
+                Germany {
+                    market: Some(GermanyMarket::FrankfurtStockExchange)
+                }
+                .is_business_day(target_date),
+                expected
+            );
         }
     }
 }
