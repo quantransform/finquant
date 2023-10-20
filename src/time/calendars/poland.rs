@@ -1,77 +1,80 @@
-// Holidays in Switzerland.
+// Holidays in Poland.
 
 use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 
 #[derive(Default)]
-pub struct Switzerland;
+pub struct Poland;
 
-impl Calendar for Switzerland {
+impl Calendar for Poland {
     fn is_business_day(&self, date: NaiveDate) -> bool {
-        let (d, _, m, y, dd) = self.naive_date_to_dkmy(date);
+        let (d, _w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
 
         if self.is_weekend(date)
-            // New Year's Day
-            || (d == 1  && m == 1)
-            // Berchtoldstag
-            || (d == 2  && m == 1)
-            // Good Friday
-            || (dd == em-3)
             // Easter Monday
             || (dd == em)
-            // Ascension Day
-            || (dd == em+38)
-            // Whit Monday
-            || (dd == em+49)
-            // Labour Day
+            // Corpus Christi
+            || (dd == em+59)
+            // New Year's Day
+            || (d == 1  && m == 1)
+            // Epiphany
+            || (d == 6  && m == 1 && y >= 2011)
+            // 5 Day
             || (d == 1  && m == 5)
-            // National Day
-            || (d == 1  && m == 8)
+            // Constitution Day
+            || (d == 3  && m == 5)
+            // Assumption of the Blessed Virgin Mary
+            || (d == 15  && m == 8)
+            // All Saints Day
+            || (d == 1  && m == 11)
+            // Independence Day
+            || (d ==11  && m == 11)
             // Christmas
             || (d == 25 && m == 12)
-            // St. Stephen's Day
+            // 2nd Day of Christmas
             || (d == 26 && m == 12)
         {
-            return false;
+            false
+        } else {
+            true
         }
-        true
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Switzerland;
+    use super::Poland;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
 
     #[test]
-    fn test_switzerland_holiday() {
+    fn test_poland_holiday() {
         // Test all results from 2023-01-01 to 2023-12-31
         let expected_results_for_2023 = vec![
-            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, true, true, true, true, false, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
-            false, false, true, true, true, true, true, false, false, true, true, true, true,
-            false, false, false, false, true, true, true, true, false, false, true, true, true,
-            true, true, false, false, true, true, true, true, true, false, false, false, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, false, true, false,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, false, true, false, false, true, true,
             true, true, true, false, false, true, true, true, true, true, false, false, true, true,
-            true, false, true, false, false, true, true, true, true, true, false, false, false,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, false, true, true, true, false, false, true,
             true, true, true, true, false, false, true, true, true, true, true, false, false, true,
             true, true, true, true, false, false, true, true, true, true, true, false, false, true,
             true, true, true, true, false, false, true, true, true, true, true, false, false, true,
             true, true, true, true, false, false, true, true, true, true, true, false, false, true,
-            true, true, true, true, false, false, true, false, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
-            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, false, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
@@ -81,7 +84,7 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::days(n as i64);
             let expected = expected_results_for_2023[n as usize];
-            assert_eq!(Switzerland.is_business_day(target_date), expected);
+            assert_eq!(Poland.is_business_day(target_date), expected);
         }
     }
 }

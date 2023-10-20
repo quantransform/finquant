@@ -1,12 +1,13 @@
 [package]
 name = "finquant"
-version = "0.0.15"
+version = "0.0.16"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 edition = "2021"
 license = "MIT"
 description = "Experimental Rust Quant Library"
-keywords = ["quant"]
+keywords = ["quant", "calendar", "forex", "fx", "forward"]
 readme = "README.md"
+repository = "https://github.com/quantransform/finquant"
 
 [features]
 
