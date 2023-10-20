@@ -146,7 +146,6 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::days(n as i64);
             let expected = expected_results_for_2023[n as usize];
-            println!("{}", target_date);
             assert_eq!(
                 Germany {
                     market: Some(GermanyMarket::FrankfurtStockExchange)
