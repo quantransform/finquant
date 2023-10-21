@@ -1,3 +1,4 @@
+use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
 static EASTER_MONDAY: [u32; 299] = [
@@ -150,7 +151,6 @@ pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
 pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
-
 pub use weekendsonly::WeekendsOnly;
 
 pub trait Calendar {
@@ -193,4 +193,56 @@ pub trait Calendar {
         matches!(weekday, Weekday::Sat | Weekday::Sun)
     }
     fn is_business_day(&self, date: NaiveDate) -> bool;
+
+    fn adjust(&self, date: NaiveDate, bdc: BusinessDayConvention) -> Option<NaiveDate> {
+        if bdc == BusinessDayConvention::Unadjusted {
+            return Some(date);
+        }
+
+        let mut d1 = date;
+
+        if bdc == BusinessDayConvention::Following
+            || bdc == BusinessDayConvention::ModifiedFollowing
+            || bdc == BusinessDayConvention::HalfMonthModifiedFollowing
+        {
+            while !self.is_business_day(d1) {
+                d1 += Duration::days(1);
+            }
+            if (bdc == BusinessDayConvention::ModifiedFollowing
+                || bdc == BusinessDayConvention::HalfMonthModifiedFollowing)
+                && d1.month() != date.month()
+            {
+                return self.adjust(date, BusinessDayConvention::Preceding);
+            }
+            if bdc == BusinessDayConvention::HalfMonthModifiedFollowing
+                && date.day() <= 15
+                && d1.day() > 15
+            {
+                return self.adjust(date, BusinessDayConvention::Preceding);
+            }
+        } else if bdc == BusinessDayConvention::Preceding
+            || bdc == BusinessDayConvention::ModifiedPreceding
+        {
+            while !self.is_business_day(d1) {
+                d1 -= Duration::days(1);
+            }
+            if bdc == BusinessDayConvention::ModifiedPreceding && d1.month() != date.month() {
+                return self.adjust(date, BusinessDayConvention::Following);
+            }
+        } else if bdc == BusinessDayConvention::Nearest {
+            let mut d2 = date;
+            while !self.is_business_day(d1) && !self.is_business_day(d2) {
+                d1 += Duration::days(1);
+                d2 -= Duration::days(1);
+            }
+            if !self.is_business_day(d1) {
+                return Some(d1);
+            } else {
+                return Some(d2);
+            }
+        } else {
+            return None;
+        }
+        Some(d1)
+    }
 }

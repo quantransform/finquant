@@ -1,7 +1,8 @@
 use chrono::{Duration, Months, NaiveDate};
+use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Period {
     ON,
     SPOT,
