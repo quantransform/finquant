@@ -1,6 +1,7 @@
 // Holidays in Chile.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -63,6 +64,7 @@ impl Calendar for Chile {
 mod tests {
     use super::Chile;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

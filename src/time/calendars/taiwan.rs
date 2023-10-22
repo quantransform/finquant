@@ -1,5 +1,6 @@
 // Holidays in Taiwan.
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -415,6 +416,7 @@ impl Calendar for Taiwan {
 mod tests {
     use super::Taiwan;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

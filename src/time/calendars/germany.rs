@@ -1,6 +1,7 @@
 // Holidays in Germany.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 pub enum GermanyMarket {
@@ -108,6 +109,7 @@ impl Calendar for Germany {
 mod tests {
     use super::{Germany, GermanyMarket};
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

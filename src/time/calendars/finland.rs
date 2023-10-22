@@ -1,6 +1,7 @@
 // Holidays in Finland.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -46,6 +47,7 @@ impl Calendar for Finland {
 mod tests {
     use super::Finland;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

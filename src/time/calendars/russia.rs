@@ -1,6 +1,7 @@
 // Holidays in Russia.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 pub enum RussiaMarket {
@@ -141,6 +142,7 @@ impl Calendar for Russia {
 mod tests {
     use super::Russia;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

@@ -1,6 +1,7 @@
 // Holidays in South Africa.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -67,6 +68,7 @@ impl Calendar for SouthAfrica {
 mod tests {
     use super::SouthAfrica;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

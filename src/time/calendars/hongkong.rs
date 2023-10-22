@@ -1,6 +1,7 @@
 // Holidays in .
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -373,6 +374,7 @@ impl Calendar for HongKong {
 mod tests {
     use super::HongKong;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

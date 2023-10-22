@@ -1,5 +1,6 @@
 // Holidays in United Kingdom.
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 pub enum UnitedKingdomMarket {

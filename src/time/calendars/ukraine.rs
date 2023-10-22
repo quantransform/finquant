@@ -1,6 +1,7 @@
 // Holidays in Ukraine.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]

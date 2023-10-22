@@ -1,6 +1,7 @@
 // Holidays in Turkey.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -296,6 +297,7 @@ impl Calendar for Turkey {
 mod tests {
     use super::Turkey;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
     #[test]
     fn test_turkey_holiday() {

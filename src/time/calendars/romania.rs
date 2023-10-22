@@ -1,6 +1,7 @@
 // Holidays in Romania.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -48,6 +49,7 @@ impl Calendar for Romania {
 mod tests {
     use super::Romania;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

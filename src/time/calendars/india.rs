@@ -1,6 +1,7 @@
 // Holidays in India.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -431,6 +432,7 @@ impl Calendar for India {
 mod tests {
     use super::India;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

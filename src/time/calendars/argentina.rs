@@ -1,6 +1,7 @@
 // Holidays in Argentina.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -48,6 +49,7 @@ impl Calendar for Argentina {
 mod tests {
     use super::Argentina;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

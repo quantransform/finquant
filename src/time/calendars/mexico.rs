@@ -1,6 +1,7 @@
 // Holidays in Mexico.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -49,6 +50,7 @@ impl Calendar for Mexico {
 mod tests {
     use super::Mexico;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

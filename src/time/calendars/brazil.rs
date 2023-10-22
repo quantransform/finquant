@@ -1,6 +1,7 @@
 // Holidays in Brazil.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::{NaiveDate, Weekday};
 
 pub enum BrazilMarket {
@@ -106,6 +107,7 @@ impl Calendar for Brazil {
 mod tests {
     use super::Brazil;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

@@ -1,6 +1,7 @@
 // Holidays in Norway.
 
 use crate::time::calendars::Calendar;
+use serde::Serialize;
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -46,6 +47,7 @@ impl Calendar for Norway {
 mod tests {
     use super::Norway;
     use crate::time::calendars::Calendar;
+use serde::Serialize;
     use chrono::{Duration, NaiveDate};
 
     #[test]

@@ -1,2 +1,2 @@
-pub mod ir;
-pub mod quotes;
+pub mod forex;
+pub mod interestrate;
