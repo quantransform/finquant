@@ -1,7 +1,7 @@
 // Holidays in South Korea.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -229,8 +229,8 @@ impl Calendar for SouthKorea {
 mod tests {
     use super::SouthKorea;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_south_korea_holiday() {

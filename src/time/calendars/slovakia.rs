@@ -1,7 +1,7 @@
 // Holidays in Slovakia.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -57,8 +57,8 @@ impl Calendar for Slovakia {
 mod tests {
     use super::Slovakia;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_slovakia_holiday() {

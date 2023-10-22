@@ -1,7 +1,7 @@
 // Holidays in Singapore.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -190,8 +190,8 @@ impl Calendar for Singapore {
 mod tests {
     use super::Singapore;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_singapore_holiday() {

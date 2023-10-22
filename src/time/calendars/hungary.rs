@@ -1,7 +1,7 @@
 // Holidays in Hungary.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -50,8 +50,8 @@ impl Calendar for Hungary {
 mod tests {
     use super::Hungary;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_hungary_holiday() {

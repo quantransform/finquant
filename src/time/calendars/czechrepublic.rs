@@ -1,7 +1,7 @@
 // Holidays in Czech Republic.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -54,8 +54,8 @@ impl Calendar for CzechRepublic {
 mod tests {
     use super::CzechRepublic;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_czech_republic_holiday() {

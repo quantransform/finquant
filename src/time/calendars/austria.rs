@@ -1,7 +1,7 @@
 // Holidays in Austria.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 pub enum AustriaMarket {
@@ -100,8 +100,8 @@ impl Calendar for Austria {
 mod tests {
     use super::Austria;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_austria_holiday() {

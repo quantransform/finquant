@@ -1,6 +1,6 @@
 // Holidays - Target.
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -38,8 +38,8 @@ impl Calendar for Target {
 mod tests {
     use super::Target;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_target_holiday() {

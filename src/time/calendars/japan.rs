@@ -1,7 +1,7 @@
 // Holidays in Japan.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -135,8 +135,8 @@ impl Calendar for Japan {
 mod tests {
     use super::Japan;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_japan_holiday() {

@@ -1,6 +1,5 @@
 use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
-use serde::Serialize;
 
 static EASTER_MONDAY: [u32; 299] = [
     98, 90, 103, 95, 114, 106, 91, 111, 102, // 1901-1909

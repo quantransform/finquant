@@ -1,7 +1,7 @@
 // Holidays in New Zealand.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -73,8 +73,8 @@ impl Calendar for NewZealand {
 mod tests {
     use super::NewZealand;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_mexico_holiday() {

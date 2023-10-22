@@ -1,7 +1,7 @@
 // Holidays in Thailand.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -285,8 +285,8 @@ impl Calendar for Thailand {
 mod tests {
     use super::Thailand;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
     #[test]
     fn test_thailand_holiday() {
         // Test all results from 2023-01-01 to 2023-12-31

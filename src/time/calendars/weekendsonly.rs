@@ -1,6 +1,6 @@
 // Holidays for weekends-only.
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -16,8 +16,8 @@ impl Calendar for WeekendsOnly {
 mod tests {
     use super::WeekendsOnly;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Datelike, Duration, NaiveDate, Weekday};
+    use serde::Serialize;
 
     #[test]
     fn test_weekends_only() {

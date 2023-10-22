@@ -1,7 +1,7 @@
 // Holidays in Switzerland.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -44,8 +44,8 @@ impl Calendar for Switzerland {
 mod tests {
     use super::Switzerland;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_switzerland_holiday() {

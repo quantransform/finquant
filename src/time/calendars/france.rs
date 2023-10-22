@@ -1,7 +1,7 @@
 // Holidays in France.
 
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::NaiveDate;
 
 pub enum FranceMarket {
@@ -91,8 +91,8 @@ impl Calendar for France {
 mod tests {
     use super::France;
     use crate::time::calendars::Calendar;
-use serde::Serialize;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_france_holiday() {

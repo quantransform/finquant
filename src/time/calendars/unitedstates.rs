@@ -1,6 +1,6 @@
 // Holidays in United States.
 use crate::time::calendars::Calendar;
-use serde::Serialize;
+
 use chrono::{NaiveDate, Weekday};
 
 pub enum UnitedStatesMarket {
