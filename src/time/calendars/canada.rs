@@ -1,6 +1,7 @@
 // Holidays in Canada.
 
 use crate::time::calendars::Calendar;
+
 use chrono::{NaiveDate, Weekday};
 
 pub enum CanadaMarket {
@@ -81,6 +82,7 @@ mod tests {
     use super::Canada;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_canada_holiday() {

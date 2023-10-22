@@ -67,7 +67,6 @@ static ORTHODOX_EASTER_MONDAY: [u32; 299] = [
     116, 108, 128, 119, 104, 124, 116, 100, 120, 112, // 2190-2199
 ];
 
-pub mod all;
 pub mod argentina;
 pub use argentina::Argentina;
 pub mod austria;

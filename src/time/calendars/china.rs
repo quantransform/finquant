@@ -1,5 +1,6 @@
 // Holidays in China.
 use crate::time::calendars::Calendar;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -156,6 +157,7 @@ mod tests {
     use super::China;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_china_holiday() {

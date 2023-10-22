@@ -1,5 +1,5 @@
 use crate::derivatives::basic::BasicInfo;
-use crate::derivatives::fx::basic::{FXDerivatives, FXUnderlying};
+use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ impl FXDerivatives for FXForward {
 mod tests {
     use super::FXForward;
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
-    use crate::derivatives::fx::basic::FXUnderlying;
+    use crate::derivatives::forex::basic::FXUnderlying;
     use chrono::NaiveDate;
     use iso_currency::Currency;
 

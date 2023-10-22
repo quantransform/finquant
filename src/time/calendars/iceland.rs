@@ -1,6 +1,7 @@
 // Holidays in Iceland.
 
 use crate::time::calendars::Calendar;
+
 use chrono::{NaiveDate, Weekday};
 
 #[derive(Default)]
@@ -48,6 +49,7 @@ mod tests {
     use super::Iceland;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_iceland_holiday() {

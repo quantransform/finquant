@@ -1,6 +1,7 @@
 // Holidays in Indonesia.
 
 use crate::time::calendars::Calendar;
+
 use chrono::NaiveDate;
 
 #[derive(Default)]
@@ -232,6 +233,7 @@ mod tests {
     use super::Indonesia;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
+    use serde::Serialize;
 
     #[test]
     fn test_indonesia_holiday() {
