@@ -10,7 +10,7 @@ impl DayCounters for Actual365Fixed {
         duration.num_days()
     }
 
-    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> f32 {
-        self.day_count(d1, d2) as f32 / 365.0
+    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> f64 {
+        self.day_count(d1, d2) as f64 / 365.0
     }
 }

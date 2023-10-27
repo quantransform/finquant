@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 // IR Cash Rates.
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::unitedkingdom::UnitedKingdomMarket;
@@ -11,17 +12,18 @@ use iso_currency::Currency;
 use iso_currency::Currency::{AUD, EUR, GBP, USD};
 
 #[allow(clippy::upper_case_acronyms)]
-pub enum CashRateIndex {
+pub enum InterestRateIndexEnum {
     AONIA,
     CDOR(Period),
+    EONIA,
     ESTR,
     EUIBOR(Period),
     SONIA,
     SOFR,
 }
 
-pub struct CashRate {
-    pub period: Option<Period>,
+pub struct InterestRateIndex {
+    pub period: Period,
     pub settlement_days: i32,
     pub currency: Currency,
     pub calendar: Box<dyn Calendar>,
@@ -30,11 +32,11 @@ pub struct CashRate {
     pub end_of_month: bool,
 }
 
-impl CashRate {
-    pub fn from_enum(code: CashRateIndex) -> Option<CashRate> {
+impl InterestRateIndex {
+    pub fn from_enum(code: InterestRateIndexEnum) -> Option<InterestRateIndex> {
         match code {
-            CashRateIndex::AONIA => Some(CashRate {
-                period: None,
+            InterestRateIndexEnum::AONIA => Some(InterestRateIndex {
+                period: Period::SPOT,
                 settlement_days: 0,
                 currency: AUD,
                 calendar: Box::<Austria>::default(),
@@ -42,8 +44,8 @@ impl CashRate {
                 day_counter: Box::new(Actual365Fixed),
                 end_of_month: false,
             }),
-            CashRateIndex::CDOR(period) => Some(CashRate {
-                period: Some(period),
+            InterestRateIndexEnum::CDOR(period) => Some(InterestRateIndex {
+                period,
                 settlement_days: 0,
                 currency: USD,
                 calendar: Box::new(UnitedStates {
@@ -53,8 +55,8 @@ impl CashRate {
                 day_counter: Box::new(Actual360),
                 end_of_month: false,
             }),
-            CashRateIndex::ESTR => Some(CashRate {
-                period: None,
+            InterestRateIndexEnum::EONIA => Some(InterestRateIndex {
+                period: Period::SPOT,
                 settlement_days: 0,
                 currency: EUR,
                 calendar: Box::<Target>::default(),
@@ -62,9 +64,18 @@ impl CashRate {
                 day_counter: Box::new(Actual360),
                 end_of_month: false,
             }),
-            CashRateIndex::EUIBOR(period) => match period {
-                Period::Days(_) | Period::Weeks(_) => Some(CashRate {
-                    period: Some(period),
+            InterestRateIndexEnum::ESTR => Some(InterestRateIndex {
+                period: Period::SPOT,
+                settlement_days: 0,
+                currency: EUR,
+                calendar: Box::<Target>::default(),
+                convention: BusinessDayConvention::ModifiedFollowing,
+                day_counter: Box::new(Actual360),
+                end_of_month: false,
+            }),
+            InterestRateIndexEnum::EUIBOR(period) => match period {
+                Period::Days(_) | Period::Weeks(_) => Some(InterestRateIndex {
+                    period,
                     settlement_days: 2,
                     currency: EUR,
                     calendar: Box::<Target>::default(),
@@ -72,8 +83,8 @@ impl CashRate {
                     day_counter: Box::new(Actual360),
                     end_of_month: false,
                 }),
-                _ => Some(CashRate {
-                    period: Some(period),
+                _ => Some(InterestRateIndex {
+                    period,
                     settlement_days: 2,
                     currency: EUR,
                     calendar: Box::<Target>::default(),
@@ -82,8 +93,8 @@ impl CashRate {
                     end_of_month: false,
                 }),
             },
-            CashRateIndex::SOFR => Some(CashRate {
-                period: None,
+            InterestRateIndexEnum::SOFR => Some(InterestRateIndex {
+                period: Period::SPOT,
                 settlement_days: 0,
                 currency: USD,
                 calendar: Box::new(UnitedStates {
@@ -93,8 +104,8 @@ impl CashRate {
                 day_counter: Box::new(Actual360),
                 end_of_month: false,
             }),
-            CashRateIndex::SONIA => Some(CashRate {
-                period: None,
+            InterestRateIndexEnum::SONIA => Some(InterestRateIndex {
+                period: Period::SPOT,
                 settlement_days: 0,
                 currency: GBP,
                 calendar: Box::new(UnitedKingdom {
@@ -105,5 +116,16 @@ impl CashRate {
                 end_of_month: false,
             }),
         }
+    }
+
+    pub fn maturity_date(&self, value_date: NaiveDate) -> NaiveDate {
+        self.calendar
+            .advance(
+                value_date,
+                self.period,
+                self.convention,
+                Some(self.end_of_month),
+            )
+            .unwrap()
     }
 }

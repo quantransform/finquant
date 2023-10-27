@@ -136,7 +136,6 @@ mod tests {
     use super::Japan;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
-    use serde::Serialize;
 
     #[test]
     fn test_japan_holiday() {
