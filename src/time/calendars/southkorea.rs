@@ -230,7 +230,6 @@ mod tests {
     use super::SouthKorea;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
-    use serde::Serialize;
 
     #[test]
     fn test_south_korea_holiday() {

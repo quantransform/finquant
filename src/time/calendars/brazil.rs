@@ -108,7 +108,6 @@ mod tests {
     use super::Brazil;
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
-    use serde::Serialize;
 
     #[test]
     fn test_brazil_holiday() {

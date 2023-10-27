@@ -110,7 +110,6 @@ mod tests {
     use super::{Germany, GermanyMarket};
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
-    use serde::Serialize;
 
     #[test]
     fn test_germany_holiday() {

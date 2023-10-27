@@ -150,6 +150,7 @@ pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
 pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
+use crate::time::period::Period;
 pub use weekendsonly::WeekendsOnly;
 
 pub trait Calendar {
@@ -234,14 +235,35 @@ pub trait Calendar {
                 d1 += Duration::days(1);
                 d2 -= Duration::days(1);
             }
-            if !self.is_business_day(d1) {
-                return Some(d1);
+            return if !self.is_business_day(d1) {
+                Some(d1)
             } else {
-                return Some(d2);
-            }
+                Some(d2)
+            };
         } else {
             return None;
         }
         Some(d1)
+    }
+
+    fn advance(
+        &self,
+        date: NaiveDate,
+        period: Period,
+        bdc: BusinessDayConvention,
+        end_of_month: Option<bool>,
+    ) -> Option<NaiveDate> {
+        let end_of_month = end_of_month.unwrap_or(false);
+        let advance_date = date + period;
+        match period {
+            Period::Months(_) | Period::Years(_) => {
+                if end_of_month {
+                    Some(self.end_of_month(self.adjust(advance_date, bdc).unwrap()))
+                } else {
+                    self.adjust(advance_date, bdc)
+                }
+            }
+            _ => self.adjust(advance_date, bdc),
+        }
     }
 }
