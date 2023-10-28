@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_imm_month() {
-        assert_eq!(IMMMonth::iter().nth(5).unwrap().to_string(), "K");
+        assert_eq!(IMMMonth::iter().nth(5).unwrap().to_string(), "M");
     }
     #[test]
     fn test_imm_code() {
