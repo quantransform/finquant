@@ -1,5 +1,3 @@
-use chrono::NaiveDate;
-// IR Cash Rates.
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::unitedkingdom::UnitedKingdomMarket;
 use crate::time::calendars::unitedstates::UnitedStatesMarket;
@@ -8,6 +6,7 @@ use crate::time::daycounters::actual360::Actual360;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
+use chrono::NaiveDate;
 use iso_currency::Currency;
 use iso_currency::Currency::{AUD, EUR, GBP, USD};
 
@@ -24,7 +23,7 @@ pub enum InterestRateIndexEnum {
 
 pub struct InterestRateIndex {
     pub period: Period,
-    pub settlement_days: i32,
+    pub settlement_days: i64,
     pub currency: Currency,
     pub calendar: Box<dyn Calendar>,
     pub convention: BusinessDayConvention,
@@ -118,14 +117,41 @@ impl InterestRateIndex {
         }
     }
 
-    pub fn maturity_date(&self, value_date: NaiveDate) -> NaiveDate {
+    fn value_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         self.calendar
             .advance(
-                value_date,
+                valuation_date,
+                Period::Days(self.settlement_days),
+                self.convention,
+                Some(self.end_of_month),
+            )
+            .unwrap()
+    }
+
+    pub fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+        self.calendar
+            .advance(
+                self.value_date(valuation_date),
                 self.period,
                 self.convention,
                 Some(self.end_of_month),
             )
             .unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{InterestRateIndex, InterestRateIndexEnum};
+    use crate::time::period::Period;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn test_maturity_date() {
+        let interest_rate_index =
+            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
+        let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 25).unwrap();
+        let maturity_date = interest_rate_index.maturity_date(valuation_date);
+        assert_eq!(maturity_date, NaiveDate::from_ymd_opt(2024, 1, 29).unwrap());
     }
 }
