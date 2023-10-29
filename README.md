@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/quantransform/finquant/actions/workflows/rust.yml/badge.svg)](https://github.com/quantransform/finquant/actions/workflows/rust.yml)
 [![crates-badge]](https://crates.io/crates/finquant)
+[![codecov](https://codecov.io/gh/quantransform/finquant/graph/badge.svg?token=OPV4906JPO)](https://codecov.io/gh/quantransform/finquant)
 [![docs-badge]](https://docs.rs/finquant)
 [![Crates.io](https://img.shields.io/crates/l/finquant)](LICENSE)
 
