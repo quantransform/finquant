@@ -7,5 +7,5 @@ pub struct FuturesRate {
     pub imm_code: &'static str,
     pub convexity_adjustment: bool,
     pub futures_spec: InterestRateFutures,
-    pub overnight_index: InterestRateIndex,
+    pub interest_rate_index: InterestRateIndex,
 }

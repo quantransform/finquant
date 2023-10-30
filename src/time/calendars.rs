@@ -1,5 +1,6 @@
 use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
+use std::fmt::Debug;
 
 static EASTER_MONDAY: [u32; 299] = [
     98, 90, 103, 95, 114, 106, 91, 111, 102, // 1901-1909
@@ -153,7 +154,7 @@ pub mod weekendsonly;
 use crate::time::period::Period;
 pub use weekendsonly::WeekendsOnly;
 
-pub trait Calendar {
+pub trait Calendar: Debug {
     fn naive_date_to_dkmy(&self, date: NaiveDate) -> (u32, Weekday, u32, i32, u32) {
         (
             date.day(),

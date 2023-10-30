@@ -8,14 +8,14 @@ use chrono::NaiveDate;
 
 pub struct OISRate {
     pub value: f64,
-    pub overnight_index: InterestRateIndex,
+    pub interest_rate_index: InterestRateIndex,
 }
 
 impl YieldTermStructure for OISRate {
     fn discount(&self, valuation_date: NaiveDate) -> f64 {
-        let expire_date = self.overnight_index.maturity_date(valuation_date);
+        let expire_date = self.interest_rate_index.maturity_date(valuation_date);
         let year_fraction = self
-            .overnight_index
+            .interest_rate_index
             .day_counter
             .year_fraction(valuation_date, expire_date);
         1.0 / (1.0 + year_fraction * self.value)
@@ -23,7 +23,7 @@ impl YieldTermStructure for OISRate {
 
     fn zero_rate(&self, valuation_date: NaiveDate) -> f64 {
         let discount = self.discount(valuation_date);
-        let expire_date = self.overnight_index.maturity_date(valuation_date);
+        let expire_date = self.interest_rate_index.maturity_date(valuation_date);
         let year_fraction = Actual365Fixed.year_fraction(valuation_date, expire_date);
         -discount.ln() / year_fraction
     }
@@ -47,7 +47,7 @@ mod tests {
     fn test_discount() {
         let ois_quote = OISRate {
             value: 0.03938,
-            overnight_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
             ))
             .unwrap(),

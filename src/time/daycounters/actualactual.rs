@@ -1,11 +1,11 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, Duration, Months, NaiveDate};
-
+#[derive(Debug)]
 pub enum ActualActualMarket {
     Isda,
     Euro,
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ActualActual {
     pub market: Option<ActualActualMarket>,
 }

@@ -3,7 +3,7 @@ use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Taiwan;
 
 impl Calendar for Taiwan {
