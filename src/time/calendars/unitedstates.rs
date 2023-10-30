@@ -2,7 +2,7 @@
 use crate::time::calendars::Calendar;
 
 use chrono::{NaiveDate, Weekday};
-
+#[derive(Debug)]
 pub enum UnitedStatesMarket {
     Settlement,
     Libor,
@@ -13,7 +13,7 @@ pub enum UnitedStatesMarket {
     FederalReserve,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct UnitedStates {
     pub market: Option<UnitedStatesMarket>,
 }

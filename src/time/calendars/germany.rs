@@ -3,7 +3,7 @@
 use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
-
+#[derive(Debug)]
 pub enum GermanyMarket {
     Settlement,
     FrankfurtStockExchange,
@@ -12,7 +12,7 @@ pub enum GermanyMarket {
     Euwax,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Germany {
     pub market: Option<GermanyMarket>,
 }

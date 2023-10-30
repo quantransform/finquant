@@ -4,7 +4,7 @@ use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CzechRepublic;
 
 impl Calendar for CzechRepublic {

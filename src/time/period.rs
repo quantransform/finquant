@@ -1,6 +1,6 @@
 use chrono::{Duration, Months, NaiveDate};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Period {
@@ -41,6 +41,22 @@ impl Sub<Period> for NaiveDate {
             Period::Weeks(num) => self - Duration::days(num * 7),
             Period::Months(num) => self - Months::new(num),
             Period::Years(num) => self - Months::new(num * 12),
+        }
+    }
+}
+
+impl Mul<Period> for u32 {
+    type Output = Period;
+
+    fn mul(self, rhs: Period) -> Self::Output {
+        match rhs {
+            Period::ON => Period::ON,
+            Period::SPOT => Period::SPOT,
+            Period::SN => Period::SN,
+            Period::Days(num) => Period::Days(num * self as i64),
+            Period::Weeks(num) => Period::Weeks(num * self as i64),
+            Period::Months(num) => Period::Months(num * self),
+            Period::Years(num) => Period::Years(num * self),
         }
     }
 }

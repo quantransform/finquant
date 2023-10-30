@@ -2,7 +2,7 @@ use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct JointCalendar<T1: Calendar, T2: Calendar> {
     pub c1: T1,
     pub c2: T2,

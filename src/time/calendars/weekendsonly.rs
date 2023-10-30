@@ -3,7 +3,7 @@ use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct WeekendsOnly;
 
 impl Calendar for WeekendsOnly {

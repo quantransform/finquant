@@ -2,14 +2,14 @@
 use crate::time::calendars::Calendar;
 
 use chrono::{NaiveDate, Weekday};
-
+#[derive(Debug)]
 pub enum UnitedKingdomMarket {
     Settlement,
     Exchange,
     Metals,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct UnitedKingdom {
     pub market: Option<UnitedKingdomMarket>,
 }

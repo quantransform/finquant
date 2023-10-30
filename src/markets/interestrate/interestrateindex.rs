@@ -11,6 +11,7 @@ use iso_currency::Currency;
 use iso_currency::Currency::{AUD, EUR, GBP, USD};
 
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug)]
 pub enum InterestRateIndexEnum {
     AONIA,
     CDOR(Period),
@@ -21,6 +22,7 @@ pub enum InterestRateIndexEnum {
     SOFR,
 }
 
+#[derive(Debug)]
 pub struct InterestRateIndex {
     pub period: Period,
     pub settlement_days: i64,

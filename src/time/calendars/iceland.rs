@@ -4,7 +4,7 @@ use crate::time::calendars::Calendar;
 
 use chrono::{NaiveDate, Weekday};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Iceland;
 
 impl Calendar for Iceland {
