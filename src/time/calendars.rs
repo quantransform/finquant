@@ -155,7 +155,6 @@ use crate::time::period::Period;
 pub use weekendsonly::WeekendsOnly;
 
 pub trait Calendar: Debug {
-
     fn naive_date_to_dkmy(&self, date: NaiveDate) -> (u32, Weekday, u32, i32, u32) {
         (
             date.day(),
@@ -301,7 +300,7 @@ pub trait Calendar: Debug {
 mod tests {
     use super::UnitedKingdom;
     use crate::time::calendars::Calendar;
-    use chrono::{Duration, NaiveDate};
+    use chrono::NaiveDate;
 
     #[test]
     fn test_business_days_between() {

@@ -5,7 +5,7 @@ use chrono::{Datelike, NaiveDate};
 
 #[derive(Debug)]
 pub struct Business252 {
-    calendar: Box<dyn Calendar>
+    calendar: Box<dyn Calendar>,
 }
 
 impl Business252 {
