@@ -1,5 +1,6 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, Duration, Months, NaiveDate};
+
 #[derive(Debug)]
 pub enum ActualActualMarket {
     Isda,

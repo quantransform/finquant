@@ -25,7 +25,7 @@ impl FXUnderlying {
     pub fn day_count(&self) -> Box<dyn DayCounters> {
         match self {
             FXUnderlying::EURUSD | FXUnderlying::USDJPY => Box::new(Actual360),
-            _ => Box::new(Actual365Fixed),
+            _ => Box::<Actual365Fixed>::default(),
         }
     }
 

@@ -267,4 +267,47 @@ pub trait Calendar: Debug {
             _ => self.adjust(advance_date, bdc),
         }
     }
+
+    fn business_days_between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+        include_first: Option<bool>,
+        include_last: Option<bool>,
+    ) -> i64 {
+        if from > to {
+            return -self.business_days_between(to, from, include_first, include_last);
+        }
+        let include_first = include_first.unwrap_or(true);
+        let include_last = include_last.unwrap_or(false);
+        let mut day_count = 0;
+        let day_diff = ((to + Duration::days(if include_last { 1 } else { 0 }))
+            - (from + Duration::days(if include_first { 1 } else { 0 })))
+        .num_days();
+        for date in (from + Duration::days(if include_first { 1 } else { 0 }))
+            .iter_days()
+            .take(day_diff as usize)
+        {
+            if self.is_business_day(date) {
+                day_count += 1;
+            }
+        }
+        day_count
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UnitedKingdom;
+    use crate::time::calendars::Calendar;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn test_business_days_between() {
+        let calendar = UnitedKingdom::default();
+        let from = NaiveDate::from_ymd_opt(2023, 4, 1).unwrap();
+        let to = NaiveDate::from_ymd_opt(2023, 4, 30).unwrap();
+        assert_eq!(calendar.business_days_between(from, to, None, None,), 18);
+        assert_eq!(calendar.business_days_between(to, from, None, None,), -18);
+    }
 }
