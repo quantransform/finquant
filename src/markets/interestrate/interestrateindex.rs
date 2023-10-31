@@ -42,7 +42,7 @@ impl InterestRateIndex {
                 currency: AUD,
                 calendar: Box::<Austria>::default(),
                 convention: BusinessDayConvention::ModifiedFollowing,
-                day_counter: Box::new(Actual365Fixed),
+                day_counter: Box::<Actual365Fixed>::default(),
                 end_of_month: false,
             }),
             InterestRateIndexEnum::CDOR(period) => Some(InterestRateIndex {
@@ -113,7 +113,7 @@ impl InterestRateIndex {
                     market: Some(UnitedKingdomMarket::Exchange),
                 }),
                 convention: BusinessDayConvention::ModifiedFollowing,
-                day_counter: Box::new(Actual365Fixed),
+                day_counter: Box::<Actual365Fixed>::default(),
                 end_of_month: false,
             }),
         }

@@ -24,7 +24,7 @@ impl YieldTermStructure for OISRate {
     fn zero_rate(&self, valuation_date: NaiveDate) -> f64 {
         let discount = self.discount(valuation_date);
         let expire_date = self.interest_rate_index.maturity_date(valuation_date);
-        let year_fraction = Actual365Fixed.year_fraction(valuation_date, expire_date);
+        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, expire_date);
         -discount.ln() / year_fraction
     }
 
