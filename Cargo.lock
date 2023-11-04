@@ -67,15 +67,22 @@ checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
 
 [[package]]
 name = "finquant"
-version = "0.0.23"
+version = "0.0.24"
 dependencies = [
  "chrono",
+ "float_eq",
  "iso_currency",
  "serde",
  "serde_json",
  "strum",
  "strum_macros",
 ]
+
+[[package]]
+name = "float_eq"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28a80e3145d8ad11ba0995949bbcf48b9df2be62772b3d351ef017dff6ecb853"
 
 [[package]]
 name = "heck"
