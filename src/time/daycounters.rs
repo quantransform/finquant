@@ -37,6 +37,9 @@ mod tests {
             Actual365Fixed::default().year_fraction_to_date(reference_date, 365f64 / 365f64),
             target_date
         );
-        assert_eq!(Actual365Fixed::default().year_fraction(reference_date, target_date), 1f64);
+        assert_eq!(
+            Actual365Fixed::default().year_fraction(reference_date, target_date),
+            1f64
+        );
     }
 }
