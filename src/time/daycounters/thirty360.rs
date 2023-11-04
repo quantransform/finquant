@@ -174,7 +174,7 @@ mod tests {
     use chrono::NaiveDate;
 
     #[test]
-    fn test_day_counter_actual_364() {
+    fn test_day_counter_thirty_360() {
         let d1 = NaiveDate::from_ymd_opt(2023, 2, 1).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 3, 1).unwrap();
         assert_eq!(Thirty360::default().day_count(d1, d2), 30);
