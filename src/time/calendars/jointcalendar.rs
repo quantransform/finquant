@@ -3,7 +3,6 @@ use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct JointCalendar<T1: Calendar, T2: Calendar> {
     pub c1: T1,
