@@ -1,5 +1,3 @@
-// OIS Rate.
-
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::YieldTermStructure;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;

@@ -1,25 +1,13 @@
+use crate::derivatives::interestrate::swap::InterestRateSwapLeg;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
-use crate::time::businessdayconvention::BusinessDayConvention;
-use crate::time::calendars::Calendar;
-use crate::time::daycounters::DayCounters;
-use crate::time::frequency::Frequency;
 use crate::time::period::Period;
 use chrono::NaiveDate;
-
-#[derive(Debug)]
-pub struct InterestRateLeg {
-    pub calendar: Box<dyn Calendar>,
-    pub frequency: Frequency,
-    pub tenor: Period,
-    pub convention: BusinessDayConvention,
-    pub day_counter: Box<dyn DayCounters>,
-}
 
 #[derive(Debug)]
 pub struct InterestRateSwap {
     pub interest_rate_index: InterestRateIndex,
     pub settlement_days: i64,
-    pub fixed_leg: InterestRateLeg,
+    pub fixed_leg: InterestRateSwapLeg,
 }
 
 #[derive(Debug)]
@@ -77,7 +65,8 @@ impl InterestRateSwap {
 
 #[cfg(test)]
 mod tests {
-    use super::{InterestRateLeg, InterestRateSwap};
+    use super::InterestRateSwap;
+    use crate::derivatives::interestrate::swap::InterestRateSwapLeg;
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
     };
@@ -87,6 +76,7 @@ mod tests {
     use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
+
     #[test]
     fn test_schedule() {
         let irs = InterestRateSwap {
@@ -95,7 +85,7 @@ mod tests {
             ))
             .unwrap(),
             settlement_days: 2,
-            fixed_leg: InterestRateLeg {
+            fixed_leg: InterestRateSwapLeg {
                 calendar: Box::<Target>::default(),
                 frequency: Frequency::Annual,
                 tenor: Period::Years(3),
