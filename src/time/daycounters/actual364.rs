@@ -1,9 +1,11 @@
 use crate::time::daycounters::DayCounters;
 use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Actual364;
 
+#[typetag::serialize]
 impl DayCounters for Actual364 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         let duration = d2 - d1;

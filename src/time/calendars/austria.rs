@@ -3,13 +3,15 @@
 use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum AustriaMarket {
     Settlement,
     Exchange,
 }
 
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Austria {
     pub market: Option<AustriaMarket>,
 }
@@ -86,6 +88,7 @@ impl Austria {
     }
 }
 
+#[typetag::serialize]
 impl Calendar for Austria {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         match self.market {

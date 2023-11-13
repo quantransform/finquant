@@ -2,10 +2,12 @@
 use crate::time::calendars::Calendar;
 
 use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct WeekendsOnly;
 
+#[typetag::serialize]
 impl Calendar for WeekendsOnly {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         !self.is_weekend(date)

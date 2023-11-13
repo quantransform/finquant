@@ -1,9 +1,11 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, NaiveDate};
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Thirty365;
 
+#[typetag::serialize]
 impl DayCounters for Thirty365 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         let dd1 = d1.day() as i64;
