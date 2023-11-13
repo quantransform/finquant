@@ -181,6 +181,7 @@ pub trait Calendar: Debug {
         }
         last_day_of_month
     }
+
     fn easter_monday(&self, year: i32) -> u32 {
         EASTER_MONDAY[year as usize - 1901usize]
     }
@@ -193,6 +194,7 @@ pub trait Calendar: Debug {
         let weekday = date.weekday();
         matches!(weekday, Weekday::Sat | Weekday::Sun)
     }
+
     fn is_business_day(&self, date: NaiveDate) -> bool;
 
     fn adjust(&self, date: NaiveDate, bdc: BusinessDayConvention) -> Option<NaiveDate> {
