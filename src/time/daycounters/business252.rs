@@ -2,8 +2,9 @@ use crate::time::calendars::Calendar;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period::Months;
 use chrono::{Datelike, NaiveDate};
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct Business252 {
     calendar: Box<dyn Calendar>,
 }
@@ -14,6 +15,7 @@ impl Business252 {
     }
 }
 
+#[typetag::serialize]
 impl DayCounters for Business252 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         if self.same_month(d1, d2) || d1 > d2 {

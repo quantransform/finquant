@@ -1,15 +1,17 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, NaiveDate};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Actual365FixedMarket {
     Standard,
     NoLeap,
 }
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Actual365Fixed {
     market: Option<Actual365FixedMarket>,
 }
+
 impl Actual365Fixed {
     fn regular_day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         let duration = d2 - d1;
@@ -31,6 +33,8 @@ impl Actual365Fixed {
         s2 - s1
     }
 }
+
+#[typetag::serialize]
 impl DayCounters for Actual365Fixed {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         match self.market {

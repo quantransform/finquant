@@ -154,6 +154,7 @@ pub mod weekendsonly;
 use crate::time::period::Period;
 pub use weekendsonly::WeekendsOnly;
 
+#[typetag::serialize(tag = "type")]
 pub trait Calendar: Debug {
     fn naive_date_to_dkmy(&self, date: NaiveDate) -> (u32, Weekday, u32, i32, u32) {
         (

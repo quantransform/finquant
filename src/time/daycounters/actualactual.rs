@@ -1,12 +1,13 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, Duration, Months, NaiveDate};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ActualActualMarket {
     Isda,
     Euro,
 }
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct ActualActual {
     pub market: Option<ActualActualMarket>,
 }
@@ -60,6 +61,8 @@ impl ActualActual {
         }
     }
 }
+
+#[typetag::serialize]
 impl DayCounters for ActualActual {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         let duration = d2 - d1;

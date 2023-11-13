@@ -1,8 +1,9 @@
 use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, NaiveDate};
+use serde::{Deserialize, Serialize};
 
 #[warn(clippy::upper_case_acronyms)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Thirty360Market {
     USA,
     European,
@@ -12,7 +13,7 @@ pub enum Thirty360Market {
     German(NaiveDate),
     NASD,
 }
-#[derive(Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Thirty360 {
     market: Option<Thirty360Market>,
 }
@@ -145,6 +146,7 @@ impl Thirty360 {
     }
 }
 
+#[typetag::serialize]
 impl DayCounters for Thirty360 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
         match self.market.as_ref().unwrap_or(&Thirty360Market::USA) {
