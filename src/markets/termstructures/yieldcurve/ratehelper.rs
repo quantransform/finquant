@@ -14,13 +14,13 @@ pub struct FuturesRate {
 }
 
 impl FuturesRate {
-    pub fn value_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+    pub fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         IMM.date(self.imm_code, Some(valuation_date)).unwrap()
     }
 
     pub fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         self.futures_spec
-            .maturity_date(self.value_date(valuation_date))
+            .maturity_date(self.settle_date(valuation_date))
     }
 }
 
@@ -52,7 +52,7 @@ mod tests {
     use chrono::NaiveDate;
 
     #[test]
-    fn test_value_date_and_maturity_date() {
+    fn test_settle_date_and_maturity_date() {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 25).unwrap();
         let future = InterestRateFutures {
             period: Period::Months(3),
@@ -71,7 +71,7 @@ mod tests {
             interest_rate_index: ir_index,
         };
         assert_eq!(
-            future_quote.value_date(valuation_date),
+            future_quote.settle_date(valuation_date),
             NaiveDate::from_ymd_opt(2023, 11, 15).unwrap()
         );
         assert_eq!(

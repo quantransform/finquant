@@ -119,7 +119,7 @@ impl InterestRateIndex {
         }
     }
 
-    fn value_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+    pub fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         self.calendar
             .advance(
                 valuation_date,
@@ -133,7 +133,7 @@ impl InterestRateIndex {
     pub fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         self.calendar
             .advance(
-                self.value_date(valuation_date),
+                self.settle_date(valuation_date),
                 self.period,
                 self.convention,
                 Some(self.end_of_month),
@@ -149,11 +149,13 @@ mod tests {
     use chrono::NaiveDate;
 
     #[test]
-    fn test_maturity_date() {
+    fn test_settle_maturity_date() {
         let interest_rate_index =
             InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
-        let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 25).unwrap();
+        let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
+        let settle_date = interest_rate_index.settle_date(valuation_date);
         let maturity_date = interest_rate_index.maturity_date(valuation_date);
-        assert_eq!(maturity_date, NaiveDate::from_ymd_opt(2024, 1, 29).unwrap());
+        assert_eq!(settle_date, NaiveDate::from_ymd_opt(2023, 10, 31).unwrap());
+        assert_eq!(maturity_date, NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
     }
 }
