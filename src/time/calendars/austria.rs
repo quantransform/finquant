@@ -27,7 +27,7 @@ impl Austria {
             || (d == 6 && m == 1)
             // Easter Monday
             || (dd == em)
-            // Ascension Thurday
+            // Ascension Thursday
             || (dd == em+38)
             // Whit Monday
             || (dd == em+49)
@@ -65,7 +65,7 @@ impl Austria {
             || (dd == em-3)
             // Easter Monday
             || (dd == em)
-            // Whit Monay
+            // Whit Monday
             || (dd == em+49)
             // Labour Day
             || (d == 1 && m == 5)

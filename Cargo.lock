@@ -311,7 +311,7 @@ checksum = "95765f67b4b18863968b4a1bd5bb576f732b29a4a28c7cd84c09fa3e2875f33c"
 
 [[package]]
 name = "finquant"
-version = "0.0.27"
+version = "0.0.28"
 dependencies = [
  "chrono",
  "float_eq",

@@ -17,6 +17,8 @@ impl Calendar for Taiwan {
             || (d == 1 && m == 1)
             // Peace Memorial Day
             || (d == 28 && m == 2)
+            // Tomb Sweeping Day 04-05
+            || (d == 5 && m == 4 && y != 2008  && y != 2009 && y != 2012 && y != 2017)
             // Labor Day
             || (d == 1 && m == 5)
             // Double Tenth
@@ -27,8 +29,7 @@ impl Calendar for Taiwan {
         // Year 2002
         // Lunar New Year 02-09 to 02-17
         // Dragon Boat Festival and Moon Festival fall on Saturday
-        // Tom Sweeping Day 04-05
-        if (y == 2002) && (((9..=17).contains(&d) && m == 2) || (d == 5 && m == 4)) {
+        if (y == 2002) && ((9..=17).contains(&d) && m == 2) {
             return false;
         }
         // Year 2003
@@ -53,23 +54,18 @@ impl Calendar for Taiwan {
         }
         // Year 2005
         // Lunar New Year 02-06 to 02-13
-        // Tomb Sweeping Day 04-05
         // Labor day (make up) 05-02
         // Dragon Boat and Moon Festival fall on Saturday or Sunday
-        if (y == 2005)
-            && (((6..=13).contains(&d) && m == 2) || (d == 5 && m == 4) || (d == 2 && m == 5))
-        {
+        if (y == 2005) && (((6..=13).contains(&d) && m == 2) || (d == 2 && m == 5)) {
             return false;
         }
         // Year 2006
         // Dragon Boat and Moon Festival fall on Saturday or Sunday
         // Lunar New Year 01-28 to 02-05
-        // Tomb Sweeping Day 04-05
         // Dragon Boat Festival 05-31
         // Moon Festival 10-06
         if (y == 2006)
             && (((d >= 28 && m == 1) || (d <= 5 && m == 2))
-                || (d == 5 && m == 4)
                 || (d == 31 && m == 5)
                 || (d == 6 && m == 10))
         {
@@ -77,13 +73,11 @@ impl Calendar for Taiwan {
         }
         // Year 2007
         // Lunar New Year 02-17 to 02-25
-        // Tomb Sweeping Day 04-05
         // Adjusted Holidays 04-06, 06-18, 09-24
         // Dragon Boat Festival 06-19
         // Moon Festival 09-25
         if (y == 2007)
             && (((17..=25).contains(&d) && m == 2)
-                || (d == 5 && m == 4)
                 || (d == 6 && m == 4)
                 || (d == 18 && m == 6)
                 || (d == 19 && m == 6)
@@ -114,14 +108,10 @@ impl Calendar for Taiwan {
         }
         // Year 2010
         // Lunar New Year 01-13 to 01-21
-        // Tomb Sweeping Day 04-05
         // Dragon Boat Festival 05-16
         // Moon Festival 09-22
         if (y == 2010)
-            && (((13..=21).contains(&d) && m == 1)
-                || (d == 5 && m == 4)
-                || (d == 16 && m == 5)
-                || (d == 22 && m == 9))
+            && (((13..=21).contains(&d) && m == 1) || (d == 16 && m == 5) || (d == 22 && m == 9))
         {
             return false;
         }
@@ -131,9 +121,7 @@ impl Calendar for Taiwan {
                 ((2..=7).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
-                // Labour Day
+                // Labour Day Adjustment
                 || (d == 2 && m == 5)
                 // Dragon Boat Festival
                 || (d == 6 && m == 6)
@@ -153,8 +141,6 @@ impl Calendar for Taiwan {
                 // Children's Day
                 // Tomb Sweeping Day
                 || (d == 4 && m == 4)
-                // Labour Day
-                || (d == 1 && m == 5)
                 // Dragon Boat Festival
                 || (d == 23 && m == 6)
                 // Mid-Autumn Festival
@@ -173,10 +159,6 @@ impl Calendar for Taiwan {
                 ((10..=15).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
-                // Labour Day
-                || (d == 1 && m == 5)
                 // Dragon Boat Festival
                 || (d == 12 && m == 6)
                 // Mid-Autumn Festival
@@ -194,8 +176,6 @@ impl Calendar for Taiwan {
                 || ((d == 31 && m == 1) || (d <= 4 && m == 2))
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
                 // Dragon Boat Festival
                 || (d == 2 && m == 6)
                 // Mid-Autumn Festival
@@ -234,8 +214,6 @@ impl Calendar for Taiwan {
                 ((d == 29 || (8..=12).contains(&d)) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // adjusted holidays
-                || (d == 5 && m == 4)
                 // adjusted holidays
                 || (d == 2 && m == 5)
                 // Dragon Boat Festival
@@ -282,8 +260,6 @@ impl Calendar for Taiwan {
                 ((15..=20).contains(&d) && m == 2)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
                 // adjusted holidays
                 || (d == 6 && m == 4)
                 // Dragon Boat Festival
@@ -305,8 +281,6 @@ impl Calendar for Taiwan {
                 || (d == 1 && m == 3)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
                 // Dragon Boat Festival
                 || (d == 7 && m == 6)
                 // Mid-Autumn Festival
@@ -350,8 +324,6 @@ impl Calendar for Taiwan {
                 // Children's Day
                 || (d == 2 && m == 4)
                 // adjusted holiday
-                || (d == 5 && m == 4)
-                // adjusted holiday
                 || (d == 30 && m == 4)
                 // Dragon Boat Festival
                 || (d == 14 && m == 6)
@@ -373,8 +345,6 @@ impl Calendar for Taiwan {
             ((d == 31 && m == 1) || (d <= 4 && m == 2))
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
                 // adjusted holiday
                 || (d == 2 && m == 5)
                 // Dragon Boat Festival
@@ -395,8 +365,6 @@ impl Calendar for Taiwan {
                 || (d == 3 && m == 4)
                 // Children's Day
                 || (d == 4 && m == 4)
-                // Tomb Sweeping Day
-                || (d == 5 && m == 4)
                 // Dragon Boat Festival
                 || (d == 22 && m == 6)
                 // adjusted holiday
@@ -410,6 +378,20 @@ impl Calendar for Taiwan {
             return false;
         }
 
+        if (y == 2024)
+            && (
+                // Lunar New Year + 228
+                ((d ==28 || (8..=14).contains(&d)) && m == 2)
+                // Children's Day
+                || (d ==4 && m == 4)
+                // Dragon Boat Festival
+                || (d == 10 && m == 6)
+                // Mid-Autumn Festival
+                || (d == 17 && m == 9)
+            )
+        {
+            return false;
+        }
         true
     }
 }
@@ -458,5 +440,18 @@ mod tests {
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(Taiwan.is_business_day(target_date), expected);
         }
+        // Test 2024 cases
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2024, 2, 8).unwrap()),
+            false
+        );
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2024, 2, 14).unwrap()),
+            false
+        );
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2024, 2, 15).unwrap()),
+            true
+        );
     }
 }

@@ -57,7 +57,6 @@ impl Calendar for Chile {
         {
             return false;
         }
-
         true
     }
 }
