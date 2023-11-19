@@ -22,12 +22,12 @@
 
 1. Basic settings 
    - [x] Calendar
-   - [x] Day counts - supports Actual360, Actual365Fixed, ActualActual.
+   - [x] Day counts 
    - [ ] Schedule generator
 2. Markets / Quotes
    - [x] Forex - forward points
    - [ ] Forex - volatility 
-   - [ ] Interest Rate - curves (cash rates, futures, swaps)
+   - [x] Interest Rate - curves (cash rates, futures, swaps)
    - [ ] Interest Rate - volatility 
 3. Forex markets
    - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.

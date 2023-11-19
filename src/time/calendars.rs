@@ -178,7 +178,7 @@ pub trait Calendar: Debug {
 
     fn end_of_month(&self, date: NaiveDate) -> NaiveDate {
         let mut last_day_of_month = self.last_day_of_month(date);
-        while !self.is_business_day(last_day_of_month) {
+        while self.is_holiday(last_day_of_month) {
             last_day_of_month -= Duration::days(1)
         }
         last_day_of_month
@@ -199,6 +199,10 @@ pub trait Calendar: Debug {
 
     fn is_business_day(&self, date: NaiveDate) -> bool;
 
+    fn is_holiday(&self, date: NaiveDate) -> bool {
+        !self.is_business_day(date)
+    }
+
     fn adjust(&self, date: NaiveDate, bdc: BusinessDayConvention) -> Option<NaiveDate> {
         if bdc == BusinessDayConvention::Unadjusted {
             return Some(date);
@@ -210,7 +214,7 @@ pub trait Calendar: Debug {
             || bdc == BusinessDayConvention::ModifiedFollowing
             || bdc == BusinessDayConvention::HalfMonthModifiedFollowing
         {
-            while !self.is_business_day(d1) {
+            while self.is_holiday(d1) {
                 d1 += Duration::days(1);
             }
             if (bdc == BusinessDayConvention::ModifiedFollowing
@@ -228,7 +232,7 @@ pub trait Calendar: Debug {
         } else if bdc == BusinessDayConvention::Preceding
             || bdc == BusinessDayConvention::ModifiedPreceding
         {
-            while !self.is_business_day(d1) {
+            while self.is_holiday(d1) {
                 d1 -= Duration::days(1);
             }
             if bdc == BusinessDayConvention::ModifiedPreceding && d1.month() != date.month() {
@@ -236,11 +240,11 @@ pub trait Calendar: Debug {
             }
         } else if bdc == BusinessDayConvention::Nearest {
             let mut d2 = date;
-            while !self.is_business_day(d1) && !self.is_business_day(d2) {
+            while self.is_holiday(d1) && self.is_holiday(d2) {
                 d1 += Duration::days(1);
                 d2 -= Duration::days(1);
             }
-            return if !self.is_business_day(d1) {
+            return if self.is_holiday(d1) {
                 Some(d1)
             } else {
                 Some(d2)
