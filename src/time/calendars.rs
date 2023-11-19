@@ -1,5 +1,6 @@
 use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
+use std::cmp::Ordering;
 use std::fmt::Debug;
 
 static EASTER_MONDAY: [u32; 299] = [
@@ -270,26 +271,29 @@ pub trait Calendar: Debug {
             }
             Period::Days(mut num) => {
                 let mut advance_date = date;
-                if num == 0 {
-                    return self.adjust(date, bdc);
-                } else if num > 0 {
-                    while num > 0 {
-                        advance_date = advance_date + Period::Days(1);
-                        while !self.is_business_day(advance_date) {
+                let target: i64 = 0;
+                match num.cmp(&target) {
+                    Ordering::Equal => self.adjust(date, bdc),
+                    Ordering::Greater => {
+                        while num > 0 {
                             advance_date = advance_date + Period::Days(1);
+                            while !self.is_business_day(advance_date) {
+                                advance_date = advance_date + Period::Days(1);
+                            }
+                            num -= 1;
                         }
-                        num -= 1;
+                        Some(advance_date)
                     }
-                    return Some(advance_date);
-                } else {
-                    while num < 0 {
-                        advance_date = advance_date - Period::Days(1);
-                        while !self.is_business_day(advance_date) {
+                    Ordering::Less => {
+                        while num < 0 {
                             advance_date = advance_date - Period::Days(1);
+                            while !self.is_business_day(advance_date) {
+                                advance_date = advance_date - Period::Days(1);
+                            }
+                            num += 1;
                         }
-                        num += 1;
+                        Some(advance_date)
                     }
-                    return Some(advance_date);
                 }
             }
             _ => {
