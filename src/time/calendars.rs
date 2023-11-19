@@ -1,5 +1,6 @@
 use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
+use std::cmp::Ordering;
 use std::fmt::Debug;
 
 static EASTER_MONDAY: [u32; 299] = [
@@ -258,16 +259,47 @@ pub trait Calendar: Debug {
         end_of_month: Option<bool>,
     ) -> Option<NaiveDate> {
         let end_of_month = end_of_month.unwrap_or(false);
-        let advance_date = date + period;
+
         match period {
             Period::Months(_) | Period::Years(_) => {
+                let advance_date = date + period;
                 if end_of_month {
                     Some(self.end_of_month(self.adjust(advance_date, bdc).unwrap()))
                 } else {
                     self.adjust(advance_date, bdc)
                 }
             }
-            _ => self.adjust(advance_date, bdc),
+            Period::Days(mut num) => {
+                let mut advance_date = date;
+                let target: i64 = 0;
+                match num.cmp(&target) {
+                    Ordering::Equal => self.adjust(date, bdc),
+                    Ordering::Greater => {
+                        while num > 0 {
+                            advance_date = advance_date + Period::Days(1);
+                            while !self.is_business_day(advance_date) {
+                                advance_date = advance_date + Period::Days(1);
+                            }
+                            num -= 1;
+                        }
+                        Some(advance_date)
+                    }
+                    Ordering::Less => {
+                        while num < 0 {
+                            advance_date = advance_date - Period::Days(1);
+                            while !self.is_business_day(advance_date) {
+                                advance_date = advance_date - Period::Days(1);
+                            }
+                            num += 1;
+                        }
+                        Some(advance_date)
+                    }
+                }
+            }
+            _ => {
+                let advance_date = date + period;
+                self.adjust(advance_date, bdc)
+            }
         }
     }
 
