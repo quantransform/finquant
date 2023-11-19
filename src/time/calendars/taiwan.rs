@@ -380,10 +380,8 @@ impl Calendar for Taiwan {
 
         if (y == 2024)
             && (
-                // Lunar New Year
-                ((8..=14).contains(&d) && m == 2)
-                // 228 holiday
-                || (d ==28 && m == 2)
+                // Lunar New Year + 228
+                ((d ==28 || (8..=14).contains(&d)) && m == 2)
                 // Children's Day
                 || (d ==4 && m == 4)
                 // Dragon Boat Festival
