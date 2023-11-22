@@ -1,32 +1,11 @@
 use crate::time::calendars::Calendar;
 use crate::time::period::Period;
-use chrono::{Duration, NaiveDate};
+use chrono::NaiveDate;
 
+#[derive(Clone, Copy, Debug)]
 pub struct FXForwardQuote {
     pub tenor: Period,
     pub value: f64,
-}
-
-impl Period {
-    pub fn settlement_date(
-        &self,
-        valuation_date: NaiveDate,
-        calendar: &impl Calendar,
-    ) -> NaiveDate {
-        // TODO: Change spot as T+2 to be linked to currency.
-        let target_date = match self {
-            Period::ON => valuation_date,
-            _ => valuation_date + Duration::days(2),
-        };
-        let mut settlement_date = target_date + *self;
-        if settlement_date >= calendar.end_of_month(settlement_date) {
-            settlement_date = calendar.end_of_month(settlement_date)
-        }
-        while !calendar.is_business_day(settlement_date) {
-            settlement_date += Duration::days(1);
-        }
-        settlement_date
-    }
 }
 
 pub struct FXForwardHelper {
@@ -34,42 +13,8 @@ pub struct FXForwardHelper {
 }
 
 impl FXForwardHelper {
-    fn closest_before<'a>(
-        &self,
-        quotes: &'a [&FXForwardQuote],
-        valuation_date: NaiveDate,
-        calendar: &impl Calendar,
-    ) -> &'a FXForwardQuote {
-        let mut final_quote = quotes[0];
-        for quote in quotes {
-            if quote.tenor.settlement_date(valuation_date, calendar)
-                > final_quote.tenor.settlement_date(valuation_date, calendar)
-            {
-                final_quote = quote;
-            }
-        }
-        final_quote
-    }
-
-    fn closest_after<'a>(
-        &self,
-        quotes: &'a [&FXForwardQuote],
-        valuation_date: NaiveDate,
-        calendar: &impl Calendar,
-    ) -> &'a FXForwardQuote {
-        let mut final_quote = quotes[0];
-        for quote in quotes {
-            if quote.tenor.settlement_date(valuation_date, calendar)
-                < final_quote.tenor.settlement_date(valuation_date, calendar)
-            {
-                final_quote = quote;
-            }
-        }
-        final_quote
-    }
-
     pub fn get_forward(
-        &self,
+        &mut self,
         valuation_date: NaiveDate,
         target_date: NaiveDate,
         calendar: &impl Calendar,
@@ -77,21 +22,22 @@ impl FXForwardHelper {
         if valuation_date >= target_date {
             None
         } else {
-            let mut before_quotes = vec![];
-            let mut after_quotes = vec![];
+            let (mut before_quotes, mut after_quotes): (Vec<_>, Vec<_>) =
+                self.quotes.clone().into_iter().partition(|&quote| {
+                    quote.tenor.settlement_date(valuation_date, calendar) < target_date
+                });
 
-            for quote in &self.quotes {
-                if quote.tenor.settlement_date(valuation_date, calendar) < target_date {
-                    before_quotes.push(quote);
-                } else {
-                    after_quotes.push(quote);
-                }
-            }
             if before_quotes.is_empty() || after_quotes.is_empty() {
                 None
             } else {
-                let before_quote = self.closest_before(&before_quotes, valuation_date, calendar);
-                let after_quote = self.closest_after(&after_quotes, valuation_date, calendar);
+                before_quotes.sort_by_key(|&fx_frd_quote| {
+                    fx_frd_quote.tenor.settlement_date(valuation_date, calendar)
+                });
+                after_quotes.sort_by_key(|&fx_frd_quote| {
+                    fx_frd_quote.tenor.settlement_date(valuation_date, calendar)
+                });
+                let before_quote = before_quotes.last().unwrap();
+                let after_quote = after_quotes.get(0).unwrap();
                 let start_date = before_quote.tenor.settlement_date(valuation_date, calendar);
                 let end_date = after_quote.tenor.settlement_date(valuation_date, calendar);
                 let total_day_count = (end_date - start_date).num_days() as f64;
@@ -269,7 +215,7 @@ mod tests {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
         let calendar = JointCalendar::new(UnitedStates::default(), UnitedKingdom::default());
 
-        let fx_forward_helper = FXForwardHelper {
+        let mut fx_forward_helper = FXForwardHelper {
             quotes: vec![
                 FXForwardQuote {
                     tenor: Period::SPOT,
