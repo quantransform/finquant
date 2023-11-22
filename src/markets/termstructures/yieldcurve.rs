@@ -31,8 +31,9 @@ pub struct YieldTermStructure {
 }
 
 impl YieldTermStructure {
-    pub fn stripped_curve(&self) -> PolarsResult<DataFrame> {
-        // TODO: how to order? Assume things are in order at the moment.
+    pub fn stripped_curve(&mut self) -> PolarsResult<DataFrame> {
+        self.cash_quote
+            .sort_by_key(|quote| quote.maturity_date(self.valuation_date));
         let mut dates: Vec<NaiveDate> = Vec::new();
         let mut zero_rates: Vec<f64> = Vec::new();
         for cash in &self.cash_quote {
@@ -96,11 +97,11 @@ mod tests {
             futures_spec: future,
             interest_rate_index: ir_index,
         };
-        let yts = YieldTermStructure {
+        let mut yts = YieldTermStructure {
             valuation_date: NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             calendar: Box::new(Target::default()),
             day_counter: Box::new(Actual365Fixed::default()),
-            cash_quote: vec![ois_quote_1wk, ois_quote_3m],
+            cash_quote: vec![ois_quote_3m, ois_quote_1wk],
             futures_quote: vec![future_quote_x3],
         };
         let stripped_curve = yts.stripped_curve().unwrap();

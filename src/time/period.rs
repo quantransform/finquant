@@ -1,3 +1,4 @@
+use crate::time::calendars::Calendar;
 use chrono::{Duration, Months, NaiveDate};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Sub};
@@ -11,6 +12,28 @@ pub enum Period {
     Weeks(i64),
     Months(u32),
     Years(u32),
+}
+
+impl Period {
+    pub fn settlement_date(
+        &self,
+        valuation_date: NaiveDate,
+        calendar: &impl Calendar,
+    ) -> NaiveDate {
+        // TODO: Change spot as T+2 to be linked to currency.
+        let target_date = match self {
+            Period::ON => valuation_date,
+            _ => valuation_date + Duration::days(2),
+        };
+        let mut settlement_date = target_date + *self;
+        if settlement_date >= calendar.end_of_month(settlement_date) {
+            settlement_date = calendar.end_of_month(settlement_date)
+        }
+        while !calendar.is_business_day(settlement_date) {
+            settlement_date += Duration::days(1);
+        }
+        settlement_date
+    }
 }
 
 impl Add<Period> for NaiveDate {
