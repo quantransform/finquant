@@ -5,6 +5,7 @@ use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
 use chrono::NaiveDate;
 
+#[derive(Debug)]
 pub struct OISRate {
     pub value: f64,
     pub interest_rate_index: InterestRateIndex,
