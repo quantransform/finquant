@@ -50,14 +50,17 @@ impl FXUnderlying {
 }
 
 pub trait FXDerivatives {
-    fn delta(&self) -> f32;
-    fn gamma(&self) -> f32;
-    fn vega(&self) -> f32;
+    fn delta(&self) -> f64;
+    fn gamma(&self) -> f64;
+    fn vega(&self) -> f64;
 }
 
 #[cfg(test)]
 mod tests {
     use super::FXUnderlying;
+    use crate::time::daycounters::actual360::Actual360;
+    use crate::time::daycounters::DayCounters;
+    use chrono::{NaiveDate, NaiveTime};
     use iso_currency::Currency;
 
     #[test]
@@ -77,5 +80,19 @@ mod tests {
     fn test_settles() {
         assert_eq!(FXUnderlying::USDCAD.settles(), 1);
         assert_eq!(FXUnderlying::EURUSD.settles(), 2);
+    }
+
+    #[test]
+    fn test_other_static() {
+        let d1 = NaiveDate::from_ymd_opt(2023, 11, 24).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(2024, 11, 24).unwrap();
+        assert_eq!(
+            FXUnderlying::EURUSD.day_count().day_count(d1, d2),
+            Actual360.day_count(d1, d2)
+        );
+        assert_eq!(
+            FXUnderlying::EURUSD.hours(),
+            NaiveTime::from_hms_micro_opt(22, 0, 0, 0).unwrap()
+        );
     }
 }

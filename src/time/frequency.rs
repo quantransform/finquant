@@ -75,3 +75,24 @@ impl Frequency {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::time::frequency::Frequency;
+    use crate::time::period::Period;
+
+    #[test]
+    fn test_name() {
+        assert_eq!(Frequency::Annual.name(), "Annual");
+    }
+
+    #[test]
+    fn test_period() {
+        assert_eq!(Frequency::Annual.period().unwrap(), Period::Years(1));
+    }
+
+    #[test]
+    fn test_from_code() {
+        assert_eq!(Frequency::from_code("Annual").unwrap(), Frequency::Annual);
+    }
+}

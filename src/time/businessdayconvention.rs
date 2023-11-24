@@ -44,3 +44,21 @@ impl BusinessDayConvention {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::time::businessdayconvention::BusinessDayConvention;
+
+    #[test]
+    fn test_name() {
+        assert_eq!(BusinessDayConvention::Following.name(), "Following");
+    }
+
+    #[test]
+    fn test_from_code() {
+        assert_eq!(
+            BusinessDayConvention::from_code("Following").unwrap(),
+            BusinessDayConvention::Following
+        );
+    }
+}

@@ -1,10 +1,10 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Direction {
-    Buy,
-    Sell,
+    Buy = 1,
+    Sell = -1,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Style {
