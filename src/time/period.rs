@@ -146,7 +146,6 @@ mod tests {
             current_date - Period::Years(1),
             NaiveDate::from_ymd_opt(2022, 10, 17).unwrap()
         );
-
     }
 
     #[test]
