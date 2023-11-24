@@ -75,3 +75,89 @@ impl Frequency {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::time::frequency::Frequency;
+    use crate::time::period::Period;
+
+    #[test]
+    fn test_name() {
+        assert_eq!(Frequency::NoFrequency.name(), "No-Frequency");
+        assert_eq!(Frequency::Once.name(), "Once");
+        assert_eq!(Frequency::Annual.name(), "Annual");
+        assert_eq!(Frequency::Semiannual.name(), "Semiannual");
+        assert_eq!(Frequency::EveryFourthMonth.name(), "Every-Fourth-Month");
+        assert_eq!(Frequency::Quarterly.name(), "Quarterly");
+        assert_eq!(Frequency::Bimonthly.name(), "Bimonthly");
+        assert_eq!(Frequency::Monthly.name(), "Monthly");
+        assert_eq!(Frequency::EveryFourthWeek.name(), "Every-Fourth-Week");
+        assert_eq!(Frequency::Biweekly.name(), "Biweekly");
+        assert_eq!(Frequency::Weekly.name(), "Weekly");
+        assert_eq!(Frequency::Daily.name(), "Daily");
+        assert_eq!(Frequency::OtherFrequency.name(), "Unknown Frequency");
+        let serialized = serde_json::to_string(&Frequency::Once).unwrap();
+        let deserialized: Frequency = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, Frequency::Once);
+    }
+
+    #[test]
+    fn test_period() {
+        assert_eq!(Frequency::NoFrequency.period().unwrap(), Period::ON);
+        assert_eq!(Frequency::Once.period(), None);
+        assert_eq!(Frequency::Annual.period().unwrap(), Period::Years(1));
+        assert_eq!(Frequency::Semiannual.period().unwrap(), Period::Months(6));
+        assert_eq!(
+            Frequency::EveryFourthMonth.period().unwrap(),
+            Period::Months(4)
+        );
+        assert_eq!(Frequency::Quarterly.period().unwrap(), Period::Months(3));
+        assert_eq!(Frequency::Bimonthly.period().unwrap(), Period::Months(2));
+        assert_eq!(Frequency::Monthly.period().unwrap(), Period::Months(1));
+        assert_eq!(
+            Frequency::EveryFourthWeek.period().unwrap(),
+            Period::Weeks(4)
+        );
+        assert_eq!(Frequency::Biweekly.period().unwrap(), Period::Weeks(2));
+        assert_eq!(Frequency::Weekly.period().unwrap(), Period::Weeks(1));
+        assert_eq!(Frequency::Daily.period().unwrap(), Period::Days(1));
+        assert_eq!(Frequency::OtherFrequency.period(), None);
+    }
+
+    #[test]
+    fn test_from_code() {
+        assert_eq!(
+            Frequency::from_code("Once").unwrap(),
+            Frequency::NoFrequency
+        );
+        assert_eq!(Frequency::from_code("Annual").unwrap(), Frequency::Annual);
+        assert_eq!(
+            Frequency::from_code("Semiannual").unwrap(),
+            Frequency::Semiannual
+        );
+        assert_eq!(
+            Frequency::from_code("EveryFourthMonth").unwrap(),
+            Frequency::EveryFourthMonth
+        );
+        assert_eq!(
+            Frequency::from_code("Quarterly").unwrap(),
+            Frequency::Quarterly
+        );
+        assert_eq!(
+            Frequency::from_code("Bimonthly").unwrap(),
+            Frequency::Bimonthly
+        );
+        assert_eq!(Frequency::from_code("Monthly").unwrap(), Frequency::Monthly);
+        assert_eq!(
+            Frequency::from_code("EveryFourthWeek").unwrap(),
+            Frequency::EveryFourthWeek
+        );
+        assert_eq!(
+            Frequency::from_code("Biweekly").unwrap(),
+            Frequency::Biweekly
+        );
+        assert_eq!(Frequency::from_code("Weekly").unwrap(), Frequency::Weekly);
+        assert_eq!(Frequency::from_code("Daily").unwrap(), Frequency::Daily);
+        assert_eq!(Frequency::from_code("RANDOM"), None);
+    }
+}

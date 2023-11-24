@@ -3,7 +3,7 @@ use chrono::{Duration, Months, NaiveDate};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Sub};
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 pub enum Period {
     ON,
     SPOT,
@@ -89,7 +89,7 @@ mod tests {
     use super::Period;
     use chrono::NaiveDate;
     #[test]
-    fn test_settlement_date_target() {
+    fn test_settlement_date_target_add() {
         let current_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
         assert_eq!(current_date + Period::SPOT, current_date);
         assert_eq!(
@@ -116,5 +116,43 @@ mod tests {
             current_date + Period::Years(1),
             NaiveDate::from_ymd_opt(2024, 10, 17).unwrap()
         );
+    }
+
+    #[test]
+    fn test_settlement_date_target_sub() {
+        let current_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
+        assert_eq!(current_date - Period::SPOT, current_date);
+        assert_eq!(
+            current_date - Period::ON,
+            NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
+        );
+        assert_eq!(
+            current_date - Period::SN,
+            NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
+        );
+        assert_eq!(
+            current_date - Period::Days(1),
+            NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
+        );
+        assert_eq!(
+            current_date - Period::Weeks(1),
+            NaiveDate::from_ymd_opt(2023, 10, 10).unwrap()
+        );
+        assert_eq!(
+            current_date - Period::Months(1),
+            NaiveDate::from_ymd_opt(2023, 9, 17).unwrap()
+        );
+        assert_eq!(
+            current_date - Period::Years(1),
+            NaiveDate::from_ymd_opt(2022, 10, 17).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_mut() {
+        assert_eq!(2 * Period::Years(1), Period::Years(2));
+        assert_eq!(2 * Period::Months(1), Period::Months(2));
+        assert_eq!(2 * Period::Weeks(1), Period::Weeks(2));
+        assert_eq!(2 * Period::Days(1), Period::Days(2));
     }
 }
