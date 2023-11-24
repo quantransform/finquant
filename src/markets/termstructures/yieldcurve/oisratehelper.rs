@@ -6,12 +6,12 @@ use crate::time::period::Period;
 use chrono::NaiveDate;
 
 #[derive(Debug)]
-pub struct OISRate {
+pub struct OISRate<'a> {
     pub value: f64,
-    pub interest_rate_index: InterestRateIndex,
+    pub interest_rate_index: &'a InterestRateIndex,
 }
 
-impl OISRate {
+impl OISRate<'_> {
     pub fn discount(&self, valuation_date: NaiveDate) -> f64 {
         let zero_rate = self.zero_rate(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
@@ -36,7 +36,7 @@ impl OISRate {
     }
 }
 
-impl InterestRateQuote for OISRate {
+impl InterestRateQuote for OISRate<'_> {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::OIS
     }
@@ -78,7 +78,7 @@ mod tests {
     fn test_settle_maturity_date() {
         let ois_quote = OISRate {
             value: 0.03938,
-            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
             ))
             .unwrap(),
@@ -94,7 +94,7 @@ mod tests {
     fn test_discount() {
         let ois_quote = OISRate {
             value: 0.03948,
-            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
             ))
             .unwrap(),

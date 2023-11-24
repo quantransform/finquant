@@ -10,15 +10,15 @@ use chrono::NaiveDate;
 
 /// Interest rate futures.
 #[derive(Debug)]
-pub struct FuturesRate {
+pub struct FuturesRate<'a> {
     pub value: f64,
     pub imm_code: &'static str,
     pub convexity_adjustment: f64,
-    pub futures_spec: InterestRateFutures,
-    pub interest_rate_index: InterestRateIndex,
+    pub futures_spec: &'a InterestRateFutures,
+    pub interest_rate_index: &'a InterestRateIndex,
 }
 
-impl FuturesRate {
+impl FuturesRate<'_> {
     pub fn implied_quote(&self) -> f64 {
         1f64 - self.value / 100.0 + self.convexity_adjustment / 100.0
     }
@@ -76,7 +76,7 @@ impl FuturesRate {
     }
 }
 
-impl InterestRateQuote for FuturesRate {
+impl InterestRateQuote for FuturesRate<'_> {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::Futures
     }
@@ -119,8 +119,8 @@ mod tests {
             value: 96.045,
             imm_code: "X3",
             convexity_adjustment: -0.00015,
-            futures_spec: future,
-            interest_rate_index: ir_index,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
         };
         assert_eq!(
             future_quote.settle_date(valuation_date),

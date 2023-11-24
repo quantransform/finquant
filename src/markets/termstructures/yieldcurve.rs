@@ -35,12 +35,12 @@ pub trait InterestRateQuote {
 }
 
 #[derive(Debug)]
-pub struct YieldTermStructure {
+pub struct YieldTermStructure<'a> {
     pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
-    pub cash_quote: Vec<OISRate>,
-    pub futures_quote: Vec<FuturesRate>,
+    pub cash_quote: Vec<OISRate<'a>>,
+    pub futures_quote: Vec<FuturesRate<'a>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,7 +52,7 @@ pub struct StrippedCurve {
     source: InterestRateQuoteEnum,
 }
 
-impl YieldTermStructure {
+impl YieldTermStructure<'_> {
     pub fn stripped_curve(&mut self) -> Vec<StrippedCurve> {
         let total_size = self.cash_quote.len() + self.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
@@ -100,7 +100,7 @@ mod tests {
     fn test_retrieve_related_stripped_curve() {
         let ois_quote = OISRate {
             value: 0.03872,
-            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Weeks(1),
             ))
             .unwrap(),
@@ -139,14 +139,14 @@ mod tests {
     fn test_yts() {
         let ois_quote_1wk = OISRate {
             value: 0.03872,
-            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Weeks(1),
             ))
             .unwrap(),
         };
         let ois_quote_3m = OISRate {
             value: 0.03948,
-            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
             ))
             .unwrap(),
@@ -164,15 +164,22 @@ mod tests {
             value: 96.045,
             imm_code: "X3",
             convexity_adjustment: -0.00015,
-            futures_spec: future,
-            interest_rate_index: ir_index,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_z3 = FuturesRate {
+            value: 96.035,
+            imm_code: "Z3",
+            convexity_adjustment: -0.00056,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
         };
         let mut yts = YieldTermStructure {
             valuation_date: NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             calendar: Box::new(Target::default()),
             day_counter: Box::new(Actual365Fixed::default()),
             cash_quote: vec![ois_quote_3m, ois_quote_1wk],
-            futures_quote: vec![future_quote_x3],
+            futures_quote: vec![future_quote_x3, future_quote_z3],
         };
         let stripped_curve = yts.stripped_curve();
 
