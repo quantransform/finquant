@@ -1,19 +1,82 @@
 use crate::markets::interestrate::futures::InterestRateFutures;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
-use crate::markets::termstructures::yieldcurve::{InterestRateQuote, InterestRateQuoteEnum};
+use crate::markets::termstructures::yieldcurve::{
+    InterestRateQuote, InterestRateQuoteEnum, StrippedCurve,
+};
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
+use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 use chrono::NaiveDate;
 
 /// Interest rate futures.
-pub struct FuturesRate {
+#[derive(Debug)]
+pub struct FuturesRate<'a> {
     pub value: f64,
     pub imm_code: &'static str,
     pub convexity_adjustment: f64,
-    pub futures_spec: InterestRateFutures,
-    pub interest_rate_index: InterestRateIndex,
+    pub futures_spec: &'a InterestRateFutures,
+    pub interest_rate_index: &'a InterestRateIndex,
 }
 
-impl InterestRateQuote for FuturesRate {
+impl FuturesRate<'_> {
+    pub fn implied_quote(&self) -> f64 {
+        1f64 - self.value / 100.0 + self.convexity_adjustment / 100.0
+    }
+
+    pub fn discount(&self, valuation_date: NaiveDate, stripped_curves: &Vec<StrippedCurve>) -> f64 {
+        let zero_rate = self.zero_rate(valuation_date, stripped_curves);
+        let maturity_date = self.maturity_date(valuation_date);
+        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
+        (-zero_rate * year_fraction).exp()
+    }
+
+    pub fn zero_rate(
+        &self,
+        valuation_date: NaiveDate,
+        stripped_curves: &Vec<StrippedCurve>,
+    ) -> f64 {
+        let mut is_first = true;
+        for stripped_curve in stripped_curves {
+            if stripped_curve.source == InterestRateQuoteEnum::Futures {
+                is_first = false;
+            }
+        }
+        let settle_date = self.settle_date(valuation_date);
+        let maturity_date = self.maturity_date(valuation_date);
+        let year_fraction_index = self
+            .interest_rate_index
+            .day_counter
+            .year_fraction(settle_date, maturity_date);
+        let hidden_discount = 1.0 / (1.0 + year_fraction_index * self.implied_quote());
+        let previous_curve = self.retrieve_related_stripped_curve(stripped_curves, settle_date);
+        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, settle_date);
+        let target_discount = hidden_discount * (-previous_curve.zero_rate * year_fraction).exp();
+        if is_first {
+            let mut cum_discount = 1f64;
+            for i in 0..stripped_curves.len() {
+                let accrual_start_date = if i == 0 {
+                    valuation_date
+                } else {
+                    stripped_curves[i - 1].date
+                };
+                let accrual_end_date = stripped_curves[i].date;
+                let year_fraction =
+                    Actual365Fixed::default().year_fraction(accrual_start_date, accrual_end_date);
+                cum_discount *= (-stripped_curves[i].zero_rate * year_fraction).exp();
+            }
+            let solved_discount = target_discount / cum_discount;
+            let year_fraction = Actual365Fixed::default()
+                .year_fraction(stripped_curves.last().unwrap().date, maturity_date);
+            -solved_discount.ln() / year_fraction
+        } else {
+            let year_fraction =
+                Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
+            -target_discount.ln() / year_fraction
+        }
+    }
+}
+
+impl InterestRateQuote for FuturesRate<'_> {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::Futures
     }
@@ -56,8 +119,8 @@ mod tests {
             value: 96.045,
             imm_code: "X3",
             convexity_adjustment: -0.00015,
-            futures_spec: future,
-            interest_rate_index: ir_index,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
         };
         assert_eq!(
             future_quote.settle_date(valuation_date),

@@ -6,6 +6,7 @@ use crate::time::period::Period;
 use chrono::{Datelike, NaiveDate};
 
 /// Futures
+#[derive(Debug)]
 pub struct InterestRateFutures {
     pub period: Period,
     pub calendar: Box<dyn Calendar>,
