@@ -30,10 +30,6 @@ impl OISRate<'_> {
         let discount = 1.0 / (1.0 + year_fraction_index * self.value);
         -discount.ln() / year_fraction
     }
-
-    pub fn forward_rate(&self, valuation_date: NaiveDate) -> f64 {
-        self.zero_rate(valuation_date)
-    }
 }
 
 impl InterestRateQuote for OISRate<'_> {

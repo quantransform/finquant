@@ -24,10 +24,16 @@ impl FuturesRate<'_> {
     }
 
     pub fn discount(&self, valuation_date: NaiveDate, stripped_curves: &Vec<StrippedCurve>) -> f64 {
-        let zero_rate = self.zero_rate(valuation_date, stripped_curves);
+        let settle_date = self.settle_date(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
-        (-zero_rate * year_fraction).exp()
+        let year_fraction_index = self
+            .interest_rate_index
+            .day_counter
+            .year_fraction(settle_date, maturity_date);
+        let hidden_discount = 1.0 / (1.0 + year_fraction_index * self.implied_quote());
+        let previous_curve = self.retrieve_related_stripped_curve(stripped_curves, settle_date);
+        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, settle_date);
+        hidden_discount * (-previous_curve.zero_rate * year_fraction).exp()
     }
 
     pub fn zero_rate(
@@ -41,16 +47,8 @@ impl FuturesRate<'_> {
                 is_first = false;
             }
         }
-        let settle_date = self.settle_date(valuation_date);
+        let target_discount = self.discount(valuation_date, stripped_curves);
         let maturity_date = self.maturity_date(valuation_date);
-        let year_fraction_index = self
-            .interest_rate_index
-            .day_counter
-            .year_fraction(settle_date, maturity_date);
-        let hidden_discount = 1.0 / (1.0 + year_fraction_index * self.implied_quote());
-        let previous_curve = self.retrieve_related_stripped_curve(stripped_curves, settle_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, settle_date);
-        let target_discount = hidden_discount * (-previous_curve.zero_rate * year_fraction).exp();
         if is_first {
             let mut cum_discount = 1f64;
             for i in 0..stripped_curves.len() {
@@ -64,10 +62,10 @@ impl FuturesRate<'_> {
                     Actual365Fixed::default().year_fraction(accrual_start_date, accrual_end_date);
                 cum_discount *= (-stripped_curves[i].zero_rate * year_fraction).exp();
             }
-            let solved_discount = target_discount / cum_discount;
+
             let year_fraction = Actual365Fixed::default()
                 .year_fraction(stripped_curves.last().unwrap().date, maturity_date);
-            -solved_discount.ln() / year_fraction
+            -(target_discount / cum_discount).ln() / year_fraction
         } else {
             let year_fraction =
                 Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
