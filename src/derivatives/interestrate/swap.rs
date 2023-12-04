@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_none_schedule() {
-        let mut eusw3v3 = InterestRateSwap {
+        let mut random_irs = InterestRateSwap {
             calendar: Box::<Target>::default(),
             convention: BusinessDayConvention::ModifiedFollowing,
             interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
@@ -180,18 +180,54 @@ mod tests {
             ),
             float_leg: InterestRateSwapFloatLeg::new(
                 Frequency::Quarterly,
-                Period::Months(12),
+                Period::SPOT,
                 Box::new(Actual360),
                 0f64,
             ),
         };
-        eusw3v3.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap());
-        let fixed_schedule = eusw3v3.fixed_leg.schedule;
-        assert_eq!(fixed_schedule, None);
+        random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap());
+        assert_eq!(random_irs.fixed_leg.schedule, None);
+        assert_eq!(random_irs.float_leg.schedule, None);
     }
 
     #[test]
-    fn test_schedule() {
+    fn test_week_schedule() {
+        let mut random_irs = InterestRateSwap {
+            calendar: Box::<Target>::default(),
+            convention: BusinessDayConvention::ModifiedFollowing,
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
+            settlement_days: 2,
+            fixed_leg: InterestRateSwapFixedLeg::new(
+                Frequency::Weekly,
+                Period::Weeks(1),
+                Box::new(Thirty360::default()),
+                0.030800,
+            ),
+            float_leg: InterestRateSwapFloatLeg::new(
+                Frequency::Weekly,
+                Period::Weeks(1),
+                Box::new(Actual360),
+                0f64,
+            ),
+        };
+        random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap());
+        let fix_schedule = random_irs.fixed_leg.schedule.unwrap();
+        let float_schedule = random_irs.float_leg.schedule.unwrap();
+        assert_eq!(
+            fix_schedule[0].accrual_end_date,
+            NaiveDate::from_ymd_opt(2023, 11, 7).unwrap()
+        );
+        assert_eq!(
+            float_schedule[0].accrual_end_date,
+            NaiveDate::from_ymd_opt(2023, 11, 7).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_eusw3v3_schedule() {
         let mut eusw3v3 = InterestRateSwap {
             calendar: Box::<Target>::default(),
             convention: BusinessDayConvention::ModifiedFollowing,
