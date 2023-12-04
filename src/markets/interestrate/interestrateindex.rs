@@ -8,9 +8,10 @@ use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
 use iso_currency::Currency;
 use iso_currency::Currency::{AUD, EUR, GBP, USD};
+use serde::{Deserialize, Serialize};
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum InterestRateIndexEnum {
     AONIA,
     CDOR(Period),
@@ -21,7 +22,7 @@ pub enum InterestRateIndexEnum {
     SOFR,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct InterestRateIndex {
     pub period: Period,
     pub settlement_days: i64,

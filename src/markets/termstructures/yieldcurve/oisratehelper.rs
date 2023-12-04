@@ -6,9 +6,9 @@ use crate::time::period::Period;
 use chrono::NaiveDate;
 
 #[derive(Debug)]
-pub struct OISRate<'a> {
+pub struct OISRate<'termstructure> {
     pub value: f64,
-    pub interest_rate_index: &'a InterestRateIndex,
+    pub interest_rate_index: &'termstructure InterestRateIndex,
 }
 
 impl OISRate<'_> {

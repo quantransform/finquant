@@ -23,7 +23,7 @@
 1. Basic settings 
    - [x] Calendar
    - [x] Day counts 
-   - [ ] Schedule generator
+   - [x] Schedule generator
 2. Markets / Quotes
    - [x] Forex - forward points
    - [ ] Forex - volatility 
