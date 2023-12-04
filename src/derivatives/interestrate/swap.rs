@@ -73,7 +73,7 @@ pub struct InterestRateSwap {
     pub float_leg: InterestRateSwapFloatLeg,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct InterestRateSchedule {
     pub accrual_start_date: NaiveDate,
     pub accrual_end_date: NaiveDate,
@@ -161,6 +161,34 @@ mod tests {
     use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
+
+    #[test]
+    fn test_none_schedule() {
+        let mut eusw3v3 = InterestRateSwap {
+            calendar: Box::<Target>::default(),
+            convention: BusinessDayConvention::ModifiedFollowing,
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
+            settlement_days: 2,
+            fixed_leg: InterestRateSwapFixedLeg::new(
+                Frequency::Annual,
+                Period::SPOT,
+                Box::new(Thirty360::default()),
+                0.030800,
+            ),
+            float_leg: InterestRateSwapFloatLeg::new(
+                Frequency::Quarterly,
+                Period::Months(12),
+                Box::new(Actual360),
+                0f64,
+            ),
+        };
+        eusw3v3.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap());
+        let fixed_schedule = eusw3v3.fixed_leg.schedule;
+        assert_eq!(fixed_schedule, None);
+    }
 
     #[test]
     fn test_schedule() {
