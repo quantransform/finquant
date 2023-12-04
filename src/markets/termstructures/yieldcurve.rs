@@ -21,9 +21,9 @@ pub trait InterestRateQuote {
     fn yts_type(&self) -> InterestRateQuoteEnum;
     fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate;
     fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate;
-    fn retrieve_related_stripped_curve<'a>(
-        &'a self,
-        stripped_curves: &'a Vec<StrippedCurve>,
+    fn retrieve_related_stripped_curve<'termstructure>(
+        &'termstructure self,
+        stripped_curves: &'termstructure Vec<StrippedCurve>,
         target_date: NaiveDate,
     ) -> &StrippedCurve {
         let mut first = stripped_curves.get(0).unwrap();
@@ -50,13 +50,13 @@ pub trait InterestRateQuote {
 }
 
 #[derive(Debug)]
-pub struct YieldTermStructure<'a> {
+pub struct YieldTermStructure<'termstructure> {
     pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
-    pub cash_quote: Vec<OISRate<'a>>,
-    pub futures_quote: Vec<FuturesRate<'a>>,
-    has_built: bool,
+    pub cash_quote: Vec<OISRate<'termstructure>>,
+    pub futures_quote: Vec<FuturesRate<'termstructure>>,
+    is_called: bool,
     stripped_curves: Option<Vec<StrippedCurve>>,
 }
 
@@ -70,13 +70,13 @@ pub struct StrippedCurve {
     source: InterestRateQuoteEnum,
 }
 
-impl<'a> YieldTermStructure<'a> {
+impl<'termstructure> YieldTermStructure<'termstructure> {
     pub fn new(
         valuation_date: NaiveDate,
         calendar: Box<dyn Calendar>,
         day_counter: Box<dyn DayCounters>,
-        cash_quote: Vec<OISRate<'a>>,
-        futures_quote: Vec<FuturesRate<'a>>,
+        cash_quote: Vec<OISRate<'termstructure>>,
+        futures_quote: Vec<FuturesRate<'termstructure>>,
     ) -> Self {
         Self {
             valuation_date,
@@ -84,7 +84,7 @@ impl<'a> YieldTermStructure<'a> {
             day_counter,
             cash_quote,
             futures_quote,
-            has_built: false,
+            is_called: false,
             stripped_curves: None,
         }
     }
@@ -115,12 +115,12 @@ impl<'a> YieldTermStructure<'a> {
                 source: future.yts_type(),
             })
         }
-        self.has_built = true;
+        self.is_called = true;
         self.stripped_curves = Some(outputs);
     }
 
     pub fn forward_rate(&mut self, accrual_start_date: NaiveDate, tenor: Period) -> f64 {
-        if !self.has_built {
+        if !self.is_called {
             self.get_stripped_curve();
         }
         let accrual_end_date = accrual_start_date + tenor;

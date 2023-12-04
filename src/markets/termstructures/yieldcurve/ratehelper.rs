@@ -10,12 +10,12 @@ use chrono::NaiveDate;
 
 /// Interest rate futures.
 #[derive(Debug)]
-pub struct FuturesRate<'a> {
+pub struct FuturesRate<'terms> {
     pub value: f64,
     pub imm_code: &'static str,
     pub convexity_adjustment: f64,
-    pub futures_spec: &'a InterestRateFutures,
-    pub interest_rate_index: &'a InterestRateIndex,
+    pub futures_spec: &'terms InterestRateFutures,
+    pub interest_rate_index: &'terms InterestRateIndex,
 }
 
 impl FuturesRate<'_> {
