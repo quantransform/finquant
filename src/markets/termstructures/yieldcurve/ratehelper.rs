@@ -7,9 +7,10 @@ use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 use chrono::NaiveDate;
+use serde::Serialize;
 
 /// Interest rate futures.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct FuturesRate<'terms> {
     pub value: f64,
     pub imm_code: &'static str,
@@ -23,7 +24,11 @@ impl FuturesRate<'_> {
         1f64 - self.value / 100.0 + self.convexity_adjustment / 100.0
     }
 
-    pub fn discount(&self, valuation_date: NaiveDate, stripped_curves: &Vec<StrippedCurve>) -> f64 {
+    pub fn discount(
+        &mut self,
+        valuation_date: NaiveDate,
+        stripped_curves: &Vec<StrippedCurve>,
+    ) -> f64 {
         let settle_date = self.settle_date(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
         let year_fraction_index = self
@@ -37,7 +42,7 @@ impl FuturesRate<'_> {
     }
 
     pub fn zero_rate(
-        &self,
+        &mut self,
         valuation_date: NaiveDate,
         stripped_curves: &Vec<StrippedCurve>,
     ) -> f64 {
@@ -81,7 +86,7 @@ impl InterestRateQuote for FuturesRate<'_> {
     fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
         IMM.date(self.imm_code, Some(valuation_date)).unwrap()
     }
-    fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
         self.futures_spec
             .maturity_date(self.settle_date(valuation_date))
     }
@@ -113,7 +118,7 @@ mod tests {
         };
         let ir_index =
             InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
-        let future_quote = FuturesRate {
+        let mut future_quote = FuturesRate {
             value: 96.045,
             imm_code: "X3",
             convexity_adjustment: -0.00015,

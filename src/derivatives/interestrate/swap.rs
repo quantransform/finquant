@@ -1,4 +1,5 @@
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
+use crate::markets::termstructures::yieldcurve::{InterestRateQuote, InterestRateQuoteEnum};
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::DayCounters;
@@ -6,6 +7,7 @@ use crate::time::frequency::Frequency;
 use crate::time::period::Period;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use std::cmp::max;
 
 #[derive(Serialize, Debug)]
 pub struct InterestRateSwapFixedLeg {
@@ -73,11 +75,58 @@ pub struct InterestRateSwap {
     pub float_leg: InterestRateSwapFloatLeg,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+impl InterestRateQuote for InterestRateSwap {
+    fn yts_type(&self) -> InterestRateQuoteEnum {
+        InterestRateQuoteEnum::Swap
+    }
+
+    fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+        self.effective_date(valuation_date).unwrap()
+    }
+
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
+        if !self.fixed_leg.is_called || !self.float_leg.is_called {
+            self.make_schedule(valuation_date)
+        }
+        max(
+            self.fixed_leg
+                .schedule
+                .as_ref()
+                .unwrap()
+                .last()
+                .unwrap()
+                .accrual_end_date,
+            self.float_leg
+                .schedule
+                .as_ref()
+                .unwrap()
+                .last()
+                .unwrap()
+                .accrual_end_date,
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Default, Debug)]
 pub struct InterestRateSchedule {
     pub accrual_start_date: NaiveDate,
     pub accrual_end_date: NaiveDate,
-    pub amounts: f64,
+    pub pay_date: NaiveDate,
+    pub reset_date: NaiveDate,
+    pub amortisation_amounts: f64,
+    pub balance: f64,
+    pub cashflow: Option<InterestRateCashflow>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Default, Debug)]
+pub struct InterestRateCashflow {
+    pub day_counts: Option<i64>,
+    pub notional: Option<f64>,
+    pub principal: Option<f64>,
+    pub reset_rate: Option<f64>,
+    pub payment: Option<f64>,
+    pub discount: Option<f64>,
+    pub present_value: Option<f64>,
 }
 
 impl InterestRateSwap {
@@ -95,10 +144,12 @@ impl InterestRateSwap {
         let effective_date = self.effective_date(valuation_date).unwrap();
         match self.fixed_leg.tenor {
             Period::Days(num) | Period::Weeks(num) => {
-                self.fixed_leg.schedule = Some(self.loop_for_schedule(effective_date, num as u32));
+                self.fixed_leg.schedule =
+                    Some(self.loop_for_schedule(effective_date, num as u32, 1f64, 0, 0));
             }
             Period::Months(num) | Period::Years(num) => {
-                self.fixed_leg.schedule = Some(self.loop_for_schedule(effective_date, num));
+                self.fixed_leg.schedule =
+                    Some(self.loop_for_schedule(effective_date, num, 1f64, 0, 0));
             }
             _ => {
                 self.fixed_leg.schedule = None;
@@ -107,10 +158,12 @@ impl InterestRateSwap {
 
         match self.float_leg.tenor {
             Period::Days(num) | Period::Weeks(num) => {
-                self.float_leg.schedule = Some(self.loop_for_schedule(effective_date, num as u32));
+                self.float_leg.schedule =
+                    Some(self.loop_for_schedule(effective_date, num as u32, 1f64, 0, 0));
             }
             Period::Months(num) | Period::Years(num) => {
-                self.float_leg.schedule = Some(self.loop_for_schedule(effective_date, num));
+                self.float_leg.schedule =
+                    Some(self.loop_for_schedule(effective_date, num, 1f64, 0, 0));
             }
             _ => {
                 self.float_leg.schedule = None;
@@ -121,7 +174,14 @@ impl InterestRateSwap {
         self.float_leg.is_called = true;
     }
 
-    fn loop_for_schedule(&self, effective_date: NaiveDate, num: u32) -> Vec<InterestRateSchedule> {
+    fn loop_for_schedule(
+        &self,
+        effective_date: NaiveDate,
+        num: u32,
+        notional: f64,
+        pay_delay: i64,
+        days_before_accrual: i64,
+    ) -> Vec<InterestRateSchedule> {
         let mut schedule = Vec::new();
         let mut start_date = effective_date;
         for n in 1..(num + 1) {
@@ -134,11 +194,33 @@ impl InterestRateSwap {
                     Some(self.interest_rate_index.end_of_month),
                 )
                 .unwrap();
-            schedule.push(InterestRateSchedule {
+            let mut irs = InterestRateSchedule {
                 accrual_start_date: start_date,
                 accrual_end_date: end_date,
-                amounts: 1f64,
-            });
+                pay_date: self
+                    .calendar
+                    .advance(
+                        end_date,
+                        Period::Days(pay_delay),
+                        self.convention,
+                        Some(false),
+                    )
+                    .unwrap(),
+                reset_date: self
+                    .calendar
+                    .advance(
+                        start_date,
+                        Period::Days(-days_before_accrual),
+                        self.convention,
+                        Some(false),
+                    )
+                    .unwrap(),
+                balance: notional,
+                ..Default::default()
+            };
+
+            irs.balance = notional;
+            schedule.push(irs);
             start_date = end_date;
         }
         schedule
@@ -224,6 +306,7 @@ mod tests {
             float_schedule[0].accrual_end_date,
             NaiveDate::from_ymd_opt(2023, 11, 7).unwrap()
         );
+        assert_eq!(float_schedule[0].cashflow, None);
     }
 
     #[test]
