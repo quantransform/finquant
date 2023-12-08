@@ -12,14 +12,14 @@ pub struct OISRate<'termstructure> {
 }
 
 impl OISRate<'_> {
-    pub fn discount(&self, valuation_date: NaiveDate) -> f64 {
+    pub fn discount(&mut self, valuation_date: NaiveDate) -> f64 {
         let zero_rate = self.zero_rate(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
         let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
         (-zero_rate * year_fraction).exp()
     }
 
-    pub fn zero_rate(&self, valuation_date: NaiveDate) -> f64 {
+    pub fn zero_rate(&mut self, valuation_date: NaiveDate) -> f64 {
         let settle_date = self.settle_date(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
         let year_fraction_index = self
@@ -29,6 +29,18 @@ impl OISRate<'_> {
         let year_fraction = Actual365Fixed::default().year_fraction(settle_date, maturity_date);
         let discount = 1.0 / (1.0 + year_fraction_index * self.value);
         -discount.ln() / year_fraction
+    }
+
+    pub fn maturity_date_not_mut(&self, valuation_date: NaiveDate) -> NaiveDate {
+        self.interest_rate_index
+            .calendar
+            .advance(
+                self.settle_date(valuation_date),
+                self.interest_rate_index.period,
+                self.interest_rate_index.convention,
+                Some(self.interest_rate_index.end_of_month),
+            )
+            .unwrap()
     }
 }
 
@@ -47,7 +59,7 @@ impl InterestRateQuote for OISRate<'_> {
             )
             .unwrap()
     }
-    fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
         self.interest_rate_index
             .calendar
             .advance(
@@ -72,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_settle_maturity_date() {
-        let ois_quote = OISRate {
+        let mut ois_quote = OISRate {
             value: 0.03938,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
@@ -88,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_discount() {
-        let ois_quote = OISRate {
+        let mut ois_quote = OISRate {
             value: 0.03948,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),

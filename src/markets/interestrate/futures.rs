@@ -4,9 +4,10 @@ use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 use crate::time::period::Period;
 use chrono::{Datelike, NaiveDate};
+use serde::Serialize;
 
 /// Futures
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct InterestRateFutures {
     pub period: Period,
     pub calendar: Box<dyn Calendar>,

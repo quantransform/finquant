@@ -35,7 +35,7 @@ pub trait InterestRateQuote {
     fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate;
 
     /// Maturity date of the quote.
-    fn maturity_date(&self, valuation_date: NaiveDate) -> NaiveDate;
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate;
 
     /// Get closest available stripped curve of the target date.
     fn retrieve_related_stripped_curve<'termstructure>(
@@ -116,8 +116,8 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
         self.cash_quote
-            .sort_by_key(|quote| quote.maturity_date(self.valuation_date));
-        for cash in &self.cash_quote {
+            .sort_by_key(|quote| quote.maturity_date_not_mut(self.valuation_date));
+        for cash in &mut self.cash_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: cash.settle_date(self.valuation_date),
                 date: cash.maturity_date(self.valuation_date),
@@ -128,7 +128,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
                 source: cash.yts_type(),
             })
         }
-        for future in &self.futures_quote {
+        for future in &mut self.futures_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: future.settle_date(self.valuation_date),
                 date: future.maturity_date(self.valuation_date),
@@ -333,6 +333,55 @@ mod tests {
             futures_spec: &future,
             interest_rate_index: &ir_index,
         };
+        let future_quote_j4 = FuturesRate {
+            value: 96.21,
+            imm_code: "J4",
+            convexity_adjustment: -0.00282,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_m4 = FuturesRate {
+            value: 96.35,
+            imm_code: "M4",
+            convexity_adjustment: -0.00455,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_u4 = FuturesRate {
+            value: 96.59,
+            imm_code: "U4",
+            convexity_adjustment: -0.00767,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_z4 = FuturesRate {
+            value: 96.815,
+            imm_code: "Z4",
+            convexity_adjustment: -0.01150,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_h5 = FuturesRate {
+            value: 96.985,
+            imm_code: "H5",
+            convexity_adjustment: -0.01605,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_m5 = FuturesRate {
+            value: 97.09,
+            imm_code: "M5",
+            convexity_adjustment: -0.02129,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
+        let future_quote_u5 = FuturesRate {
+            value: 97.135,
+            imm_code: "U5",
+            convexity_adjustment: -0.02720,
+            futures_spec: &future,
+            interest_rate_index: &ir_index,
+        };
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Box::new(Target::default()),
@@ -344,6 +393,13 @@ mod tests {
                 future_quote_f4,
                 future_quote_g4,
                 future_quote_h4,
+                future_quote_j4,
+                future_quote_m4,
+                future_quote_u4,
+                future_quote_z4,
+                future_quote_h5,
+                future_quote_m5,
+                future_quote_u5,
             ],
         );
         yts.get_stripped_curve();
@@ -433,6 +489,95 @@ mod tests {
         );
         assert_eq!(format!("{:.7}", (stripped_curve[6].zero_rate)), "0.0395053");
         assert_eq!(format!("{:.6}", (stripped_curve[6].discount)), "0.974780");
+
+        assert_eq!(
+            stripped_curve[7].first_settle_date,
+            NaiveDate::from_ymd_opt(2024, 4, 17).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[7].date,
+            NaiveDate::from_ymd_opt(2024, 7, 17).unwrap()
+        );
+        assert_eq!(format!("{:.7}", (stripped_curve[7].zero_rate)), "0.0392935");
+        assert_eq!(format!("{:.6}", (stripped_curve[7].discount)), "0.971980");
+
+        assert_eq!(
+            stripped_curve[8].first_settle_date,
+            NaiveDate::from_ymd_opt(2024, 6, 19).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[8].date,
+            NaiveDate::from_ymd_opt(2024, 9, 18).unwrap()
+        );
+        assert_eq!(format!("{:.7}", (stripped_curve[8].zero_rate)), "0.0387501");
+        assert_eq!(format!("{:.6}", (stripped_curve[8].discount)), "0.965880");
+
+        assert_eq!(
+            stripped_curve[9].first_settle_date,
+            NaiveDate::from_ymd_opt(2024, 9, 18).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[9].date,
+            NaiveDate::from_ymd_opt(2024, 12, 18).unwrap()
+        );
+        assert_eq!(format!("{:.7}", (stripped_curve[9].zero_rate)), "0.0377918");
+        assert_eq!(format!("{:.6}", (stripped_curve[9].discount)), "0.957644");
+
+        assert_eq!(
+            stripped_curve[10].first_settle_date,
+            NaiveDate::from_ymd_opt(2024, 12, 18).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[10].date,
+            NaiveDate::from_ymd_opt(2025, 3, 19).unwrap()
+        );
+        assert_eq!(
+            format!("{:.7}", (stripped_curve[10].zero_rate)),
+            "0.0367648"
+        );
+        assert_eq!(format!("{:.6}", (stripped_curve[10].discount)), "0.950023");
+
+        assert_eq!(
+            stripped_curve[11].first_settle_date,
+            NaiveDate::from_ymd_opt(2025, 3, 19).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[11].date,
+            NaiveDate::from_ymd_opt(2025, 6, 18).unwrap()
+        );
+        assert_eq!(
+            format!("{:.7}", (stripped_curve[11].zero_rate)),
+            "0.0357830"
+        );
+        assert_eq!(format!("{:.6}", (stripped_curve[11].discount)), "0.942875");
+
+        assert_eq!(
+            stripped_curve[12].first_settle_date,
+            NaiveDate::from_ymd_opt(2025, 6, 18).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[12].date,
+            NaiveDate::from_ymd_opt(2025, 9, 17).unwrap()
+        );
+        assert_eq!(
+            format!("{:.7}", (stripped_curve[12].zero_rate)),
+            "0.0349137"
+        );
+        assert_eq!(format!("{:.6}", (stripped_curve[12].discount)), "0.936040");
+
+        assert_eq!(
+            stripped_curve[13].first_settle_date,
+            NaiveDate::from_ymd_opt(2025, 9, 17).unwrap()
+        );
+        assert_eq!(
+            stripped_curve[13].date,
+            NaiveDate::from_ymd_opt(2025, 12, 17).unwrap()
+        );
+        assert_eq!(
+            format!("{:.7}", (stripped_curve[13].zero_rate)),
+            "0.0341870"
+        );
+        assert_eq!(format!("{:.6}", (stripped_curve[13].discount)), "0.929373");
 
         // Check zero rate
         assert_eq!(
