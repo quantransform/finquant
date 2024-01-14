@@ -4,8 +4,9 @@ use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
 use chrono::NaiveDate;
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct OISRate<'termstructure> {
     pub value: f64,
     pub interest_rate_index: &'termstructure InterestRateIndex,
@@ -31,6 +32,7 @@ impl OISRate<'_> {
         -discount.ln() / year_fraction
     }
 
+    // TODO: Need to figure out how to use maturity_date
     pub fn maturity_date_not_mut(&self, valuation_date: NaiveDate) -> NaiveDate {
         self.interest_rate_index
             .calendar

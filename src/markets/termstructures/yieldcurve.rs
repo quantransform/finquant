@@ -1,3 +1,4 @@
+use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
 use crate::time::calendars::Calendar;
@@ -74,21 +75,22 @@ pub struct StrippedCurve {
     pub market_rate: f64,
     pub zero_rate: f64,
     pub discount: f64,
-    source: InterestRateQuoteEnum,
-    hidden_pillar: bool,
+    pub source: InterestRateQuoteEnum,
+    pub hidden_pillar: bool,
 }
 
 /// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
 /// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct YieldTermStructure<'termstructure> {
     pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
     pub cash_quote: Vec<OISRate<'termstructure>>,
     pub futures_quote: Vec<FuturesRate<'termstructure>>,
-    is_called: bool,
-    stripped_curves: Option<Vec<StrippedCurve>>,
+    pub swap_quote: Vec<InterestRateSwap<'termstructure>>,
+    pub is_called: bool,
+    pub stripped_curves: Option<Vec<StrippedCurve>>,
 }
 
 impl<'termstructure> YieldTermStructure<'termstructure> {
@@ -98,6 +100,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         day_counter: Box<dyn DayCounters>,
         cash_quote: Vec<OISRate<'termstructure>>,
         futures_quote: Vec<FuturesRate<'termstructure>>,
+        swap_quote: Vec<InterestRateSwap<'termstructure>>,
     ) -> Self {
         Self {
             valuation_date,
@@ -105,6 +108,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             day_counter,
             cash_quote,
             futures_quote,
+            swap_quote,
             is_called: false,
             stripped_curves: None,
         }
@@ -124,6 +128,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
                 market_rate: cash.value,
                 zero_rate: cash.zero_rate(self.valuation_date),
                 discount: cash.discount(self.valuation_date),
+                // TODO: Make this more meaningful
                 hidden_pillar: cash.interest_rate_index.period == Period::Weeks(1),
                 source: cash.yts_type(),
             })
@@ -188,6 +193,19 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             _ => self.step_function_forward_zero_rate(date),
         }
     }
+
+    /// Get discount factor by using stripped curve.
+    pub fn discount(
+        &mut self,
+        date: NaiveDate,
+        interpolation_method_enum: &InterpolationMethodEnum,
+    ) -> f64 {
+        let zero_rate = self.zero_rate(date, interpolation_method_enum);
+        let duration = Actual365Fixed::default().year_fraction(self.valuation_date, date);
+        (-zero_rate * duration).exp()
+    }
+
+    /// Get forward rate from zero rate.
     pub fn forward_rate(
         &mut self,
         accrual_start_date: NaiveDate,
@@ -216,6 +234,10 @@ mod tests {
         InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
         YieldTermStructure,
     };
+    use crate::derivatives::basic::Direction;
+    use crate::derivatives::interestrate::swap::{
+        InterestRateSwap, InterestRateSwapFixedLeg, InterestRateSwapFloatLeg,
+    };
     use crate::markets::interestrate::futures::InterestRateFutures;
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
@@ -224,7 +246,10 @@ mod tests {
     use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
     use crate::time::businessdayconvention::BusinessDayConvention;
     use crate::time::calendars::Target;
+    use crate::time::daycounters::actual360::Actual360;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
+    use crate::time::daycounters::thirty360::Thirty360;
+    use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
 
@@ -382,6 +407,27 @@ mod tests {
             futures_spec: &future,
             interest_rate_index: &ir_index,
         };
+        let swap_quote_3y = InterestRateSwap {
+            calendar: Box::<Target>::default(),
+            convention: BusinessDayConvention::ModifiedFollowing,
+            interest_rate_index: &ir_index,
+            settlement_days: 2i64,
+            fixed_leg: InterestRateSwapFixedLeg::new(
+                Direction::Buy,
+                Frequency::Annual,
+                Period::Months(12),
+                Box::<Thirty360>::default(),
+                0.0322925,
+            ),
+            float_leg: InterestRateSwapFloatLeg::new(
+                Direction::Sell,
+                Frequency::Quarterly,
+                Period::Months(3),
+                Box::<Actual360>::default(),
+                0f64,
+            ),
+            yield_term_structure: None,
+        };
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Box::new(Target::default()),
@@ -401,6 +447,7 @@ mod tests {
                 future_quote_m5,
                 future_quote_u5,
             ],
+            vec![swap_quote_3y],
         );
         yts.get_stripped_curve();
         let stripped_curve = yts.stripped_curves.as_ref().unwrap();
