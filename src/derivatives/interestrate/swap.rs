@@ -212,6 +212,7 @@ impl InterestRateSwap<'_> {
                 }
             }
             Some(npv)
+        } else {
             None
         }
     }
