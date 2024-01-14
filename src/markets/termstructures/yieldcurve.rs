@@ -44,8 +44,8 @@ pub trait InterestRateQuote {
         stripped_curves: &'termstructure Vec<StrippedCurve>,
         target_date: NaiveDate,
     ) -> &StrippedCurve {
-        let mut first = stripped_curves.get(0).unwrap();
-        let mut second = stripped_curves.get(0).unwrap();
+        let mut first = stripped_curves.first().unwrap();
+        let mut second = stripped_curves.first().unwrap();
         for stripped_curve in stripped_curves {
             if stripped_curve.first_settle_date < target_date && stripped_curve.date >= target_date
             {
@@ -54,8 +54,8 @@ pub trait InterestRateQuote {
             }
             first = &stripped_curve;
         }
-        if second == stripped_curves.get(0).unwrap() {
-            first = stripped_curves.get(0).unwrap();
+        if second == stripped_curves.first().unwrap() {
+            first = stripped_curves.first().unwrap();
         }
         let second_day_count = (second.date - target_date).num_days();
         let first_day_count = (target_date - first.date).num_days();

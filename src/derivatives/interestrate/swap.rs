@@ -306,7 +306,6 @@ impl InterestRateSwap<'_> {
                 payment: Some(reset_rate.unwrap_or(0.0) * notional),
                 discount,
                 present_value: Some(reset_rate.unwrap_or(0.0) * notional * discount.unwrap_or(1.0)),
-                ..Default::default()
             });
             schedule.push(irs);
             start_date = end_date;

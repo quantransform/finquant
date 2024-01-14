@@ -37,7 +37,7 @@ impl FXForwardHelper {
                     fx_frd_quote.tenor.settlement_date(valuation_date, calendar)
                 });
                 let before_quote = before_quotes.last().unwrap();
-                let after_quote = after_quotes.get(0).unwrap();
+                let after_quote = after_quotes.first().unwrap();
                 let start_date = before_quote.tenor.settlement_date(valuation_date, calendar);
                 let end_date = after_quote.tenor.settlement_date(valuation_date, calendar);
                 let total_day_count = (end_date - start_date).num_days() as f64;
