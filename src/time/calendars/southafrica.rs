@@ -58,6 +58,8 @@ impl Calendar for SouthAfrica {
             || (d == 1 && m == 11 && y == 2021)
             // one-shot: In lieu of Christmas falling on Sunday in 2022
             || (d == 27 && m == 12 && y == 2022)
+            // one-shot: Special holiday to celebrate winning of Rugby World Cp 2023
+            || (d == 15 && m == 12 && y == 2023)
         {
             false
         } else {
@@ -101,12 +103,12 @@ mod tests {
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, false, false, true, true, true, false, false,
+            false, true, true, true, true, false, false, false, true, true, true, true, true,
+            false, false, false, false, true, true, true, false, false,
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
-            let target_date = first_date + Duration::days(n as i64);
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(SouthAfrica.is_business_day(target_date), expected);
         }

@@ -38,7 +38,7 @@ impl ActualActual {
             while temp > d1 {
                 temp = new_d2 - Months::new(12);
                 if temp.day() == 28 && temp.month() == 2 && temp.leap_year() {
-                    temp += Duration::days(1);
+                    temp += Duration::try_days(1).unwrap();
                 }
                 if temp >= d1 {
                     sum += 1f64;

@@ -412,7 +412,7 @@ mod tests {
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
-            let target_date = first_date + Duration::days(n as i64);
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(HongKong.is_business_day(target_date), expected);
         }
