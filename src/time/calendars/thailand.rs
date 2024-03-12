@@ -417,5 +417,17 @@ mod tests {
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(Thailand.is_business_day(target_date), expected);
         }
+        let target_date = NaiveDate::from_ymd_opt(2019, 2, 19).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
+        let target_date = NaiveDate::from_ymd_opt(2020, 2, 10).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
+        let target_date = NaiveDate::from_ymd_opt(2021, 10, 22).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
+        let target_date = NaiveDate::from_ymd_opt(2022, 10, 24).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
+        let target_date = NaiveDate::from_ymd_opt(2023, 12, 29).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
+        let target_date = NaiveDate::from_ymd_opt(2024, 10, 23).unwrap();
+        assert_eq!(Thailand.is_business_day(target_date), false);
     }
 }
