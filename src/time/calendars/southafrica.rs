@@ -103,8 +103,8 @@ mod tests {
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, false, false, false, true, true, true, true, true, false,
-            false, false, false, true, true, true, false, false,
+            false, true, true, true, true, false, false, false, true, true, true, true, true,
+            false, false, false, false, true, true, true, false, false,
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
