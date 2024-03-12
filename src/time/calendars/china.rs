@@ -56,6 +56,7 @@ impl Calendar for China {
             || (y == 2021 && (d == 11 || d == 12 || d == 15 || d == 16 || d == 17) && m == 2)
             || (y == 2022 && ((d == 31 && m == 1) || (d <= 4 && m == 2)))
             || (y == 2023 && (23..=27).contains(&d) && m == 1)
+            || (y == 2024 && (d == 9 || ((12..=16).contains(&d))) && m == 2)
             // Ching Ming Festival
             || (y <= 2008 && d == 4 && m == 4)
             || (y == 2009 && d == 6 && m == 4)
@@ -73,6 +74,7 @@ impl Calendar for China {
             || (y == 2021 && d == 5 && m == 4)
             || (y == 2022 && (4..=5).contains(&d) && m == 4)
             || (y == 2023 && d == 5 && m == 4)
+            || (y == 2024 && (4..=5).contains(&d) && m == 4)
             // Labor Day
             || (y <= 2007 && (1..=7).contains(&d) && m == 5)
             || (y == 2008 && (1..=2).contains(&d) && m == 5)
@@ -93,6 +95,7 @@ impl Calendar for China {
             || (y == 2021 && (d == 3 || d == 4 || d == 5) && m == 5)
             || (y == 2022 && (2..=4).contains(&d) && m == 5)
             || (y == 2023 && (1..=3).contains(&d) && m == 5)
+            || (y == 2024 && (1..=3).contains(&d) && m == 5)
             // Tuen Ng Festival
             || (y <= 2008 && d == 9 && m == 6)
             || (y == 2009 && (d == 28 || d == 29) && m == 5)
@@ -110,6 +113,7 @@ impl Calendar for China {
             || (y == 2021 && d == 14 && m == 6)
             || (y == 2022 && d == 3 && m == 6)
             || (y == 2023 && (22..=23).contains(&d) && m == 6)
+            || (y == 2024 && d == 10 && m == 6)
             // Mid-Autumn Festival
             || (y <= 2008 && d == 15 && m == 9)
             || (y == 2010 && (22..=24).contains(&d) && m == 9)
@@ -124,6 +128,7 @@ impl Calendar for China {
             || (y == 2021 && (d == 20 || d == 21) && m == 9)
             || (y == 2022 && d == 12 && m == 9)
             || (y == 2023 && d == 29 && m == 9)
+            || (y == 2024 && (16..=17).contains(&d) && m == 9)
             // National Day
             || (y <= 2007 && (1..=7).contains(&d) && m == 10)
             || (y == 2008 && ((d >= 29 && m == 9) ||
@@ -144,6 +149,7 @@ impl Calendar for China {
             || (y == 2021 && (d == 1 || d == 4 || d == 5 || d == 6 || d == 7) && m == 10)
             || (y == 2022 && (3..=7).contains(&d) && m == 10)
             || (y == 2023 && (2..=6).contains(&d) && m == 10)
+            || (y == 2024 && ((1..=4).contains(&d) || d == 7) && m == 10)
             // 70th anniversary of the victory of anti-Japaneses war
             || (y == 2015 && (3..=4).contains(&d) && m == 9)
         {

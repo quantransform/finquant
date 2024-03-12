@@ -31,6 +31,8 @@ impl Calendar for Mexico {
             || (d == 1 && m == 5)
             // National Day
             || (d == 16 && m == 9)
+            // Inauguration Day
+            || (d == 1 && m == 10 && y >= 2024 && (y - 2024) % 6 == 0)
             // All Souls Day
             || (d == 2 && m == 11)
             // Revolution Day
