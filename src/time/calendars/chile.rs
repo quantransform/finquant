@@ -54,6 +54,8 @@ impl Calendar for Chile {
             || (d == 8 && m == 12)
             // Christmas Day
             || (d == 25 && m == 12)
+            // New Year's Eve
+            || (d ==31 && m == 12)
         {
             return false;
         }

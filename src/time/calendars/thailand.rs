@@ -19,26 +19,31 @@ impl Calendar for Thailand {
             || ((d == 1 || (d==3 && w==Weekday::Mon)) && m == 1)
             // Chakri Memorial Day
             || ((d == 6 || ((d==7 || d==8) && w==Weekday::Mon)) && m == 4)
-            // Songkran Festival
-            || ((d == 13 || d == 14 || d == 15) && m == 4)
-            // Songkran Festival obersvence (usually not more then 1 holiday will be replaced)
-            || (d == 16 && (w == Weekday::Mon || w == Weekday::Tue) && m == 4)
+            // Songkran Festival (was cancelled in 2020 due to the Covid-19 Pandemic)
+            || ((d == 13 || d == 14 || d == 15) && m == 4 && y != 2020)
+            // Substitution Songkran Festival, usually not more than 5 days in total (was cancelled
+            // in 2020 due to the Covid-19 Pandemic)
+            || (d == 16 && (w == Weekday::Mon || w == Weekday::Tue) && m == 4 && y != 2020)
             // Labor Day
             || ((d == 1 || ((d==2 || d==3) && w==Weekday::Mon)) && m == 5)
-            // H.M. the King's Birthday
-            || ((d == 28 || ((d==29 || d==30) && w==Weekday::Mon)) && m == 7 && y >= 2017)
-            // H.M. the Queen's Birthday
-            || ((d == 12 || ((d==13 || d==14) && w==Weekday::Mon)) && m == 8)
-            // H.M. King Bhumibol Adulyadej Memorial Day
-            || ((d == 13 || ((d==14 || d==15) && w==Weekday::Mon)) && m == 10 && y >= 2017)
-            // H.M. King Bhumibol Adulyadej's Birthday
-            || ((d == 5 || ((d==6 || d==7) && w==Weekday::Mon)) && m == 12)
+            // Coronation Day
+            || ((d == 4 || ((d == 5 || d == 6) && w == Weekday::Mon)) && m == 5 && y >= 2019)
+            // H.M.Queen Suthida Bajrasudhabimalalakshana’s Birthday
+            || ((d == 03 || ((d == 04 || d == 05) && w == Weekday::Mon)) && m == 6 && y >= 2019)
+            // H.M. King Maha Vajiralongkorn Phra Vajiraklaochaoyuhua’s Birthday
+            || ((d == 28 || ((d == 29 || d == 30) && w == Weekday::Mon)) && m == 7  && y >= 2017)
+            // 	​H.M. Queen Sirikit The Queen Mother’s Birthday / Mother’s Day
+            || ((d == 12 || ((d == 13 || d == 14) && w == Weekday::Mon)) && m == 8)
+            // H.M. King Bhumibol Adulyadej The Great Memorial Day
+            || ((d == 13 || ((d == 14 || d == 15) && w == Weekday::Mon)) && m == 10  && y >= 2017)
+            // Chulalongkorn Day
+            || ((d == 23 || ((d == 24 || d == 25) && w == Weekday::Mon)) && m == 10  && y != 2021)  // Moved 2021, see below
+            // H.M. King Bhumibol Adulyadej The Great’s Birthday/ National Day / Father’s Day
+            || ((d == 5 || ((d == 6 || d == 7) && w == Weekday::Mon)) && m == 12)
             // Constitution Day
-            || ((d == 10 || ((d==11 || d==12) && w==Weekday::Mon)) && m == 12)
+            || ((d == 10 || ((d == 11 || d == 12) && w == Weekday::Mon)) && m == 12)
             // New Year’s Eve
-            || (d == 31 && m == 12)
-            // New Year’s Eve Observence
-            || ((d == 1 || d==2) && w == Weekday::Mon && m == 1)
+            || ((d == 31 && m == 12) || (d == 2 && w == Weekday::Mon && m == 1 && y != 2024))  // Moved 2024
         {
             return false;
         }
@@ -280,6 +285,75 @@ impl Calendar for Thailand {
         {
             return false;
         }
+
+        if (y == 2019) && ((d == 19 && m == 2) // Makha Bucha Day
+            || (d == 6 && m == 5)    // Special Holiday
+            || (d == 20 && m == 5)   // Wisakha Bucha Day
+            || (d == 16 && m == 7)  // Asarnha Bucha Day
+        )
+        {
+            return false;
+        }
+
+        if (y == 2020) && ((d == 10 && m == 2)    // Makha Bucha Day
+            || (d == 6 && m == 5)       // Wisakha Bucha Day
+            || (d == 6 && m == 7)      // Asarnha Bucha Day
+            || (d == 27 && m == 7)     // Substitution for Songkran Festival
+            || (d == 4 && m == 9) // Substitution for Songkran Festival
+            || (d == 7 && m == 9) // Substitution for Songkran Festival
+            || (d == 11 && m == 12) // Special Holiday
+        )
+        {
+            return false;
+        }
+
+        if (y == 2021) && ((d == 12 && m == 2)     // Special Holiday
+            || (d == 26 && m == 2)  // Makha Bucha Day
+            || (d == 26 && m == 5)       // Wisakha Bucha Day
+            || (d == 26 && m == 7)      // Substitution for Asarnha Bucha Day (Saturday 24th July 2021)
+            || (d == 24 && m == 9) // Special Holiday
+            || (d == 22 && m == 10)   // ​Substitution for Chulalongkorn Day
+        )
+        {
+            return false;
+        }
+
+        if (y == 2022) && ((d == 16 && m == 2)   // Makha Bucha Day
+            || (d == 16 && m == 5)     // Substitution for Wisakha Bucha Day (Sunday 15th May 2022)
+            || (d == 13 && m == 7)    // Asarnha Bucha Day
+            || (d == 29 && m == 7)    // Additional special holiday (added)
+            || (d == 14 && m == 10) // Additional special holiday (added)
+            || (d == 24 && m == 10) // ​Substitution for Chulalongkorn Day (Sunday 23rd October 2022)
+        )
+        {
+            return false;
+        }
+
+        if (y == 2023) && ((d == 6 && m == 3)        // Makha Bucha Day
+            || (d == 5 && m == 5)       // Additional special holiday (added)
+            || (d == 5 && m == 6)      // Substitution for H.M. Queen's birthday and Wisakha Bucha Day (Saturday 3rd June 2022)
+            || (d == 1 && m == 8)    // Asarnha Bucha Day
+            || (d == 23 && m == 10)  // Chulalongkorn Day
+            || (d == 29 && m == 12) // Substitution for New Year’s Eve (Sunday 31st December 2023) (added)
+        )
+        {
+            return false;
+        }
+
+        if (y == 2024) && ((d == 26 && m == 2)    // Substitution for Makha Bucha Day (Saturday 24th February 2024)
+            || (d == 8 && m == 4)     // Substitution for Chakri Memorial Day (Saturday 6th April 2024)
+            || (d == 12 && m == 4)    // Additional holiday in relation to the Songkran festival
+            || (d == 6 && m == 5)       // Substitution for Coronation Day (Saturday 4th May 2024)
+            || (d == 22 && m == 5)      // Wisakha Bucha Day
+            || (d == 22 && m == 7)     // Substitution for Asarnha Bucha Day (Saturday 20th July 2024)
+            || (d == 23 && m == 10)  // Chulalongkorn Day
+        )
+        {
+            return false;
+        }
+
+
+
         true
     }
 }
@@ -296,29 +370,29 @@ mod tests {
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
-            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, false, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, false,
             true, false, false, true, true, true, false, false, false, false, true, true, true,
             true, true, false, false, true, true, true, true, true, false, false, false, true,
+            true, false, false, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, false, true, true, true, true, false, false, true, true,
             true, true, true, false, false, true, true, true, true, true, false, false, true, true,
             true, true, true, false, false, true, true, true, true, true, false, false, true, true,
             true, true, true, false, false, true, true, true, true, true, false, false, true, true,
-            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
-            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
-            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
-            true, true, false, false, false, true, true, true, true, true, false, false, true,
+            true, true, false, false, false, true, false, true, true, true, false, false, true,
             true, true, true, true, false, false, false, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, false, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, false, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, false, true, true, true,
             false, false, false, true, true, true, true, false, false, true, true, true, true,
-            true, false, false, true, true, true, true, true, false, false,
+            true, false, false, true, true, true, true, false, false, false,
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {

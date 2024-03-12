@@ -35,6 +35,8 @@ impl Brazil {
             || (d == 2 && m == 11)
             // Republic Day
             || (d == 15 && m == 11)
+            // Black Awareness Day
+            || (d == 20 && m == 11 && y >= 2024)
             // Christmas
             || (d == 25 && m == 12)
             // Passion of Christ
