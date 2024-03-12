@@ -179,7 +179,7 @@ pub trait Calendar: Debug {
     fn end_of_month(&self, date: NaiveDate) -> NaiveDate {
         let mut last_day_of_month = self.last_day_of_month(date);
         while self.is_holiday(last_day_of_month) {
-            last_day_of_month -= Duration::days(1)
+            last_day_of_month -= Duration::try_days(1).unwrap()
         }
         last_day_of_month
     }
@@ -215,7 +215,7 @@ pub trait Calendar: Debug {
             || bdc == BusinessDayConvention::HalfMonthModifiedFollowing
         {
             while self.is_holiday(d1) {
-                d1 += Duration::days(1);
+                d1 += Duration::try_days(1).unwrap();
             }
             if (bdc == BusinessDayConvention::ModifiedFollowing
                 || bdc == BusinessDayConvention::HalfMonthModifiedFollowing)
@@ -233,7 +233,7 @@ pub trait Calendar: Debug {
             || bdc == BusinessDayConvention::ModifiedPreceding
         {
             while self.is_holiday(d1) {
-                d1 -= Duration::days(1);
+                d1 -= Duration::try_days(1).unwrap();
             }
             if bdc == BusinessDayConvention::ModifiedPreceding && d1.month() != date.month() {
                 return self.adjust(date, BusinessDayConvention::Following);
@@ -241,8 +241,8 @@ pub trait Calendar: Debug {
         } else if bdc == BusinessDayConvention::Nearest {
             let mut d2 = date;
             while self.is_holiday(d1) && self.is_holiday(d2) {
-                d1 += Duration::days(1);
-                d2 -= Duration::days(1);
+                d1 += Duration::try_days(1).unwrap();
+                d2 -= Duration::try_days(1).unwrap();
             }
             return if self.is_holiday(d1) {
                 Some(d1)
@@ -320,10 +320,10 @@ pub trait Calendar: Debug {
         let include_first = include_first.unwrap_or(true);
         let include_last = include_last.unwrap_or(false);
         let mut day_count = 0;
-        let day_diff = ((to + Duration::days(if include_last { 1 } else { 0 }))
-            - (from + Duration::days(if include_first { 1 } else { 0 })))
+        let day_diff = ((to + Duration::try_days(if include_last { 1 } else { 0 }).unwrap())
+            - (from + Duration::try_days(if include_first { 1 } else { 0 }).unwrap()))
         .num_days();
-        for date in (from + Duration::days(if include_first { 1 } else { 0 }))
+        for date in (from + Duration::try_days(if include_first { 1 } else { 0 }).unwrap())
             .iter_days()
             .take(day_diff as usize)
         {

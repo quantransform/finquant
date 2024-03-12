@@ -23,14 +23,14 @@ impl Period {
         // TODO: Change spot as T+2 to be linked to currency.
         let target_date = match self {
             Period::ON => valuation_date,
-            _ => valuation_date + Duration::days(2),
+            _ => valuation_date + Duration::try_days(2).unwrap(),
         };
         let mut settlement_date = target_date + *self;
         if settlement_date >= calendar.end_of_month(settlement_date) {
             settlement_date = calendar.end_of_month(settlement_date)
         }
         while !calendar.is_business_day(settlement_date) {
-            settlement_date += Duration::days(1);
+            settlement_date += Duration::try_days(1).unwrap();
         }
         settlement_date
     }
@@ -41,11 +41,11 @@ impl Add<Period> for NaiveDate {
 
     fn add(self, rhs: Period) -> Self::Output {
         match rhs {
-            Period::ON => self + Duration::days(1),
-            Period::SPOT => self + Duration::days(0),
-            Period::SN => self + Duration::days(1),
-            Period::Days(num) => self + Duration::days(num),
-            Period::Weeks(num) => self + Duration::days(num * 7),
+            Period::ON => self + Duration::try_days(1).unwrap(),
+            Period::SPOT => self + Duration::try_days(0).unwrap(),
+            Period::SN => self + Duration::try_days(1).unwrap(),
+            Period::Days(num) => self + Duration::try_days(num).unwrap(),
+            Period::Weeks(num) => self + Duration::try_days(num * 7).unwrap(),
             Period::Months(num) => self + Months::new(num),
             Period::Years(num) => self + Months::new(num * 12),
         }
@@ -57,11 +57,11 @@ impl Sub<Period> for NaiveDate {
 
     fn sub(self, rhs: Period) -> Self::Output {
         match rhs {
-            Period::ON => self - Duration::days(1),
-            Period::SPOT => self - Duration::days(0),
-            Period::SN => self - Duration::days(1),
-            Period::Days(num) => self - Duration::days(num),
-            Period::Weeks(num) => self - Duration::days(num * 7),
+            Period::ON => self - Duration::try_days(1).unwrap(),
+            Period::SPOT => self - Duration::try_days(0).unwrap(),
+            Period::SN => self - Duration::try_days(1).unwrap(),
+            Period::Days(num) => self - Duration::try_days(num).unwrap(),
+            Period::Weeks(num) => self - Duration::try_days(num * 7).unwrap(),
             Period::Months(num) => self - Months::new(num),
             Period::Years(num) => self - Months::new(num * 12),
         }
