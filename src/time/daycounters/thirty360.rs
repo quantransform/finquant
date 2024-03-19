@@ -1,6 +1,7 @@
-use crate::time::daycounters::DayCounters;
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
+
+use crate::time::daycounters::DayCounters;
 
 #[warn(clippy::upper_case_acronyms)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -13,12 +14,16 @@ pub enum Thirty360Market {
     German(NaiveDate),
     NASD,
 }
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Thirty360 {
-    market: Option<Thirty360Market>,
+    market: Thirty360Market,
 }
 
 impl Thirty360 {
+    pub fn new(market: Thirty360Market) -> Self {
+        Self { market }
+    }
+
     fn is_last_of_february(&self, date: NaiveDate) -> bool {
         date.month() == 2 && date.day() == (28 + if date.leap_year() { 1 } else { 0 })
     }
@@ -146,19 +151,27 @@ impl Thirty360 {
     }
 }
 
+impl Default for Thirty360 {
+    fn default() -> Self {
+        Self {
+            market: Thirty360Market::USA,
+        }
+    }
+}
+
 #[typetag::serialize]
 impl DayCounters for Thirty360 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
-        match self.market.as_ref().unwrap_or(&Thirty360Market::USA) {
+        match self.market {
             Thirty360Market::USA => self.us_day_count(d1, d2),
             Thirty360Market::European => self.eu_day_count(d1, d2),
             Thirty360Market::Italian => self.italy_day_count(d1, d2),
             Thirty360Market::ISMA => self.isma_day_count(d1, d2),
             Thirty360Market::ISDA(termination_date) => {
-                self.isda_day_count(d1, d2, *termination_date)
+                self.isda_day_count(d1, d2, termination_date)
             }
             Thirty360Market::German(termination_date) => {
-                self.isda_day_count(d1, d2, *termination_date)
+                self.isda_day_count(d1, d2, termination_date)
             }
             Thirty360Market::NASD => self.nasd_day_count(d1, d2),
         }
@@ -216,8 +229,12 @@ mod tests {
     #[case("2008-02-29", "2009-02-28", 359)]
     #[case("2008-02-28", "2008-03-30", 32)]
     #[case("2008-02-28", "2008-03-31", 32)]
-    fn test_european_day_count(#[case] start_date: NaiveDate, #[case] end_date: NaiveDate, #[case] expected_day_count: i64) {
-        let counter = Thirty360 { market: Some(Thirty360Market::European) };
+    fn test_european_day_count(
+        #[case] start_date: NaiveDate,
+        #[case] end_date: NaiveDate,
+        #[case] expected_day_count: i64,
+    ) {
+        let counter = Thirty360::new(Thirty360Market::European);
         assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
     }
 
@@ -258,8 +275,13 @@ mod tests {
     #[case("2008-02-29", "2008-02-29", "2009-02-28", 360)]
     #[case("2008-02-29", "2008-02-29", "2008-03-30", 30)]
     #[case("2008-02-29", "2008-02-29", "2008-03-31", 30)]
-    fn test_isda_day_count(#[case] termination_date: NaiveDate, #[case] start_date: NaiveDate, #[case] end_date: NaiveDate, #[case] expected_day_count: i64) {
-        let counter = Thirty360 { market: Some(Thirty360Market::ISDA(termination_date)) };
+    fn test_isda_day_count(
+        #[case] termination_date: NaiveDate,
+        #[case] start_date: NaiveDate,
+        #[case] end_date: NaiveDate,
+        #[case] expected_day_count: i64,
+    ) {
+        let counter = Thirty360::new(Thirty360Market::ISDA(termination_date));
         assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
     }
 
@@ -294,8 +316,12 @@ mod tests {
     #[case("2008-02-29", "2009-02-28", 359)]
     #[case("2008-02-28", "2008-03-30", 32)]
     #[case("2008-02-28", "2008-03-31", 33)]
-    fn test_isma_day_count(#[case] start_date: NaiveDate, #[case] end_date: NaiveDate, #[case] expected_day_count: i64) {
-        let counter = Thirty360 { market: Some(Thirty360Market::ISMA) };
+    fn test_isma_day_count(
+        #[case] start_date: NaiveDate,
+        #[case] end_date: NaiveDate,
+        #[case] expected_day_count: i64,
+    ) {
+        let counter = Thirty360::new(Thirty360Market::ISMA);
         assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
     }
 }
