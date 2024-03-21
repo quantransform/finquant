@@ -292,9 +292,9 @@ pub trait Calendar: Debug {
                     }
                     Ordering::Less => {
                         while num < 0 {
-                            advance_date = advance_date - Period::Days(1);
+                            advance_date = (advance_date - Period::Days(1))?;
                             while !self.is_business_day(advance_date) {
-                                advance_date = advance_date - Period::Days(1);
+                                advance_date = (advance_date - Period::Days(1))?;
                             }
                             num += 1;
                         }

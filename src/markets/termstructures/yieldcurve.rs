@@ -35,10 +35,10 @@ pub trait InterestRateQuote {
     fn yts_type(&self) -> InterestRateQuoteEnum;
 
     /// Settlement date of the quote.
-    fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate;
+    fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate>;
 
     /// Maturity date of the quote.
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate;
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate>;
 
     /// Get closest available stripped curve of the target date.
     fn retrieve_related_stripped_curve<'termstructure>(
@@ -117,19 +117,19 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
     }
 
     /// Calculate stripped curve by using market data.
-    pub fn get_stripped_curve(&mut self) {
+    pub fn get_stripped_curve(&mut self) -> Result<()> {
         let total_size = self.cash_quote.len() + self.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
         self.cash_quote
-            .sort_by_key(|quote| quote.maturity_date_not_mut(self.valuation_date));
+            .sort_by_key(|quote| quote.maturity_date_not_mut(self.valuation_date).unwrap());
         for cash in &mut self.cash_quote {
             outputs.push(StrippedCurve {
-                first_settle_date: cash.settle_date(self.valuation_date),
-                date: cash.maturity_date(self.valuation_date),
+                first_settle_date: cash.settle_date(self.valuation_date)?,
+                date: cash.maturity_date(self.valuation_date)?,
                 market_rate: cash.value,
-                zero_rate: cash.zero_rate(self.valuation_date),
-                discount: cash.discount(self.valuation_date),
+                zero_rate: cash.zero_rate(self.valuation_date)?,
+                discount: cash.discount(self.valuation_date)?,
                 // TODO: Make this more meaningful
                 hidden_pillar: cash.interest_rate_index.period == Period::Weeks(1),
                 source: cash.yts_type(),
@@ -137,17 +137,19 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         }
         for future in &mut self.futures_quote {
             outputs.push(StrippedCurve {
-                first_settle_date: future.settle_date(self.valuation_date),
-                date: future.maturity_date(self.valuation_date),
+                first_settle_date: future.settle_date(self.valuation_date)?,
+                date: future.maturity_date(self.valuation_date)?,
                 market_rate: future.value,
-                zero_rate: future.zero_rate(self.valuation_date, &outputs),
-                discount: future.discount(self.valuation_date, &outputs),
+                zero_rate: future.zero_rate(self.valuation_date, &outputs)?,
+                discount: future.discount(self.valuation_date, &outputs)?,
                 hidden_pillar: false,
                 source: future.yts_type(),
             })
         }
         self.is_called = true;
         self.stripped_curves = Some(outputs);
+
+        Ok(())
     }
 
     fn step_function_forward_zero_rate(&mut self, date: NaiveDate) -> f64 {
@@ -183,17 +185,17 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         &mut self,
         date: NaiveDate,
         interpolation_method_enum: &InterpolationMethodEnum,
-    ) -> f64 {
+    ) -> Result<f64> {
         if !self.is_called {
-            self.get_stripped_curve();
+            self.get_stripped_curve()?;
         }
-        match interpolation_method_enum {
+        Ok(match interpolation_method_enum {
             InterpolationMethodEnum::StepFunctionForward => {
                 self.step_function_forward_zero_rate(date)
             }
             // TODO: add other interpolation method.
             _ => self.step_function_forward_zero_rate(date),
-        }
+        })
     }
 
     /// Get discount factor by using stripped curve.
@@ -201,12 +203,10 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         &mut self,
         date: NaiveDate,
         interpolation_method_enum: &InterpolationMethodEnum,
-    ) -> f64 {
-        let zero_rate = self.zero_rate(date, interpolation_method_enum);
-        let duration = Actual365Fixed::default()
-            .year_fraction(self.valuation_date, date)
-            .unwrap();
-        (-zero_rate * duration).exp()
+    ) -> Result<f64> {
+        let zero_rate = self.zero_rate(date, interpolation_method_enum)?;
+        let duration = Actual365Fixed::default().year_fraction(self.valuation_date, date)?;
+        Ok((-zero_rate * duration).exp())
     }
 
     /// Get forward rate from zero rate.
@@ -217,15 +217,15 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
         if !self.is_called {
-            self.get_stripped_curve();
+            self.get_stripped_curve()?;
         }
         let accrual_end_date = (accrual_start_date + tenor)?;
         let year_fraction_1 =
             Actual365Fixed::default().year_fraction(self.valuation_date, accrual_start_date)?;
         let year_fraction_2 =
             Actual365Fixed::default().year_fraction(self.valuation_date, accrual_end_date)?;
-        let zero_rate_1 = self.zero_rate(accrual_start_date, interpolation_method_enum);
-        let zero_rate_2 = self.zero_rate(accrual_end_date, interpolation_method_enum);
+        let zero_rate_1 = self.zero_rate(accrual_start_date, interpolation_method_enum)?;
+        let zero_rate_2 = self.zero_rate(accrual_end_date, interpolation_method_enum)?;
 
         let rate =
             ((-zero_rate_1 * year_fraction_1).exp() / (-zero_rate_2 * year_fraction_2).exp()).ln()
@@ -245,6 +245,7 @@ mod tests {
     use crate::derivatives::interestrate::swap::{
         InterestRateSwap, InterestRateSwapFixedLeg, InterestRateSwapFloatLeg,
     };
+    use crate::error::Result;
     use crate::markets::interestrate::futures::InterestRateFutures;
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
@@ -306,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_yts() {
+    fn test_yts() -> Result<()> {
         let ois_quote_1wk = OISRate {
             value: 0.03872,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
@@ -456,7 +457,7 @@ mod tests {
             ],
             vec![swap_quote_3y],
         );
-        yts.get_stripped_curve();
+        yts.get_stripped_curve()?;
         let stripped_curve = yts.stripped_curves.as_ref().unwrap();
 
         // OIS Check
@@ -640,7 +641,7 @@ mod tests {
                 yts.zero_rate(
                     NaiveDate::from_ymd_opt(2024, 1, 27).unwrap(),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
+                )?
             ),
             "0.039828"
         );
@@ -652,7 +653,7 @@ mod tests {
                 yts.zero_rate(
                     NaiveDate::from_ymd_opt(2024, 2, 27).unwrap(),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
+                )?
             ),
             "0.039882"
         );
@@ -663,7 +664,7 @@ mod tests {
                 yts.zero_rate(
                     NaiveDate::from_ymd_opt(2024, 3, 27).unwrap(),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
+                )?
             ),
             "0.039912"
         );
@@ -709,5 +710,7 @@ mod tests {
             ),
             "0.040040"
         );
+
+        Ok(())
     }
 }

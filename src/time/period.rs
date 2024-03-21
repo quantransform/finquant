@@ -71,10 +71,10 @@ impl Add<Period> for NaiveDate {
 }
 
 impl Sub<Period> for NaiveDate {
-    type Output = NaiveDate;
+    type Output = Result<NaiveDate>;
 
     fn sub(self, rhs: Period) -> Self::Output {
-        match rhs {
+        let date = match rhs {
             Period::ON => self - ONE_DAY,
             Period::SPOT => self,
             Period::SN => self - ONE_DAY,
@@ -82,7 +82,9 @@ impl Sub<Period> for NaiveDate {
             Period::Weeks(num) => self - Duration::try_days(num * 7).unwrap(),
             Period::Months(num) => self - Months::new(num),
             Period::Years(num) => self - Months::new(num * 12),
-        }
+        };
+
+        Ok(date)
     }
 }
 
@@ -140,33 +142,35 @@ mod tests {
     }
 
     #[test]
-    fn test_settlement_date_target_sub() {
+    fn test_settlement_date_target_sub() -> Result<()> {
         let current_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
-        assert_eq!(current_date - Period::SPOT, current_date);
+        assert_eq!((current_date - Period::SPOT)?, current_date);
         assert_eq!(
-            current_date - Period::ON,
+            (current_date - Period::ON)?,
             NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
         );
         assert_eq!(
-            current_date - Period::SN,
+            (current_date - Period::SN)?,
             NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
         );
         assert_eq!(
-            current_date - Period::Days(1),
+            (current_date - Period::Days(1))?,
             NaiveDate::from_ymd_opt(2023, 10, 16).unwrap()
         );
         assert_eq!(
-            current_date - Period::Weeks(1),
+            (current_date - Period::Weeks(1))?,
             NaiveDate::from_ymd_opt(2023, 10, 10).unwrap()
         );
         assert_eq!(
-            current_date - Period::Months(1),
+            (current_date - Period::Months(1))?,
             NaiveDate::from_ymd_opt(2023, 9, 17).unwrap()
         );
         assert_eq!(
-            current_date - Period::Years(1),
+            (current_date - Period::Years(1))?,
             NaiveDate::from_ymd_opt(2022, 10, 17).unwrap()
         );
+
+        Ok(())
     }
 
     #[test]

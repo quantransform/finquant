@@ -1,3 +1,7 @@
+use chrono::NaiveDate;
+use serde::Serialize;
+
+use crate::error::Result;
 use crate::markets::interestrate::futures::InterestRateFutures;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
@@ -6,8 +10,6 @@ use crate::markets::termstructures::yieldcurve::{
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
-use chrono::NaiveDate;
-use serde::Serialize;
 
 /// Interest rate futures.
 #[derive(Serialize, Debug)]
@@ -28,9 +30,9 @@ impl FuturesRate<'_> {
         &mut self,
         valuation_date: NaiveDate,
         stripped_curves: &Vec<StrippedCurve>,
-    ) -> f64 {
-        let settle_date = self.settle_date(valuation_date);
-        let maturity_date = self.maturity_date(valuation_date);
+    ) -> Result<f64> {
+        let settle_date = self.settle_date(valuation_date)?;
+        let maturity_date = self.maturity_date(valuation_date)?;
         let year_fraction_index = self
             .interest_rate_index
             .day_counter
@@ -41,23 +43,23 @@ impl FuturesRate<'_> {
         let year_fraction = Actual365Fixed::default()
             .year_fraction(valuation_date, settle_date)
             .unwrap();
-        hidden_discount * (-previous_curve.zero_rate * year_fraction).exp()
+        Ok(hidden_discount * (-previous_curve.zero_rate * year_fraction).exp())
     }
 
     pub fn zero_rate(
         &mut self,
         valuation_date: NaiveDate,
         stripped_curves: &Vec<StrippedCurve>,
-    ) -> f64 {
+    ) -> Result<f64> {
         let mut is_first = true;
         for stripped_curve in stripped_curves {
             if stripped_curve.source == InterestRateQuoteEnum::Futures {
                 is_first = false;
             }
         }
-        let target_discount = self.discount(valuation_date, stripped_curves);
-        let maturity_date = self.maturity_date(valuation_date);
-        if is_first {
+        let target_discount = self.discount(valuation_date, stripped_curves)?;
+        let maturity_date = self.maturity_date(valuation_date)?;
+        let zero_rate = if is_first {
             let mut cum_discount = 1f64;
             for i in 0..stripped_curves.len() {
                 let accrual_start_date = if i == 0 {
@@ -77,11 +79,12 @@ impl FuturesRate<'_> {
                 .unwrap();
             -(target_discount / cum_discount).ln() / year_fraction
         } else {
-            let year_fraction = Actual365Fixed::default()
-                .year_fraction(valuation_date, maturity_date)
-                .unwrap();
+            let year_fraction =
+                Actual365Fixed::default().year_fraction(valuation_date, maturity_date)?;
             -target_discount.ln() / year_fraction
-        }
+        };
+
+        Ok(zero_rate)
     }
 }
 
@@ -89,18 +92,19 @@ impl InterestRateQuote for FuturesRate<'_> {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::Futures
     }
-    fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
-        IMM.date(self.imm_code, Some(valuation_date)).unwrap()
+    fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
+        Ok(IMM.date(self.imm_code, Some(valuation_date)).unwrap())
     }
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.futures_spec
-            .maturity_date(self.settle_date(valuation_date))
+            .maturity_date(self.settle_date(valuation_date)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::FuturesRate;
+    use crate::error::Result;
     use crate::markets::interestrate::futures::InterestRateFutures;
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
@@ -113,7 +117,7 @@ mod tests {
     use chrono::NaiveDate;
 
     #[test]
-    fn test_settle_date_and_maturity_date() {
+    fn test_settle_date_and_maturity_date() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
         let future = InterestRateFutures {
             period: Period::Months(3),
@@ -132,12 +136,14 @@ mod tests {
             interest_rate_index: &ir_index,
         };
         assert_eq!(
-            future_quote.settle_date(valuation_date),
+            future_quote.settle_date(valuation_date)?,
             NaiveDate::from_ymd_opt(2023, 11, 15).unwrap()
         );
         assert_eq!(
-            future_quote.maturity_date(valuation_date),
+            future_quote.maturity_date(valuation_date)?,
             NaiveDate::from_ymd_opt(2024, 2, 21).unwrap()
         );
+
+        Ok(())
     }
 }
