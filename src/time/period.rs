@@ -1,7 +1,19 @@
-use crate::time::calendars::Calendar;
-use chrono::{Duration, Months, NaiveDate};
+use chrono::{Duration, Months, NaiveDate, TimeDelta};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Sub};
+
+use crate::error::{Error, Result};
+use crate::time::calendars::Calendar;
+
+// unwrap and expect are not yet stable as a const fn - need to manually unwrap
+pub const ONE_DAY: TimeDelta = match Duration::try_days(1) {
+    Some(dt) => dt,
+    None => panic!("could not construct 1-day time delta"),
+};
+pub const TWO_DAYS: TimeDelta = match Duration::try_days(2) {
+    Some(dt) => dt,
+    None => panic!("could not construct 2-day time delta"),
+};
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 pub enum Period {
@@ -19,36 +31,47 @@ impl Period {
         &self,
         valuation_date: NaiveDate,
         calendar: &impl Calendar,
-    ) -> NaiveDate {
+    ) -> Result<NaiveDate> {
         // TODO: Change spot as T+2 to be linked to currency.
         let target_date = match self {
             Period::ON => valuation_date,
-            _ => valuation_date + Duration::try_days(2).unwrap(),
+            _ => valuation_date + TWO_DAYS,
         };
-        let mut settlement_date = target_date + *self;
+        let mut settlement_date = (target_date + *self)?;
         if settlement_date >= calendar.end_of_month(settlement_date) {
             settlement_date = calendar.end_of_month(settlement_date)
         }
         while !calendar.is_business_day(settlement_date) {
-            settlement_date += Duration::try_days(1).unwrap();
+            settlement_date += ONE_DAY;
         }
-        settlement_date
+
+        Ok(settlement_date)
     }
 }
 
 impl Add<Period> for NaiveDate {
-    type Output = NaiveDate;
+    type Output = Result<NaiveDate>;
 
     fn add(self, rhs: Period) -> Self::Output {
-        match rhs {
-            Period::ON => self + Duration::try_days(1).unwrap(),
-            Period::SPOT => self + Duration::try_days(0).unwrap(),
-            Period::SN => self + Duration::try_days(1).unwrap(),
-            Period::Days(num) => self + Duration::try_days(num).unwrap(),
-            Period::Weeks(num) => self + Duration::try_days(num * 7).unwrap(),
+        let date = match rhs {
+            Period::ON => self + ONE_DAY,
+            Period::SPOT => self,
+            Period::SN => self + ONE_DAY,
+            Period::Days(num) => {
+                self + Duration::try_days(num).ok_or_else(|| {
+                    Error::DurationOutOfBounds(format!("{num} days is out of bounds"))
+                })?
+            }
+            Period::Weeks(num) => {
+                self + Duration::try_days(num * 7).ok_or_else(|| {
+                    Error::DurationOutOfBounds(format!("{num} days is out of bounds"))
+                })?
+            }
             Period::Months(num) => self + Months::new(num),
             Period::Years(num) => self + Months::new(num * 12),
-        }
+        };
+
+        Ok(date)
     }
 }
 
@@ -57,9 +80,9 @@ impl Sub<Period> for NaiveDate {
 
     fn sub(self, rhs: Period) -> Self::Output {
         match rhs {
-            Period::ON => self - Duration::try_days(1).unwrap(),
-            Period::SPOT => self - Duration::try_days(0).unwrap(),
-            Period::SN => self - Duration::try_days(1).unwrap(),
+            Period::ON => self - ONE_DAY,
+            Period::SPOT => self,
+            Period::SN => self - ONE_DAY,
             Period::Days(num) => self - Duration::try_days(num).unwrap(),
             Period::Weeks(num) => self - Duration::try_days(num * 7).unwrap(),
             Period::Months(num) => self - Months::new(num),

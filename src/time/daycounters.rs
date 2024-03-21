@@ -7,20 +7,21 @@ pub mod business252;
 pub mod thirty360;
 pub mod thirty365;
 
-use crate::time::period::Period;
 use chrono::NaiveDate;
 use std::fmt::Debug;
 
+use crate::error::Result;
+use crate::time::period::Period;
+
 #[typetag::serialize(tag = "type")]
 pub trait DayCounters: Debug {
-    fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64;
-    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> f64;
+    fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64>;
+    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> Result<f64>;
 
-    fn year_fraction_to_date(&self, reference_date: NaiveDate, t: f64) -> NaiveDate {
-        let mut guess_date = reference_date + Period::Days((t * 365.25).round() as i64);
-        let guess_time = self.year_fraction(reference_date, guess_date);
-        guess_date = guess_date + Period::Days(((t - guess_time) * 365.25).round() as i64);
-        guess_date
+    fn year_fraction_to_date(&self, reference_date: NaiveDate, t: f64) -> Result<NaiveDate> {
+        let guess_date = (reference_date + Period::Days((t * 365.25).round() as i64))?;
+        let guess_time = self.year_fraction(reference_date, guess_date)?;
+        guess_date + Period::Days(((t - guess_time) * 365.25).round() as i64)
     }
 }
 

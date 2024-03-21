@@ -1,12 +1,14 @@
+use chrono::{Duration, NaiveDate};
+use serde::{Deserialize, Serialize};
+
 use crate::derivatives::interestrate::swap::InterestRateSwap;
+use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
-use chrono::{Duration, NaiveDate};
-use serde::{Deserialize, Serialize};
 
 pub mod oisratehelper;
 pub mod ratehelper;
@@ -201,7 +203,9 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> f64 {
         let zero_rate = self.zero_rate(date, interpolation_method_enum);
-        let duration = Actual365Fixed::default().year_fraction(self.valuation_date, date);
+        let duration = Actual365Fixed::default()
+            .year_fraction(self.valuation_date, date)
+            .unwrap();
         (-zero_rate * duration).exp()
     }
 
@@ -211,20 +215,23 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         accrual_start_date: NaiveDate,
         tenor: Period,
         interpolation_method_enum: &InterpolationMethodEnum,
-    ) -> f64 {
+    ) -> Result<f64> {
         if !self.is_called {
             self.get_stripped_curve();
         }
-        let accrual_end_date = accrual_start_date + tenor;
+        let accrual_end_date = (accrual_start_date + tenor)?;
         let year_fraction_1 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_start_date);
+            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_start_date)?;
         let year_fraction_2 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_end_date);
+            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_end_date)?;
         let zero_rate_1 = self.zero_rate(accrual_start_date, interpolation_method_enum);
         let zero_rate_2 = self.zero_rate(accrual_end_date, interpolation_method_enum);
 
-        ((-zero_rate_1 * year_fraction_1).exp() / (-zero_rate_2 * year_fraction_2).exp()).ln()
-            / (year_fraction_2 - year_fraction_1)
+        let rate =
+            ((-zero_rate_1 * year_fraction_1).exp() / (-zero_rate_2 * year_fraction_2).exp()).ln()
+                / (year_fraction_2 - year_fraction_1);
+
+        Ok(rate)
     }
 }
 
@@ -670,6 +677,7 @@ mod tests {
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
                 )
+                .unwrap()
             ),
             "0.0398278"
         );
@@ -683,6 +691,7 @@ mod tests {
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
                 )
+                .unwrap()
             ),
             "0.040043"
         );
@@ -696,6 +705,7 @@ mod tests {
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
                 )
+                .unwrap()
             ),
             "0.040040"
         );

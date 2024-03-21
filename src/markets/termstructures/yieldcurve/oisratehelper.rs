@@ -16,7 +16,9 @@ impl OISRate<'_> {
     pub fn discount(&mut self, valuation_date: NaiveDate) -> f64 {
         let zero_rate = self.zero_rate(valuation_date);
         let maturity_date = self.maturity_date(valuation_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
+        let year_fraction = Actual365Fixed::default()
+            .year_fraction(valuation_date, maturity_date)
+            .unwrap();
         (-zero_rate * year_fraction).exp()
     }
 
@@ -26,8 +28,11 @@ impl OISRate<'_> {
         let year_fraction_index = self
             .interest_rate_index
             .day_counter
-            .year_fraction(settle_date, maturity_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(settle_date, maturity_date);
+            .year_fraction(settle_date, maturity_date)
+            .unwrap();
+        let year_fraction = Actual365Fixed::default()
+            .year_fraction(settle_date, maturity_date)
+            .unwrap();
         let discount = 1.0 / (1.0 + year_fraction_index * self.value);
         -discount.ln() / year_fraction
     }
@@ -42,6 +47,7 @@ impl OISRate<'_> {
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
+            .unwrap()
             .unwrap()
     }
 }
@@ -60,6 +66,7 @@ impl InterestRateQuote for OISRate<'_> {
                 Some(self.interest_rate_index.end_of_month),
             )
             .unwrap()
+            .unwrap() // TODO (DS): was getting too noisy - fix these in a follow-up
     }
     fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
         self.interest_rate_index
@@ -71,6 +78,7 @@ impl InterestRateQuote for OISRate<'_> {
                 Some(self.interest_rate_index.end_of_month),
             )
             .unwrap()
+            .unwrap() // TODO (DS): was getting too noisy - fix these in a follow-up
     }
 }
 

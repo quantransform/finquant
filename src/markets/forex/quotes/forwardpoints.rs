@@ -1,6 +1,8 @@
+use chrono::NaiveDate;
+
+use crate::error::Result;
 use crate::time::calendars::Calendar;
 use crate::time::period::Period;
-use chrono::NaiveDate;
 
 #[derive(Clone, Copy, Debug)]
 pub struct FXForwardQuote {
@@ -18,33 +20,47 @@ impl FXForwardHelper {
         valuation_date: NaiveDate,
         target_date: NaiveDate,
         calendar: &impl Calendar,
-    ) -> Option<f64> {
+    ) -> Result<Option<f64>> {
         if valuation_date >= target_date {
-            None
+            Ok(None)
         } else {
             let (mut before_quotes, mut after_quotes): (Vec<_>, Vec<_>) =
                 self.quotes.clone().into_iter().partition(|&quote| {
-                    quote.tenor.settlement_date(valuation_date, calendar) < target_date
+                    quote
+                        .tenor
+                        .settlement_date(valuation_date, calendar)
+                        .unwrap()
+                        < target_date
                 });
 
             if before_quotes.is_empty() || after_quotes.is_empty() {
-                None
+                Ok(None)
             } else {
                 before_quotes.sort_by_key(|&fx_frd_quote| {
-                    fx_frd_quote.tenor.settlement_date(valuation_date, calendar)
+                    fx_frd_quote
+                        .tenor
+                        .settlement_date(valuation_date, calendar)
+                        .unwrap()
                 });
                 after_quotes.sort_by_key(|&fx_frd_quote| {
-                    fx_frd_quote.tenor.settlement_date(valuation_date, calendar)
+                    fx_frd_quote
+                        .tenor
+                        .settlement_date(valuation_date, calendar)
+                        .unwrap()
                 });
                 let before_quote = before_quotes.last().unwrap();
                 let after_quote = after_quotes.first().unwrap();
-                let start_date = before_quote.tenor.settlement_date(valuation_date, calendar);
-                let end_date = after_quote.tenor.settlement_date(valuation_date, calendar);
+                let start_date = before_quote
+                    .tenor
+                    .settlement_date(valuation_date, calendar)?;
+                let end_date = after_quote
+                    .tenor
+                    .settlement_date(valuation_date, calendar)?;
                 let total_day_count = (end_date - start_date).num_days() as f64;
                 let target_day_count = (target_date - start_date).num_days() as f64;
                 let forward_points =
                     (after_quote.value - before_quote.value) / total_day_count * target_day_count;
-                Some(forward_points + before_quote.value)
+                Ok(Some(forward_points + before_quote.value))
             }
         }
     }

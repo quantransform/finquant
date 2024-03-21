@@ -144,12 +144,14 @@ pub struct InterestRateCashflow {
 
 impl InterestRateSwap<'_> {
     pub fn effective_date(&self, valuation_date: NaiveDate) -> Option<NaiveDate> {
-        self.calendar.advance(
-            valuation_date,
-            Period::Days(self.interest_rate_index.settlement_days),
-            self.convention,
-            Some(self.interest_rate_index.end_of_month),
-        )
+        self.calendar
+            .advance(
+                valuation_date,
+                Period::Days(self.interest_rate_index.settlement_days),
+                self.convention,
+                Some(self.interest_rate_index.end_of_month),
+            )
+            .unwrap()
     }
 
     pub fn make_schedule(&mut self, valuation_date: NaiveDate) {
@@ -242,6 +244,7 @@ impl InterestRateSwap<'_> {
                     self.convention,
                     Some(self.interest_rate_index.end_of_month),
                 )
+                .unwrap()
                 .unwrap();
             let mut irs = InterestRateSchedule {
                 accrual_start_date: start_date,
@@ -254,6 +257,7 @@ impl InterestRateSwap<'_> {
                         self.convention,
                         Some(false),
                     )
+                    .unwrap()
                     .unwrap(),
                 reset_date: self
                     .calendar
@@ -263,16 +267,23 @@ impl InterestRateSwap<'_> {
                         self.convention,
                         Some(false),
                     )
+                    .unwrap()
                     .unwrap(),
                 balance: notional,
                 ..Default::default()
             };
             let reset_rate = if self.yield_term_structure.is_some() {
-                Some(self.yield_term_structure.as_mut().unwrap().forward_rate(
-                    irs.reset_date,
-                    self.float_leg.tenor,
-                    &InterpolationMethodEnum::PiecewiseLinearContinuous,
-                ))
+                Some(
+                    self.yield_term_structure
+                        .as_mut()
+                        .unwrap()
+                        .forward_rate(
+                            irs.reset_date,
+                            self.float_leg.tenor,
+                            &InterpolationMethodEnum::PiecewiseLinearContinuous,
+                        )
+                        .unwrap(),
+                )
             } else {
                 None
             };
@@ -295,10 +306,12 @@ impl InterestRateSwap<'_> {
                     self.fixed_leg
                         .day_counter
                         .day_count(irs.accrual_start_date, irs.accrual_end_date)
+                        .unwrap()
                 } else {
                     self.float_leg
                         .day_counter
                         .day_count(irs.accrual_start_date, irs.accrual_end_date)
+                        .unwrap()
                 }),
                 notional: Some(irs.balance),
                 principal: Some(irs.balance),

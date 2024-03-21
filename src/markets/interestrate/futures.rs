@@ -1,10 +1,11 @@
+use chrono::{Datelike, NaiveDate};
+use serde::Serialize;
+
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 use crate::time::period::Period;
-use chrono::{Datelike, NaiveDate};
-use serde::Serialize;
 
 /// Futures
 #[derive(Serialize, Debug)]
@@ -26,6 +27,7 @@ impl InterestRateFutures {
                 self.convention,
                 Some(self.end_of_month),
             )
+            .unwrap()
             .unwrap();
         IMM.next_date(
             NaiveDate::from_ymd_opt(target_date.year(), target_date.month(), 1).unwrap(),
