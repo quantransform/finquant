@@ -78,8 +78,16 @@ impl Sub<Period> for NaiveDate {
             Period::ON => self - ONE_DAY,
             Period::SPOT => self,
             Period::SN => self - ONE_DAY,
-            Period::Days(num) => self - Duration::try_days(num).unwrap(),
-            Period::Weeks(num) => self - Duration::try_days(num * 7).unwrap(),
+            Period::Days(num) => {
+                self - Duration::try_days(num).ok_or_else(|| {
+                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
+                })?
+            }
+            Period::Weeks(num) => {
+                self - Duration::try_days(num * 7).ok_or_else(|| {
+                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
+                })?
+            }
             Period::Months(num) => self - Months::new(num),
             Period::Years(num) => self - Months::new(num * 12),
         };
