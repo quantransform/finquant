@@ -18,9 +18,8 @@ impl OISRate<'_> {
     pub fn discount(&mut self, valuation_date: NaiveDate) -> Result<f64> {
         let zero_rate = self.zero_rate(valuation_date)?;
         let maturity_date = self.maturity_date(valuation_date)?;
-        let year_fraction = Actual365Fixed::default()
-            .year_fraction(valuation_date, maturity_date)
-            .unwrap();
+        let year_fraction =
+            Actual365Fixed::default().year_fraction(valuation_date, maturity_date)?;
         Ok((-zero_rate * year_fraction).exp())
     }
 
@@ -30,11 +29,8 @@ impl OISRate<'_> {
         let year_fraction_index = self
             .interest_rate_index
             .day_counter
-            .year_fraction(settle_date, maturity_date)
-            .unwrap();
-        let year_fraction = Actual365Fixed::default()
-            .year_fraction(settle_date, maturity_date)
-            .unwrap();
+            .year_fraction(settle_date, maturity_date)?;
+        let year_fraction = Actual365Fixed::default().year_fraction(settle_date, maturity_date)?;
         let discount = 1.0 / (1.0 + year_fraction_index * self.value);
 
         Ok(-discount.ln() / year_fraction)
@@ -67,7 +63,7 @@ impl InterestRateQuote for OISRate<'_> {
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
-            .map(|maybe_date| maybe_date.unwrap()) // TODO (DS): what should we do with None dates?
+            .map(Option::unwrap) // TODO (DS): what should we do with None dates?
     }
     fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.interest_rate_index
@@ -78,7 +74,7 @@ impl InterestRateQuote for OISRate<'_> {
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
-            .map(|maybe_date| maybe_date.unwrap()) // TODO (DS): what should we do with None dates?
+            .map(Option::unwrap) // TODO (DS): what should we do with None dates?
     }
 }
 

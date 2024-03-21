@@ -27,25 +27,24 @@ pub trait DayCounters: Debug {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::Result;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use crate::time::daycounters::DayCounters;
     use chrono::NaiveDate;
 
     #[test]
-    fn test_year_fraction_to_date() {
+    fn test_year_fraction_to_date() -> Result<()> {
         let reference_date = NaiveDate::from_ymd_opt(2023, 11, 4).unwrap();
         let target_date = NaiveDate::from_ymd_opt(2024, 11, 3).unwrap();
         assert_eq!(
-            Actual365Fixed::default()
-                .year_fraction_to_date(reference_date, 365f64 / 365f64)
-                .unwrap(),
+            Actual365Fixed::default().year_fraction_to_date(reference_date, 365f64 / 365f64)?,
             target_date
         );
         assert_eq!(
-            Actual365Fixed::default()
-                .year_fraction(reference_date, target_date)
-                .unwrap(),
+            Actual365Fixed::default().year_fraction(reference_date, target_date)?,
             1f64
         );
+
+        Ok(())
     }
 }

@@ -6,7 +6,10 @@ use crate::error::{Error, Result};
 use crate::time::calendars::Calendar;
 use crate::utils::const_unwrap;
 
-// unwrap and expect are not yet stable as a const fn - need to manually unwrap
+// These are for convenience as `try_days` returns an Option.
+// We unwrap the common uses, such as 1-day and 2-day durations
+// at compile time, ensuring these are valid - avoiding the need to unwrap
+// at run time.
 pub const ONE_DAY: TimeDelta = const_unwrap!(Duration::try_days(1));
 pub const TWO_DAYS: TimeDelta = const_unwrap!(Duration::try_days(2));
 
@@ -59,7 +62,7 @@ impl Add<Period> for NaiveDate {
             }
             Period::Weeks(num) => {
                 self + Duration::try_days(num * 7).ok_or_else(|| {
-                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
+                    Error::PeriodOutOfBounds(format!("{num} weeks is out of bounds"))
                 })?
             }
             Period::Months(num) => self + Months::new(num),
@@ -85,7 +88,7 @@ impl Sub<Period> for NaiveDate {
             }
             Period::Weeks(num) => {
                 self - Duration::try_days(num * 7).ok_or_else(|| {
-                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
+                    Error::PeriodOutOfBounds(format!("{num} weeks is out of bounds"))
                 })?
             }
             Period::Months(num) => self - Months::new(num),
@@ -120,7 +123,7 @@ mod tests {
     #[test]
     fn test_settlement_date_target_add() -> Result<()> {
         let current_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
-        assert_eq!((current_date + Period::SPOT).unwrap(), current_date);
+        assert_eq!((current_date + Period::SPOT)?, current_date);
         assert_eq!(
             (current_date + Period::ON)?,
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()

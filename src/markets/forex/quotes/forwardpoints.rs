@@ -26,6 +26,7 @@ impl FXForwardHelper {
         } else {
             let (mut before_quotes, mut after_quotes): (Vec<_>, Vec<_>) =
                 self.quotes.clone().into_iter().partition(|&quote| {
+                    // TODO (DS): clean up these partition calls as we can't just use ? here
                     quote
                         .tenor
                         .settlement_date(valuation_date, calendar)
@@ -232,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn test_forward_points() {
+    fn test_forward_points() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
         let calendar = JointCalendar::new(UnitedStates::default(), UnitedKingdom::default());
 
@@ -296,17 +297,17 @@ mod tests {
         let first_target_date = NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let cal_output = f64::trunc(
             fx_forward_helper
-                .get_forward(valuation_date, first_target_date, &calendar)
-                .unwrap()
+                .get_forward(valuation_date, first_target_date, &calendar)?
                 .unwrap()
                 * 100.0,
         ) / 100.0;
         assert_eq!(cal_output, 9.64);
 
         let second_target_date = NaiveDate::from_ymd_opt(2034, 2, 15).unwrap();
-        let cal_output = fx_forward_helper
-            .get_forward(valuation_date, second_target_date, &calendar)
-            .unwrap();
+        let cal_output =
+            fx_forward_helper.get_forward(valuation_date, second_target_date, &calendar)?;
         assert_eq!(cal_output, None);
+
+        Ok(())
     }
 }

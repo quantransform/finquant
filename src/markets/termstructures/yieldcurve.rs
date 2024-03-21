@@ -677,8 +677,7 @@ mod tests {
                     NaiveDate::from_ymd_opt(2023, 12, 27).unwrap(),
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
-                .unwrap()
+                )?
             ),
             "0.0398278"
         );
@@ -691,8 +690,7 @@ mod tests {
                     NaiveDate::from_ymd_opt(2024, 1, 27).unwrap(),
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
-                .unwrap()
+                )?
             ),
             "0.040043"
         );
@@ -705,8 +703,7 @@ mod tests {
                     NaiveDate::from_ymd_opt(2024, 2, 27).unwrap(),
                     Period::Months(1),
                     &InterpolationMethodEnum::StepFunctionForward,
-                )
-                .unwrap()
+                )?
             ),
             "0.040040"
         );

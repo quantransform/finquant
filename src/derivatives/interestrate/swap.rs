@@ -96,7 +96,7 @@ impl InterestRateQuote for InterestRateSwap<'_> {
     }
 
     fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
-        Ok(self.effective_date(valuation_date).unwrap())
+        Ok(self.effective_date(valuation_date)?.unwrap())
     }
 
     fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
@@ -147,20 +147,18 @@ pub struct InterestRateCashflow {
 }
 
 impl InterestRateSwap<'_> {
-    pub fn effective_date(&self, valuation_date: NaiveDate) -> Option<NaiveDate> {
-        self.calendar
-            .advance(
-                valuation_date,
-                Period::Days(self.interest_rate_index.settlement_days),
-                self.convention,
-                Some(self.interest_rate_index.end_of_month),
-            )
-            .unwrap()
+    pub fn effective_date(&self, valuation_date: NaiveDate) -> Result<Option<NaiveDate>> {
+        self.calendar.advance(
+            valuation_date,
+            Period::Days(self.interest_rate_index.settlement_days),
+            self.convention,
+            Some(self.interest_rate_index.end_of_month),
+        )
     }
 
     pub fn make_schedule(&mut self, valuation_date: NaiveDate) -> Result<()> {
         // TODO: check if frequency matching tenor. Currently, passing annual = Period::Years(num).
-        let effective_date = self.effective_date(valuation_date).unwrap();
+        let effective_date = self.effective_date(valuation_date)?.unwrap();
         match self.fixed_leg.tenor {
             Period::Days(num) | Period::Weeks(num) => {
                 self.fixed_leg.schedule =
@@ -251,8 +249,7 @@ impl InterestRateSwap<'_> {
                     }),
                     self.convention,
                     Some(self.interest_rate_index.end_of_month),
-                )
-                .unwrap()
+                )?
                 .unwrap();
             let mut irs = InterestRateSchedule {
                 accrual_start_date: start_date,
@@ -264,8 +261,7 @@ impl InterestRateSwap<'_> {
                         Period::Days(pay_delay),
                         self.convention,
                         Some(false),
-                    )
-                    .unwrap()
+                    )?
                     .unwrap(),
                 reset_date: self
                     .calendar
@@ -274,24 +270,17 @@ impl InterestRateSwap<'_> {
                         Period::Days(-days_before_accrual),
                         self.convention,
                         Some(false),
-                    )
-                    .unwrap()
+                    )?
                     .unwrap(),
                 balance: notional,
                 ..Default::default()
             };
             let reset_rate = if self.yield_term_structure.is_some() {
-                Some(
-                    self.yield_term_structure
-                        .as_mut()
-                        .unwrap()
-                        .forward_rate(
-                            irs.reset_date,
-                            self.float_leg.tenor,
-                            &InterpolationMethodEnum::PiecewiseLinearContinuous,
-                        )
-                        .unwrap(),
-                )
+                Some(self.yield_term_structure.as_mut().unwrap().forward_rate(
+                    irs.reset_date,
+                    self.float_leg.tenor,
+                    &InterpolationMethodEnum::PiecewiseLinearContinuous,
+                )?)
             } else {
                 None
             };
@@ -314,13 +303,11 @@ impl InterestRateSwap<'_> {
                 day_counts: Some(if is_fixed_leg {
                     self.fixed_leg
                         .day_counter
-                        .day_count(irs.accrual_start_date, irs.accrual_end_date)
-                        .unwrap()
+                        .day_count(irs.accrual_start_date, irs.accrual_end_date)?
                 } else {
                     self.float_leg
                         .day_counter
-                        .day_count(irs.accrual_start_date, irs.accrual_end_date)
-                        .unwrap()
+                        .day_count(irs.accrual_start_date, irs.accrual_end_date)?
                 }),
                 notional: Some(irs.balance),
                 principal: Some(irs.balance),

@@ -22,13 +22,16 @@ impl DayCounters for Actual360 {
 #[cfg(test)]
 mod tests {
     use super::Actual360;
+    use crate::error::Result;
     use crate::time::daycounters::DayCounters;
     use chrono::NaiveDate;
 
     #[test]
-    fn test_day_count() {
+    fn test_day_count() -> Result<()> {
         let d1 = NaiveDate::from_ymd_opt(2023, 10, 26).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        assert_eq!(Actual360.day_count(d1, d2).unwrap(), 1);
+        assert_eq!(Actual360.day_count(d1, d2)?, 1);
+
+        Ok(())
     }
 }

@@ -28,7 +28,7 @@ impl InterestRateFutures {
                 self.convention,
                 Some(self.end_of_month),
             )
-            .map(|maybe_date| maybe_date.unwrap())?;
+            .map(Option::unwrap)?;
         Ok(IMM.next_date(
             NaiveDate::from_ymd_opt(target_date.year(), target_date.month(), 1).unwrap(),
             false,

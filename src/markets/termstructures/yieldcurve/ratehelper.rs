@@ -36,13 +36,10 @@ impl FuturesRate<'_> {
         let year_fraction_index = self
             .interest_rate_index
             .day_counter
-            .year_fraction(settle_date, maturity_date)
-            .unwrap();
+            .year_fraction(settle_date, maturity_date)?;
         let hidden_discount = 1.0 / (1.0 + year_fraction_index * self.implied_quote());
         let previous_curve = self.retrieve_related_stripped_curve(stripped_curves, settle_date);
-        let year_fraction = Actual365Fixed::default()
-            .year_fraction(valuation_date, settle_date)
-            .unwrap();
+        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, settle_date)?;
         Ok(hidden_discount * (-previous_curve.zero_rate * year_fraction).exp())
     }
 
@@ -69,14 +66,12 @@ impl FuturesRate<'_> {
                 };
                 let accrual_end_date = stripped_curves[i].date;
                 let year_fraction = Actual365Fixed::default()
-                    .year_fraction(accrual_start_date, accrual_end_date)
-                    .unwrap();
+                    .year_fraction(accrual_start_date, accrual_end_date)?;
                 cum_discount *= (-stripped_curves[i].zero_rate * year_fraction).exp();
             }
 
             let year_fraction = Actual365Fixed::default()
-                .year_fraction(stripped_curves.last().unwrap().date, maturity_date)
-                .unwrap();
+                .year_fraction(stripped_curves.last().unwrap().date, maturity_date)?;
             -(target_discount / cum_discount).ln() / year_fraction
         } else {
             let year_fraction =

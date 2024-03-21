@@ -28,13 +28,16 @@ impl DayCounters for Thirty365 {
 #[cfg(test)]
 mod tests {
     use super::Thirty365;
+    use crate::error::Result;
     use crate::time::daycounters::DayCounters;
     use chrono::NaiveDate;
 
     #[test]
-    fn test_day_count() {
+    fn test_day_count() -> Result<()> {
         let d1 = NaiveDate::from_ymd_opt(2023, 1, 31).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 3, 2).unwrap();
-        assert_eq!(Thirty365.day_count(d1, d2).unwrap(), 31);
+        assert_eq!(Thirty365.day_count(d1, d2)?, 31);
+
+        Ok(())
     }
 }

@@ -22,14 +22,17 @@ impl DayCounters for Actual366 {
 #[cfg(test)]
 mod tests {
     use super::Actual366;
+    use crate::error::Result;
     use crate::time::daycounters::DayCounters;
     use chrono::NaiveDate;
 
     #[test]
-    fn test_day_counter_actual_364() {
+    fn test_day_counter_actual_366() -> Result<()> {
         let d1 = NaiveDate::from_ymd_opt(2023, 10, 26).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        assert_eq!(Actual366.day_count(d1, d2).unwrap(), 1);
-        assert_eq!(Actual366.year_fraction(d1, d2).unwrap(), 1f64 / 366.0);
+        assert_eq!(Actual366.day_count(d1, d2)?, 1);
+        assert_eq!(Actual366.year_fraction(d1, d2)?, 1f64 / 366.0);
+
+        Ok(())
     }
 }

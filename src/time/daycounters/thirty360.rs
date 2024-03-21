@@ -191,6 +191,7 @@ mod tests {
     use rstest::rstest;
 
     use super::{Thirty360, Thirty360Market};
+    use crate::error::Result;
     use crate::time::daycounters::DayCounters;
 
     // TODO: add USA test cases
@@ -236,12 +237,11 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::European);
-        assert_eq!(
-            counter.day_count(start_date, end_date).unwrap(),
-            expected_day_count
-        );
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 
     #[rstest]
@@ -286,12 +286,11 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::ISDA(termination_date));
-        assert_eq!(
-            counter.day_count(start_date, end_date).unwrap(),
-            expected_day_count
-        );
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 
     #[rstest]
@@ -329,11 +328,10 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::ISMA);
-        assert_eq!(
-            counter.day_count(start_date, end_date).unwrap(),
-            expected_day_count
-        );
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 }
