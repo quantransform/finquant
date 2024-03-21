@@ -4,16 +4,11 @@ use std::ops::{Add, Mul, Sub};
 
 use crate::error::{Error, Result};
 use crate::time::calendars::Calendar;
+use crate::utils::const_unwrap;
 
 // unwrap and expect are not yet stable as a const fn - need to manually unwrap
-pub const ONE_DAY: TimeDelta = match Duration::try_days(1) {
-    Some(dt) => dt,
-    None => panic!("could not construct 1-day time delta"),
-};
-pub const TWO_DAYS: TimeDelta = match Duration::try_days(2) {
-    Some(dt) => dt,
-    None => panic!("could not construct 2-day time delta"),
-};
+pub const ONE_DAY: TimeDelta = const_unwrap!(Duration::try_days(1));
+pub const TWO_DAYS: TimeDelta = const_unwrap!(Duration::try_days(2));
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 pub enum Period {
