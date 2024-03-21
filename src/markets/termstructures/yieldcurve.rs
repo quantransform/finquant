@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::derivatives::interestrate::swap::InterestRateSwap;
@@ -8,7 +8,7 @@ use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
-use crate::time::period::Period;
+use crate::time::period::{Period, ONE_DAY};
 
 pub mod oisratehelper;
 pub mod ratehelper;
@@ -153,7 +153,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
     }
 
     fn step_function_forward_zero_rate(&mut self, date: NaiveDate) -> f64 {
-        let target_date = date + Duration::try_days(1).unwrap();
+        let target_date = date + ONE_DAY;
         let stripped_curves = self.stripped_curves.as_ref().unwrap();
         let mut first = stripped_curves.first().unwrap();
         let mut second = stripped_curves.first().unwrap();

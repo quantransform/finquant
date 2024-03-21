@@ -1,8 +1,9 @@
-use chrono::{Datelike, Duration, Months, NaiveDate};
+use chrono::{Datelike, Months, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 use crate::time::daycounters::DayCounters;
+use crate::time::period::ONE_DAY;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ActualActualMarket {
@@ -40,7 +41,7 @@ impl ActualActual {
             while temp > d1 {
                 temp = new_d2 - Months::new(12);
                 if temp.day() == 28 && temp.month() == 2 && temp.leap_year() {
-                    temp += Duration::try_days(1).unwrap();
+                    temp += ONE_DAY;
                 }
                 if temp >= d1 {
                     sum += 1f64;
