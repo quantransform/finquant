@@ -35,6 +35,6 @@ mod tests {
     fn test_day_count() {
         let d1 = NaiveDate::from_ymd_opt(2023, 1, 31).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 3, 2).unwrap();
-        assert_eq!(Thirty365.day_count(d1, d2), 31);
+        assert_eq!(Thirty365.day_count(d1, d2).unwrap(), 31);
     }
 }

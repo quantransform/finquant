@@ -238,7 +238,10 @@ mod tests {
         #[case] expected_day_count: i64,
     ) {
         let counter = Thirty360::new(Thirty360Market::European);
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(
+            counter.day_count(start_date, end_date).unwrap(),
+            expected_day_count
+        );
     }
 
     #[rstest]
@@ -285,7 +288,10 @@ mod tests {
         #[case] expected_day_count: i64,
     ) {
         let counter = Thirty360::new(Thirty360Market::ISDA(termination_date));
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(
+            counter.day_count(start_date, end_date).unwrap(),
+            expected_day_count
+        );
     }
 
     #[rstest]
@@ -325,6 +331,9 @@ mod tests {
         #[case] expected_day_count: i64,
     ) {
         let counter = Thirty360::new(Thirty360Market::ISMA);
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(
+            counter.day_count(start_date, end_date).unwrap(),
+            expected_day_count
+        );
     }
 }

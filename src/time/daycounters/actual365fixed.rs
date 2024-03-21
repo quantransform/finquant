@@ -60,9 +60,9 @@ mod tests {
     fn test_day_counter_actual_364() {
         let d1 = NaiveDate::from_ymd_opt(2023, 10, 26).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        assert_eq!(Actual365Fixed::default().day_count(d1, d2), 1);
+        assert_eq!(Actual365Fixed::default().day_count(d1, d2).unwrap(), 1);
         assert_eq!(
-            Actual365Fixed::default().year_fraction(d1, d2),
+            Actual365Fixed::default().year_fraction(d1, d2).unwrap(),
             1f64 / 365.0
         );
     }

@@ -36,11 +36,15 @@ mod tests {
         let reference_date = NaiveDate::from_ymd_opt(2023, 11, 4).unwrap();
         let target_date = NaiveDate::from_ymd_opt(2024, 11, 3).unwrap();
         assert_eq!(
-            Actual365Fixed::default().year_fraction_to_date(reference_date, 365f64 / 365f64),
+            Actual365Fixed::default()
+                .year_fraction_to_date(reference_date, 365f64 / 365f64)
+                .unwrap(),
             target_date
         );
         assert_eq!(
-            Actual365Fixed::default().year_fraction(reference_date, target_date),
+            Actual365Fixed::default()
+                .year_fraction(reference_date, target_date)
+                .unwrap(),
             1f64
         );
     }

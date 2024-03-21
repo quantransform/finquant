@@ -59,12 +59,12 @@ impl Add<Period> for NaiveDate {
             Period::SN => self + ONE_DAY,
             Period::Days(num) => {
                 self + Duration::try_days(num).ok_or_else(|| {
-                    Error::DurationOutOfBounds(format!("{num} days is out of bounds"))
+                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
                 })?
             }
             Period::Weeks(num) => {
                 self + Duration::try_days(num * 7).ok_or_else(|| {
-                    Error::DurationOutOfBounds(format!("{num} days is out of bounds"))
+                    Error::PeriodOutOfBounds(format!("{num} days is out of bounds"))
                 })?
             }
             Period::Months(num) => self + Months::new(num),
@@ -110,35 +110,38 @@ impl Mul<Period> for u32 {
 #[cfg(test)]
 mod tests {
     use super::Period;
+    use crate::error::Result;
     use chrono::NaiveDate;
     #[test]
-    fn test_settlement_date_target_add() {
+    fn test_settlement_date_target_add() -> Result<()> {
         let current_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
-        assert_eq!(current_date + Period::SPOT, current_date);
+        assert_eq!((current_date + Period::SPOT).unwrap(), current_date);
         assert_eq!(
-            current_date + Period::ON,
+            (current_date + Period::ON)?,
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
         );
         assert_eq!(
-            current_date + Period::SN,
+            (current_date + Period::SN)?,
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
         );
         assert_eq!(
-            current_date + Period::Days(1),
+            (current_date + Period::Days(1))?,
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
         );
         assert_eq!(
-            current_date + Period::Weeks(1),
+            (current_date + Period::Weeks(1))?,
             NaiveDate::from_ymd_opt(2023, 10, 24).unwrap()
         );
         assert_eq!(
-            current_date + Period::Months(1),
+            (current_date + Period::Months(1))?,
             NaiveDate::from_ymd_opt(2023, 11, 17).unwrap()
         );
         assert_eq!(
-            current_date + Period::Years(1),
+            (current_date + Period::Years(1))?,
             NaiveDate::from_ymd_opt(2024, 10, 17).unwrap()
         );
+
+        Ok(())
     }
 
     #[test]
