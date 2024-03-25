@@ -144,6 +144,17 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
                 source: future.yts_type(),
             })
         }
+        for swap in &mut self.swap_quote {
+            outputs.push(StrippedCurve {
+                first_settle_date: swap.settle_date(self.valuation_date),
+                date: swap.maturity_date(self.valuation_date),
+                market_rate: swap.fixed_leg.coupon,
+                zero_rate: swap.solve_zero_rate(self.valuation_date, &mut outputs),
+                discount: 0f64,
+                hidden_pillar: false,
+                source: swap.yts_type(),
+            })
+        }
         self.is_called = true;
         self.stripped_curves = Some(outputs);
     }

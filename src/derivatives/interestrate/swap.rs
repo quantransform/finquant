@@ -1,7 +1,8 @@
 use crate::derivatives::basic::Direction;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
-    InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, YieldTermStructure,
+    InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
+    YieldTermStructure,
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::Calendar;
@@ -9,6 +10,7 @@ use crate::time::daycounters::DayCounters;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
 use chrono::NaiveDate;
+use roots::{find_root_brent, SimpleConvergency};
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
 
@@ -86,6 +88,51 @@ pub struct InterestRateSwap<'terms> {
     pub float_leg: InterestRateSwapFloatLeg,
     // TODO: make market condition somewhere? or combined?
     pub yield_term_structure: Option<&'terms mut YieldTermStructure<'terms>>,
+}
+
+impl InterestRateSwap<'_> {
+    fn add_additional(
+        &mut self,
+        zero_rate: f64,
+        valuation_date: NaiveDate,
+        stripped_curves: &mut Vec<StrippedCurve>,
+    ) -> &mut Vec<StrippedCurve> {
+        stripped_curves.push(StrippedCurve {
+            first_settle_date: self.settle_date(valuation_date),
+            date: self.maturity_date(valuation_date),
+            market_rate: self.fixed_leg.coupon,
+            zero_rate,
+            discount: 0f64,
+            hidden_pillar: false,
+            source: self.yts_type(),
+        });
+        stripped_curves
+    }
+
+    fn calculate_npv(
+        &mut self,
+        zero_rate: f64,
+        valuation_date: NaiveDate,
+        stripped_curves: &mut Vec<StrippedCurve>,
+    ) -> f64 {
+        self.add_additional(zero_rate, valuation_date, stripped_curves);
+        self.npv(valuation_date).unwrap()
+    }
+
+    pub fn solve_zero_rate(
+        &mut self,
+        valuation_date: NaiveDate,
+        stripped_curves: &mut Vec<StrippedCurve>,
+    ) -> f64 {
+        let mut convergency = SimpleConvergency {
+            eps: 1e-15f64,
+            max_iter: 30,
+        };
+        // TODO: can't take self
+        let f = |x| self.calculate_npv(x, valuation_date, stripped_curves);
+        let root = find_root_brent(0f64, 1f64, &f, &mut convergency);
+        root.unwrap()
+    }
 }
 
 impl InterestRateQuote for InterestRateSwap<'_> {
