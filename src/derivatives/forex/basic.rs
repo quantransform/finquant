@@ -58,6 +58,7 @@ pub trait FXDerivatives {
 #[cfg(test)]
 mod tests {
     use super::FXUnderlying;
+    use crate::error::Result;
     use crate::time::daycounters::actual360::Actual360;
     use crate::time::daycounters::DayCounters;
     use chrono::{NaiveDate, NaiveTime};
@@ -83,16 +84,18 @@ mod tests {
     }
 
     #[test]
-    fn test_other_static() {
+    fn test_other_static() -> Result<()> {
         let d1 = NaiveDate::from_ymd_opt(2023, 11, 24).unwrap();
         let d2 = NaiveDate::from_ymd_opt(2024, 11, 24).unwrap();
         assert_eq!(
-            FXUnderlying::EURUSD.day_count().day_count(d1, d2),
-            Actual360.day_count(d1, d2)
+            FXUnderlying::EURUSD.day_count().day_count(d1, d2)?,
+            Actual360.day_count(d1, d2)?
         );
         assert_eq!(
             FXUnderlying::EURUSD.hours(),
             NaiveTime::from_hms_micro_opt(22, 0, 0, 0).unwrap()
         );
+
+        Ok(())
     }
 }

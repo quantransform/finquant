@@ -1,6 +1,7 @@
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 
+use crate::error::Result;
 use crate::time::daycounters::DayCounters;
 
 #[warn(clippy::upper_case_acronyms)]
@@ -161,8 +162,8 @@ impl Default for Thirty360 {
 
 #[typetag::serialize]
 impl DayCounters for Thirty360 {
-    fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
-        match self.market {
+    fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
+        let day_count = match self.market {
             Thirty360Market::USA => self.us_day_count(d1, d2),
             Thirty360Market::European => self.eu_day_count(d1, d2),
             Thirty360Market::Italian => self.italy_day_count(d1, d2),
@@ -174,11 +175,13 @@ impl DayCounters for Thirty360 {
                 self.isda_day_count(d1, d2, termination_date)
             }
             Thirty360Market::NASD => self.nasd_day_count(d1, d2),
-        }
+        };
+
+        Ok(day_count)
     }
 
-    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> f64 {
-        self.day_count(d1, d2) as f64 / 360.0
+    fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> Result<f64> {
+        Ok(self.day_count(d1, d2)? as f64 / 360.0)
     }
 }
 
@@ -188,6 +191,7 @@ mod tests {
     use rstest::rstest;
 
     use super::{Thirty360, Thirty360Market};
+    use crate::error::Result;
     use crate::time::daycounters::DayCounters;
 
     // TODO: add USA test cases
@@ -233,9 +237,11 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::European);
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 
     #[rstest]
@@ -280,9 +286,11 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::ISDA(termination_date));
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 
     #[rstest]
@@ -320,8 +328,10 @@ mod tests {
         #[case] start_date: NaiveDate,
         #[case] end_date: NaiveDate,
         #[case] expected_day_count: i64,
-    ) {
+    ) -> Result<()> {
         let counter = Thirty360::new(Thirty360Market::ISMA);
-        assert_eq!(counter.day_count(start_date, end_date), expected_day_count);
+        assert_eq!(counter.day_count(start_date, end_date)?, expected_day_count);
+
+        Ok(())
     }
 }

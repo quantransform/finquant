@@ -1,10 +1,12 @@
+use chrono::{Datelike, NaiveDate};
+use serde::Serialize;
+
+use crate::error::Result;
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 use crate::time::period::Period;
-use chrono::{Datelike, NaiveDate};
-use serde::Serialize;
 
 /// Futures
 #[derive(Serialize, Debug)]
@@ -17,7 +19,7 @@ pub struct InterestRateFutures {
 }
 
 impl InterestRateFutures {
-    pub fn maturity_date(&self, index_start_date: NaiveDate) -> NaiveDate {
+    pub fn maturity_date(&self, index_start_date: NaiveDate) -> Result<NaiveDate> {
         let target_date = self
             .calendar
             .advance(
@@ -26,10 +28,10 @@ impl InterestRateFutures {
                 self.convention,
                 Some(self.end_of_month),
             )
-            .unwrap();
-        IMM.next_date(
+            .map(Option::unwrap)?;
+        Ok(IMM.next_date(
             NaiveDate::from_ymd_opt(target_date.year(), target_date.month(), 1).unwrap(),
             false,
-        )
+        ))
     }
 }

@@ -1,10 +1,12 @@
+use chrono::NaiveDate;
+use serde::Serialize;
+
+use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{InterestRateQuote, InterestRateQuoteEnum};
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period;
-use chrono::NaiveDate;
-use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct OISRate<'termstructure> {
@@ -13,36 +15,38 @@ pub struct OISRate<'termstructure> {
 }
 
 impl OISRate<'_> {
-    pub fn discount(&mut self, valuation_date: NaiveDate) -> f64 {
-        let zero_rate = self.zero_rate(valuation_date);
-        let maturity_date = self.maturity_date(valuation_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(valuation_date, maturity_date);
-        (-zero_rate * year_fraction).exp()
+    pub fn discount(&mut self, valuation_date: NaiveDate) -> Result<f64> {
+        let zero_rate = self.zero_rate(valuation_date)?;
+        let maturity_date = self.maturity_date(valuation_date)?;
+        let year_fraction =
+            Actual365Fixed::default().year_fraction(valuation_date, maturity_date)?;
+        Ok((-zero_rate * year_fraction).exp())
     }
 
-    pub fn zero_rate(&mut self, valuation_date: NaiveDate) -> f64 {
-        let settle_date = self.settle_date(valuation_date);
-        let maturity_date = self.maturity_date(valuation_date);
+    pub fn zero_rate(&mut self, valuation_date: NaiveDate) -> Result<f64> {
+        let settle_date = self.settle_date(valuation_date)?;
+        let maturity_date = self.maturity_date(valuation_date)?;
         let year_fraction_index = self
             .interest_rate_index
             .day_counter
-            .year_fraction(settle_date, maturity_date);
-        let year_fraction = Actual365Fixed::default().year_fraction(settle_date, maturity_date);
+            .year_fraction(settle_date, maturity_date)?;
+        let year_fraction = Actual365Fixed::default().year_fraction(settle_date, maturity_date)?;
         let discount = 1.0 / (1.0 + year_fraction_index * self.value);
-        -discount.ln() / year_fraction
+
+        Ok(-discount.ln() / year_fraction)
     }
 
     // TODO: Need to figure out how to use maturity_date
-    pub fn maturity_date_not_mut(&self, valuation_date: NaiveDate) -> NaiveDate {
+    pub fn maturity_date_not_mut(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.interest_rate_index
             .calendar
             .advance(
-                self.settle_date(valuation_date),
+                self.settle_date(valuation_date)?,
                 self.interest_rate_index.period,
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
-            .unwrap()
+            .map(Option::unwrap)
     }
 }
 
@@ -50,7 +54,7 @@ impl InterestRateQuote for OISRate<'_> {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::OIS
     }
-    fn settle_date(&self, valuation_date: NaiveDate) -> NaiveDate {
+    fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.interest_rate_index
             .calendar
             .advance(
@@ -59,24 +63,25 @@ impl InterestRateQuote for OISRate<'_> {
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
-            .unwrap()
+            .map(Option::unwrap) // TODO (DS): what should we do with None dates?
     }
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> NaiveDate {
+    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.interest_rate_index
             .calendar
             .advance(
-                self.settle_date(valuation_date),
+                self.settle_date(valuation_date)?,
                 self.interest_rate_index.period,
                 self.interest_rate_index.convention,
                 Some(self.interest_rate_index.end_of_month),
             )
-            .unwrap()
+            .map(Option::unwrap) // TODO (DS): what should we do with None dates?
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::OISRate;
+    use crate::error::Result;
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
     };
@@ -85,7 +90,7 @@ mod tests {
     use chrono::NaiveDate;
 
     #[test]
-    fn test_settle_maturity_date() {
+    fn test_settle_maturity_date() -> Result<()> {
         let mut ois_quote = OISRate {
             value: 0.03938,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
@@ -94,14 +99,16 @@ mod tests {
             .unwrap(),
         };
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        let settle_date = ois_quote.settle_date(valuation_date);
-        let maturity_date = ois_quote.maturity_date(valuation_date);
+        let settle_date = ois_quote.settle_date(valuation_date)?;
+        let maturity_date = ois_quote.maturity_date(valuation_date)?;
         assert_eq!(settle_date, NaiveDate::from_ymd_opt(2023, 10, 31).unwrap());
         assert_eq!(maturity_date, NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
+
+        Ok(())
     }
 
     #[test]
-    fn test_discount() {
+    fn test_discount() -> Result<()> {
         let mut ois_quote = OISRate {
             value: 0.03948,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
@@ -111,12 +118,14 @@ mod tests {
         };
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
         assert_eq!(
-            format!("{:.6}", ois_quote.discount(valuation_date)),
+            format!("{:.6}", ois_quote.discount(valuation_date)?),
             "0.989579"
         );
         assert_eq!(
-            format!("{:.7}", ois_quote.zero_rate(valuation_date)),
+            format!("{:.7}", ois_quote.zero_rate(valuation_date)?),
             "0.0398278"
         );
+
+        Ok(())
     }
 }
