@@ -5,7 +5,8 @@ use crate::markets::termstructures::yieldcurve::{
     YieldTermStructure,
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
-use crate::time::calendars::Calendar;
+use crate::time::calendars::{Calendar, Target};
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
@@ -13,7 +14,6 @@ use chrono::NaiveDate;
 use roots::{find_root_brent, SimpleConvergency};
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
-
 #[derive(Serialize, Debug)]
 pub struct InterestRateSwapFixedLeg {
     pub direction: Direction,
@@ -109,28 +109,50 @@ impl InterestRateSwap<'_> {
         stripped_curves
     }
 
+    fn amend_last(
+        &mut self,
+        zero_rate: f64,
+        stripped_curves: &mut Vec<StrippedCurve>,
+    ) -> &mut Vec<StrippedCurve> {
+        stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
+        stripped_curves
+    }
+
     fn calculate_npv(
         &mut self,
         zero_rate: f64,
         valuation_date: NaiveDate,
         stripped_curves: &mut Vec<StrippedCurve>,
     ) -> f64 {
-        self.add_additional(zero_rate, valuation_date, stripped_curves);
+        self.amend_last(zero_rate, stripped_curves);
         self.npv(valuation_date).unwrap()
     }
 
     pub fn solve_zero_rate(
         &mut self,
         valuation_date: NaiveDate,
-        stripped_curves: &mut Vec<StrippedCurve>,
+        stripped_curves: Vec<StrippedCurve>,
     ) -> f64 {
+        let initial_zero_rate = 0.005f64;
+        let new_stripped_curve = &mut stripped_curves.to_vec();
+        self.add_additional(initial_zero_rate, valuation_date, new_stripped_curve);
+        let mut yts = YieldTermStructure {
+            valuation_date,
+            calendar: Box::new(Target::default()),
+            day_counter: Box::new(Actual365Fixed::default()),
+            cash_quote: vec![],
+            futures_quote: vec![],
+            swap_quote: vec![],
+            is_called: true,
+            stripped_curves: Some(new_stripped_curve.clone()),
+        };
+        self.yield_term_structure = Some(&mut yts);
         let mut convergency = SimpleConvergency {
             eps: 1e-15f64,
             max_iter: 30,
         };
-        // TODO: can't take self
-        let f = |x| self.calculate_npv(x, valuation_date, stripped_curves);
-        let root = find_root_brent(0f64, 1f64, &f, &mut convergency);
+        let mut f = |x| self.calculate_npv(x, valuation_date, new_stripped_curve);
+        let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
         root.unwrap()
     }
 }
@@ -476,7 +498,7 @@ mod tests {
             futures_quote: vec![],
             swap_quote: vec![],
             is_called: true,
-            stripped_curves: Some(vec![
+            stripped_curves: Some(&mut vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
                     date: NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
