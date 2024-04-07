@@ -90,7 +90,7 @@ impl InterestRateQuote for FuturesRate<'_> {
     fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         Ok(IMM.date(self.imm_code, Some(valuation_date)).unwrap())
     }
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
+    fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.futures_spec
             .maturity_date(self.settle_date(valuation_date)?)
     }
@@ -123,7 +123,7 @@ mod tests {
         };
         let ir_index =
             InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
-        let mut future_quote = FuturesRate {
+        let future_quote = FuturesRate {
             value: 96.045,
             imm_code: "X3",
             convexity_adjustment: -0.00015,

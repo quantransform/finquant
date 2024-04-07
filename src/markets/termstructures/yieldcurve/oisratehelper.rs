@@ -35,19 +35,6 @@ impl OISRate<'_> {
 
         Ok(-discount.ln() / year_fraction)
     }
-
-    // TODO: Need to figure out how to use maturity_date
-    pub fn maturity_date_not_mut(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
-        self.interest_rate_index
-            .calendar
-            .advance(
-                self.settle_date(valuation_date)?,
-                self.interest_rate_index.period,
-                self.interest_rate_index.convention,
-                Some(self.interest_rate_index.end_of_month),
-            )
-            .map(Option::unwrap)
-    }
 }
 
 impl InterestRateQuote for OISRate<'_> {
@@ -65,7 +52,7 @@ impl InterestRateQuote for OISRate<'_> {
             )
             .map(Option::unwrap) // TODO (DS): what should we do with None dates?
     }
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate> {
+    fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.interest_rate_index
             .calendar
             .advance(

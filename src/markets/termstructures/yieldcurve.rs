@@ -38,7 +38,7 @@ pub trait InterestRateQuote {
     fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate>;
 
     /// Maturity date of the quote.
-    fn maturity_date(&mut self, valuation_date: NaiveDate) -> Result<NaiveDate>;
+    fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate>;
 
     /// Get closest available stripped curve of the target date.
     fn retrieve_related_stripped_curve<'termstructure>(
@@ -122,7 +122,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
         self.cash_quote
-            .sort_by_key(|quote| quote.maturity_date_not_mut(self.valuation_date).unwrap());
+            .sort_by_key(|quote| quote.maturity_date(self.valuation_date).unwrap());
         for cash in &mut self.cash_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: cash.settle_date(self.valuation_date)?,
