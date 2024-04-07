@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_settle_maturity_date() -> Result<()> {
-        let mut ois_quote = OISRate {
+        let ois_quote = OISRate {
             value: 0.03938,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),

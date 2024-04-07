@@ -102,7 +102,7 @@ impl InterestRateQuote for InterestRateSwap<'_> {
     fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         if !self.fixed_leg.is_called || !self.float_leg.is_called {
             // TODO: need to get corret value
-            return Ok(valuation_date)
+            return Ok(valuation_date);
         }
         let maturity = max(
             self.fixed_leg
