@@ -107,7 +107,7 @@ impl InterestRateSwap<'_> {
         &mut self,
         zero_rate: f64,
         valuation_date: NaiveDate,
-        stripped_curves: &mut Vec<StrippedCurve>,
+        stripped_curves: &mut [StrippedCurve],
     ) -> Result<Option<f64>> {
         self.fixed_leg.is_called = false;
         self.float_leg.is_called = false;
