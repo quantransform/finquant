@@ -22,7 +22,7 @@ pub enum InterpolationMethodEnum {
     PiecewiseLinearContinuous,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Debug)]
 pub enum InterestRateQuoteEnum {
     OIS,
     Futures,
@@ -70,7 +70,7 @@ pub trait InterestRateQuote {
 }
 
 /// Stripped curve - this matches Bloomberg ICVS stripped curve page.
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Debug)]
 pub struct StrippedCurve {
     pub first_settle_date: NaiveDate,
     pub date: NaiveDate,
@@ -146,6 +146,19 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
                 source: future.yts_type(),
             })
         }
+        for swap in &mut self.swap_quote {
+            outputs.push(StrippedCurve {
+                first_settle_date: swap.settle_date(self.valuation_date)?,
+                date: swap.maturity_date(self.valuation_date)?,
+                market_rate: swap.fixed_leg.coupon,
+                zero_rate: 0.005f64,
+                discount: 0f64,
+                hidden_pillar: false,
+                source: swap.yts_type(),
+            });
+            let zero_rate = swap.solve_zero_rate(self.valuation_date, outputs.clone());
+            outputs.last_mut().unwrap().zero_rate = zero_rate;
+        }
         self.is_called = true;
         self.stripped_curves = Some(outputs);
 
@@ -158,14 +171,14 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         let mut first = stripped_curves.first().unwrap();
         let mut second = stripped_curves.first().unwrap();
         let mut true_first = stripped_curves.first().unwrap();
-        for strip_curve in stripped_curves {
+        for strip_curve in &**stripped_curves {
             if target_date <= strip_curve.date && !strip_curve.hidden_pillar {
                 second = strip_curve;
                 break;
             }
             first = strip_curve;
         }
-        for strip_curve in stripped_curves {
+        for strip_curve in &**stripped_curves {
             if !strip_curve.hidden_pillar {
                 true_first = strip_curve;
                 break;

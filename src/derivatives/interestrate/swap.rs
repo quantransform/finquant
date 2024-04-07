@@ -6,13 +6,16 @@ use crate::derivatives::basic::Direction;
 use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
-    InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, YieldTermStructure,
+    InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
+    YieldTermStructure,
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
-use crate::time::calendars::Calendar;
+use crate::time::calendars::{Calendar, Target};
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
+use roots::{find_root_brent, SimpleConvergency};
 
 #[derive(Serialize, Debug)]
 pub struct InterestRateSwapFixedLeg {
@@ -87,7 +90,60 @@ pub struct InterestRateSwap<'terms> {
     pub fixed_leg: InterestRateSwapFixedLeg,
     pub float_leg: InterestRateSwapFloatLeg,
     // TODO: make market condition somewhere? or combined?
-    pub yield_term_structure: Option<&'terms mut YieldTermStructure<'terms>>,
+    pub yield_term_structure: Option<YieldTermStructure<'terms>>,
+}
+
+impl InterestRateSwap<'_> {
+    fn amend_last<'a>(
+        &'a self,
+        zero_rate: f64,
+        stripped_curves: &'a mut Vec<StrippedCurve>,
+    ) -> Result<&mut Vec<StrippedCurve>> {
+        stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
+        Ok(stripped_curves)
+    }
+
+    fn calculate_npv(
+        &mut self,
+        zero_rate: f64,
+        valuation_date: NaiveDate,
+        stripped_curves: &mut [StrippedCurve],
+    ) -> Result<Option<f64>> {
+        self.fixed_leg.is_called = false;
+        self.float_leg.is_called = false;
+        let new_stripped_curve = &mut stripped_curves.to_vec();
+        let _ = self.amend_last(zero_rate, new_stripped_curve);
+        let yts = YieldTermStructure {
+            valuation_date,
+            calendar: Box::new(Target),
+            day_counter: Box::<Actual365Fixed>::default(),
+            cash_quote: vec![],
+            futures_quote: vec![],
+            swap_quote: vec![],
+            is_called: true,
+            stripped_curves: Some(new_stripped_curve.clone()),
+        };
+        self.yield_term_structure = Some(yts);
+        self.npv(valuation_date)
+    }
+
+    pub fn solve_zero_rate(
+        &mut self,
+        valuation_date: NaiveDate,
+        stripped_curves: Vec<StrippedCurve>,
+    ) -> f64 {
+        let mut convergency = SimpleConvergency {
+            eps: 1e-15f64,
+            max_iter: 30,
+        };
+        let mut f = |x| {
+            self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
+                .unwrap()
+                .unwrap()
+        };
+        let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
+        root.unwrap()
+    }
 }
 
 impl InterestRateQuote for InterestRateSwap<'_> {
@@ -437,7 +493,7 @@ mod tests {
     #[test]
     fn test_eusw3v3_schedule() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        let yts = &mut YieldTermStructure {
+        let yts = YieldTermStructure {
             valuation_date,
             calendar: Box::new(Target::default()),
             day_counter: Box::new(Actual365Fixed::default()),
