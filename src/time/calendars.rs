@@ -1,7 +1,9 @@
-use crate::time::businessdayconvention::BusinessDayConvention;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
 use std::cmp::Ordering;
 use std::fmt::Debug;
+
+use crate::error::Result;
+use crate::time::businessdayconvention::BusinessDayConvention;
 
 static EASTER_MONDAY: [u32; 299] = [
     98, 90, 103, 95, 114, 106, 91, 111, 102, // 1901-1909
@@ -152,7 +154,7 @@ pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
 pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
-use crate::time::period::Period;
+use crate::time::period::{Period, ONE_DAY};
 pub use weekendsonly::WeekendsOnly;
 
 #[typetag::serialize(tag = "type")]
@@ -179,7 +181,7 @@ pub trait Calendar: Debug {
     fn end_of_month(&self, date: NaiveDate) -> NaiveDate {
         let mut last_day_of_month = self.last_day_of_month(date);
         while self.is_holiday(last_day_of_month) {
-            last_day_of_month -= Duration::try_days(1).unwrap()
+            last_day_of_month -= ONE_DAY;
         }
         last_day_of_month
     }
@@ -215,7 +217,7 @@ pub trait Calendar: Debug {
             || bdc == BusinessDayConvention::HalfMonthModifiedFollowing
         {
             while self.is_holiday(d1) {
-                d1 += Duration::try_days(1).unwrap();
+                d1 += ONE_DAY;
             }
             if (bdc == BusinessDayConvention::ModifiedFollowing
                 || bdc == BusinessDayConvention::HalfMonthModifiedFollowing)
@@ -233,7 +235,7 @@ pub trait Calendar: Debug {
             || bdc == BusinessDayConvention::ModifiedPreceding
         {
             while self.is_holiday(d1) {
-                d1 -= Duration::try_days(1).unwrap();
+                d1 -= ONE_DAY;
             }
             if bdc == BusinessDayConvention::ModifiedPreceding && d1.month() != date.month() {
                 return self.adjust(date, BusinessDayConvention::Following);
@@ -241,8 +243,8 @@ pub trait Calendar: Debug {
         } else if bdc == BusinessDayConvention::Nearest {
             let mut d2 = date;
             while self.is_holiday(d1) && self.is_holiday(d2) {
-                d1 += Duration::try_days(1).unwrap();
-                d2 -= Duration::try_days(1).unwrap();
+                d1 += ONE_DAY;
+                d2 -= ONE_DAY;
             }
             return if self.is_holiday(d1) {
                 Some(d1)
@@ -261,48 +263,48 @@ pub trait Calendar: Debug {
         period: Period,
         bdc: BusinessDayConvention,
         end_of_month: Option<bool>,
-    ) -> Option<NaiveDate> {
+    ) -> Result<Option<NaiveDate>> {
         let end_of_month = end_of_month.unwrap_or(false);
 
         match period {
             Period::Months(_) | Period::Years(_) => {
-                let advance_date = date + period;
-                if end_of_month {
+                let advance_date = (date + period)?;
+                Ok(if end_of_month {
                     Some(self.end_of_month(self.adjust(advance_date, bdc).unwrap()))
                 } else {
                     self.adjust(advance_date, bdc)
-                }
+                })
             }
             Period::Days(mut num) => {
                 let mut advance_date = date;
                 let target: i64 = 0;
                 match num.cmp(&target) {
-                    Ordering::Equal => self.adjust(date, bdc),
+                    Ordering::Equal => Ok(self.adjust(date, bdc)),
                     Ordering::Greater => {
                         while num > 0 {
-                            advance_date = advance_date + Period::Days(1);
+                            advance_date = (advance_date + Period::Days(1))?;
                             while !self.is_business_day(advance_date) {
-                                advance_date = advance_date + Period::Days(1);
+                                advance_date = (advance_date + Period::Days(1))?;
                             }
                             num -= 1;
                         }
-                        Some(advance_date)
+                        Ok(Some(advance_date))
                     }
                     Ordering::Less => {
                         while num < 0 {
-                            advance_date = advance_date - Period::Days(1);
+                            advance_date = (advance_date - Period::Days(1))?;
                             while !self.is_business_day(advance_date) {
-                                advance_date = advance_date - Period::Days(1);
+                                advance_date = (advance_date - Period::Days(1))?;
                             }
                             num += 1;
                         }
-                        Some(advance_date)
+                        Ok(Some(advance_date))
                     }
                 }
             }
             _ => {
-                let advance_date = date + period;
-                self.adjust(advance_date, bdc)
+                let advance_date = (date + period)?;
+                Ok(self.adjust(advance_date, bdc))
             }
         }
     }

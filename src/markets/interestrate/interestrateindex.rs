@@ -35,6 +35,7 @@ pub struct InterestRateIndex {
 
 impl InterestRateIndex {
     pub fn from_enum(code: InterestRateIndexEnum) -> Option<InterestRateIndex> {
+        // TODO (DS): why does this return Option?
         match code {
             InterestRateIndexEnum::AONIA => Some(InterestRateIndex {
                 period: Period::SPOT,

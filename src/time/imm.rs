@@ -54,7 +54,10 @@ impl IMM {
             return false;
         }
 
-        let imm_year = imm_code.chars().nth(1).unwrap();
+        let imm_year = imm_code
+            .chars()
+            .nth(1)
+            .expect("already asserted length of 2");
 
         if !"0123456789".contains(imm_year) {
             return false;
@@ -66,7 +69,10 @@ impl IMM {
             "fghjkmnquvxzFGHJKMNQUVXZ"
         };
 
-        let imm_month = imm_code.chars().nth(0).unwrap();
+        let imm_month = imm_code
+            .chars()
+            .nth(0)
+            .expect("already asserted length of 2");
 
         if !str.contains(imm_month) {
             return false;
@@ -83,7 +89,7 @@ impl IMM {
             let y = date.year() % 10;
             let mut month = IMMMonth::iter()
                 .nth((date.month() - 1) as usize)
-                .unwrap()
+                .expect("month is within range")
                 .to_string();
             month.push_str(y.to_string().as_str());
             Some(month)
