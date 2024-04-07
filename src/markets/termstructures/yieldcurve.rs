@@ -182,7 +182,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
 
     /// Get zero rate by using stripped curve.
     pub fn zero_rate(
-        &self,
+        &mut self,
         date: NaiveDate,
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
