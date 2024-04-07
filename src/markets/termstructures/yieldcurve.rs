@@ -123,7 +123,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
 
         self.cash_quote
             .sort_by_key(|quote| quote.maturity_date(self.valuation_date).unwrap());
-        for cash in &mut self.cash_quote {
+        for cash in &self.cash_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: cash.settle_date(self.valuation_date)?,
                 date: cash.maturity_date(self.valuation_date)?,
@@ -135,7 +135,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
                 source: cash.yts_type(),
             })
         }
-        for future in &mut self.futures_quote {
+        for future in &self.futures_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: future.settle_date(self.valuation_date)?,
                 date: future.maturity_date(self.valuation_date)?,
