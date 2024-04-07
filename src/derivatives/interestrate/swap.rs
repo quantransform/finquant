@@ -90,32 +90,14 @@ pub struct InterestRateSwap<'terms> {
     pub fixed_leg: InterestRateSwapFixedLeg,
     pub float_leg: InterestRateSwapFloatLeg,
     // TODO: make market condition somewhere? or combined?
-    pub yield_term_structure: Option<&'terms mut YieldTermStructure<'terms>>,
+    pub yield_term_structure: Option<YieldTermStructure<'terms>>,
 }
 
 impl InterestRateSwap<'_> {
-    fn add_additional(
-        &mut self,
+    fn amend_last<'a>(
+        &'a self,
         zero_rate: f64,
-        valuation_date: NaiveDate,
-        stripped_curves: &mut Vec<StrippedCurve>,
-    ) -> Result<&mut Vec<StrippedCurve>> {
-        stripped_curves.push(StrippedCurve {
-            first_settle_date: self.settle_date(valuation_date)?,
-            date: self.maturity_date(valuation_date)?,
-            market_rate: self.fixed_leg.coupon,
-            zero_rate,
-            discount: 0f64,
-            hidden_pillar: false,
-            source: self.yts_type(),
-        });
-        Ok(stripped_curves)
-    }
-
-    fn amend_last(
-        &mut self,
-        zero_rate: f64,
-        stripped_curves: &mut Vec<StrippedCurve>,
+        stripped_curves: &'a mut Vec<StrippedCurve>,
     ) -> Result<&mut Vec<StrippedCurve>> {
         stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
         Ok(stripped_curves)
@@ -127,7 +109,7 @@ impl InterestRateSwap<'_> {
         valuation_date: NaiveDate,
         stripped_curves: &mut Vec<StrippedCurve>,
     ) -> Result<Option<f64>> {
-        self.amend_last(zero_rate, stripped_curves);
+        let _ = self.amend_last(zero_rate, stripped_curves);
         self.npv(valuation_date)
     }
 
@@ -136,25 +118,27 @@ impl InterestRateSwap<'_> {
         valuation_date: NaiveDate,
         stripped_curves: Vec<StrippedCurve>,
     ) -> f64 {
-        let initial_zero_rate = 0.005f64;
         let new_stripped_curve = &mut stripped_curves.to_vec();
-        self.add_additional(initial_zero_rate, valuation_date, new_stripped_curve);
-        let mut yts = YieldTermStructure {
+        let yts = YieldTermStructure {
             valuation_date,
-            calendar: Box::new(Target::default()),
-            day_counter: Box::new(Actual365Fixed::default()),
+            calendar: Box::new(Target),
+            day_counter: Box::<Actual365Fixed>::default(),
             cash_quote: vec![],
             futures_quote: vec![],
             swap_quote: vec![],
             is_called: true,
             stripped_curves: Some(new_stripped_curve.clone()),
         };
-        self.yield_term_structure = Some(&mut yts);
+        self.yield_term_structure = Some(yts);
         let mut convergency = SimpleConvergency {
             eps: 1e-15f64,
             max_iter: 30,
         };
-        let mut f = |x| self.calculate_npv(x, valuation_date, new_stripped_curve).unwrap().unwrap();
+        let mut f = |x| {
+            self.calculate_npv(x, valuation_date, new_stripped_curve)
+                .unwrap()
+                .unwrap()
+        };
         let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
         root.unwrap()
     }
@@ -507,7 +491,7 @@ mod tests {
     #[test]
     fn test_eusw3v3_schedule() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        let yts = &mut YieldTermStructure {
+        let yts = YieldTermStructure {
             valuation_date,
             calendar: Box::new(Target::default()),
             day_counter: Box::new(Actual365Fixed::default()),
@@ -515,7 +499,7 @@ mod tests {
             futures_quote: vec![],
             swap_quote: vec![],
             is_called: true,
-            stripped_curves: Some(&mut vec![
+            stripped_curves: Some(vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
                     date: NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
