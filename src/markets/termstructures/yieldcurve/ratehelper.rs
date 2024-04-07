@@ -27,7 +27,7 @@ impl FuturesRate<'_> {
     }
 
     pub fn discount(
-        &mut self,
+        &self,
         valuation_date: NaiveDate,
         stripped_curves: &Vec<StrippedCurve>,
     ) -> Result<f64> {
@@ -44,7 +44,7 @@ impl FuturesRate<'_> {
     }
 
     pub fn zero_rate(
-        &mut self,
+        &self,
         valuation_date: NaiveDate,
         stripped_curves: &Vec<StrippedCurve>,
     ) -> Result<f64> {

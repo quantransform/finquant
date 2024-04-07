@@ -152,7 +152,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         Ok(())
     }
 
-    fn step_function_forward_zero_rate(&mut self, date: NaiveDate) -> f64 {
+    fn step_function_forward_zero_rate(&self, date: NaiveDate) -> f64 {
         let target_date = date + ONE_DAY;
         let stripped_curves = self.stripped_curves.as_ref().unwrap();
         let mut first = stripped_curves.first().unwrap();

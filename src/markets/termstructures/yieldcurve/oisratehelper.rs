@@ -15,7 +15,7 @@ pub struct OISRate<'termstructure> {
 }
 
 impl OISRate<'_> {
-    pub fn discount(&mut self, valuation_date: NaiveDate) -> Result<f64> {
+    pub fn discount(&self, valuation_date: NaiveDate) -> Result<f64> {
         let zero_rate = self.zero_rate(valuation_date)?;
         let maturity_date = self.maturity_date(valuation_date)?;
         let year_fraction =
@@ -23,7 +23,7 @@ impl OISRate<'_> {
         Ok((-zero_rate * year_fraction).exp())
     }
 
-    pub fn zero_rate(&mut self, valuation_date: NaiveDate) -> Result<f64> {
+    pub fn zero_rate(&self, valuation_date: NaiveDate) -> Result<f64> {
         let settle_date = self.settle_date(valuation_date)?;
         let maturity_date = self.maturity_date(valuation_date)?;
         let year_fraction_index = self
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_discount() -> Result<()> {
-        let mut ois_quote = OISRate {
+        let ois_quote = OISRate {
             value: 0.03948,
             interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
