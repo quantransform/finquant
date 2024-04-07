@@ -150,8 +150,8 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             let new_output = outputs.clone();
             let zero_rate = swap.solve_zero_rate(self.valuation_date, new_output);
             outputs.push(StrippedCurve {
-                first_settle_date: swap.settle_date(self.valuation_date),
-                date: swap.maturity_date(self.valuation_date),
+                first_settle_date: swap.settle_date(self.valuation_date)?,
+                date: swap.maturity_date(self.valuation_date)?,
                 market_rate: swap.fixed_leg.coupon,
                 zero_rate,
                 discount: 0f64,

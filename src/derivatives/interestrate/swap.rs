@@ -15,10 +15,7 @@ use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
-use chrono::NaiveDate;
 use roots::{find_root_brent, SimpleConvergency};
-use serde::{Deserialize, Serialize};
-use std::cmp::max;
 
 #[derive(Serialize, Debug)]
 pub struct InterestRateSwapFixedLeg {
@@ -102,26 +99,26 @@ impl InterestRateSwap<'_> {
         zero_rate: f64,
         valuation_date: NaiveDate,
         stripped_curves: &mut Vec<StrippedCurve>,
-    ) -> &mut Vec<StrippedCurve> {
+    ) -> Result<&mut Vec<StrippedCurve>> {
         stripped_curves.push(StrippedCurve {
-            first_settle_date: self.settle_date(valuation_date),
-            date: self.maturity_date(valuation_date),
+            first_settle_date: self.settle_date(valuation_date)?,
+            date: self.maturity_date(valuation_date)?,
             market_rate: self.fixed_leg.coupon,
             zero_rate,
             discount: 0f64,
             hidden_pillar: false,
             source: self.yts_type(),
         });
-        stripped_curves
+        Ok(stripped_curves)
     }
 
     fn amend_last(
         &mut self,
         zero_rate: f64,
         stripped_curves: &mut Vec<StrippedCurve>,
-    ) -> &mut Vec<StrippedCurve> {
+    ) -> Result<&mut Vec<StrippedCurve>> {
         stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
-        stripped_curves
+        Ok(stripped_curves)
     }
 
     fn calculate_npv(
@@ -129,9 +126,9 @@ impl InterestRateSwap<'_> {
         zero_rate: f64,
         valuation_date: NaiveDate,
         stripped_curves: &mut Vec<StrippedCurve>,
-    ) -> f64 {
+    ) -> Result<Option<f64>> {
         self.amend_last(zero_rate, stripped_curves);
-        self.npv(valuation_date).unwrap()
+        self.npv(valuation_date)
     }
 
     pub fn solve_zero_rate(
@@ -157,7 +154,7 @@ impl InterestRateSwap<'_> {
             eps: 1e-15f64,
             max_iter: 30,
         };
-        let mut f = |x| self.calculate_npv(x, valuation_date, new_stripped_curve);
+        let mut f = |x| self.calculate_npv(x, valuation_date, new_stripped_curve).unwrap().unwrap();
         let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
         root.unwrap()
     }
