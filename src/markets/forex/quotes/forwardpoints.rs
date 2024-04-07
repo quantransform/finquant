@@ -16,7 +16,7 @@ pub struct FXForwardHelper {
 
 impl FXForwardHelper {
     pub fn get_forward(
-        &mut self,
+        &self,
         valuation_date: NaiveDate,
         target_date: NaiveDate,
         calendar: &impl Calendar,
@@ -237,7 +237,7 @@ mod tests {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
         let calendar = JointCalendar::new(UnitedStates::default(), UnitedKingdom::default());
 
-        let mut fx_forward_helper = FXForwardHelper {
+        let fx_forward_helper = FXForwardHelper {
             quotes: vec![
                 FXForwardQuote {
                     tenor: Period::SPOT,
