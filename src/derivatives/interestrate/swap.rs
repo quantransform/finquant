@@ -109,16 +109,10 @@ impl InterestRateSwap<'_> {
         valuation_date: NaiveDate,
         stripped_curves: &mut Vec<StrippedCurve>,
     ) -> Result<Option<f64>> {
-        let _ = self.amend_last(zero_rate, stripped_curves);
-        self.npv(valuation_date)
-    }
-
-    pub fn solve_zero_rate(
-        &mut self,
-        valuation_date: NaiveDate,
-        stripped_curves: Vec<StrippedCurve>,
-    ) -> f64 {
+        self.fixed_leg.is_called = false;
+        self.float_leg.is_called = false;
         let new_stripped_curve = &mut stripped_curves.to_vec();
+        let _ = self.amend_last(zero_rate, new_stripped_curve);
         let yts = YieldTermStructure {
             valuation_date,
             calendar: Box::new(Target),
@@ -130,12 +124,20 @@ impl InterestRateSwap<'_> {
             stripped_curves: Some(new_stripped_curve.clone()),
         };
         self.yield_term_structure = Some(yts);
+        self.npv(valuation_date)
+    }
+
+    pub fn solve_zero_rate(
+        &mut self,
+        valuation_date: NaiveDate,
+        stripped_curves: Vec<StrippedCurve>,
+    ) -> f64 {
         let mut convergency = SimpleConvergency {
             eps: 1e-15f64,
             max_iter: 30,
         };
         let mut f = |x| {
-            self.calculate_npv(x, valuation_date, new_stripped_curve)
+            self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
                 .unwrap()
                 .unwrap()
         };
