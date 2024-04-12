@@ -150,7 +150,13 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             outputs.push(StrippedCurve {
                 first_settle_date: swap.settle_date(self.valuation_date)?,
                 date: swap.maturity_date(self.valuation_date)?,
-                market_rate: swap.fixed_leg.coupon,
+                market_rate: swap
+                    .legs
+                    .borrow()
+                    .iter()
+                    .nth(0)
+                    .unwrap()
+                    .get_reference_rate(),
                 zero_rate: 0.005f64,
                 discount: 0f64,
                 hidden_pillar: false,
@@ -256,7 +262,7 @@ mod tests {
     };
     use crate::derivatives::basic::Direction;
     use crate::derivatives::interestrate::swap::{
-        InterestRateSwap, InterestRateSwapFixedLeg, InterestRateSwapFloatLeg,
+        InterestRateSwap, InterestRateSwapLeg, InterestRateSwapLegType,
     };
     use crate::error::Result;
     use crate::markets::interestrate::futures::InterestRateFutures;
@@ -273,6 +279,7 @@ mod tests {
     use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
+    use std::cell::RefCell;
 
     #[test]
     fn test_retrieve_related_stripped_curve() {
@@ -428,27 +435,29 @@ mod tests {
             futures_spec: &future,
             interest_rate_index: &ir_index,
         };
-        let swap_quote_3y = InterestRateSwap {
-            calendar: Box::<Target>::default(),
-            convention: BusinessDayConvention::ModifiedFollowing,
-            interest_rate_index: &ir_index,
-            settlement_days: 2i64,
-            fixed_leg: InterestRateSwapFixedLeg::new(
-                Direction::Buy,
-                Frequency::Annual,
-                Period::Months(12),
-                Box::<Thirty360>::default(),
-                0.0322925,
-            ),
-            float_leg: InterestRateSwapFloatLeg::new(
-                Direction::Sell,
-                Frequency::Quarterly,
-                Period::Months(3),
-                Box::<Actual360>::default(),
-                0f64,
-            ),
-            yield_term_structure: None,
-        };
+        let swap_quote_3y = InterestRateSwap::new(
+            Box::<Target>::default(),
+            BusinessDayConvention::ModifiedFollowing,
+            &ir_index,
+            2i64,
+            RefCell::new(vec![
+                InterestRateSwapLeg::new(
+                    InterestRateSwapLegType::Fixed { coupon: 0.0322925 },
+                    Direction::Buy,
+                    Frequency::Annual,
+                    Period::Months(12),
+                    Box::<Thirty360>::default(),
+                ),
+                InterestRateSwapLeg::new(
+                    InterestRateSwapLegType::Float { spread: 0f64 },
+                    Direction::Sell,
+                    Frequency::Quarterly,
+                    Period::Months(3),
+                    Box::<Actual360>::default(),
+                ),
+            ]),
+            None,
+        );
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Box::new(Target::default()),
