@@ -322,7 +322,9 @@ impl InterestRateSwap<'_> {
                 };
                 let reset_rate = match leg.swap_type {
                     InterestRateSwapLegType::Fixed { coupon } => Some(coupon),
-                    InterestRateSwapLegType::Float { spread } => Some(reset_rate.unwrap_or(0f64) + spread),
+                    InterestRateSwapLegType::Float { spread } => {
+                        Some(reset_rate.unwrap_or(0f64) + spread)
+                    }
                 };
 
                 irs.balance = notional;
@@ -399,8 +401,14 @@ mod tests {
             None,
         );
         random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap())?;
-        assert_eq!(random_irs.legs.borrow().get(0).unwrap().schedule, Some(vec![]));
-        assert_eq!(random_irs.legs.borrow().get(1).unwrap().schedule, Some(vec![]));
+        assert_eq!(
+            random_irs.legs.borrow().get(0).unwrap().schedule,
+            Some(vec![])
+        );
+        assert_eq!(
+            random_irs.legs.borrow().get(1).unwrap().schedule,
+            Some(vec![])
+        );
 
         Ok(())
     }
