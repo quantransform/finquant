@@ -91,8 +91,8 @@ pub struct YieldTermStructure<'termstructure> {
     pub cash_quote: Vec<OISRate<'termstructure>>,
     pub futures_quote: Vec<FuturesRate<'termstructure>>,
     pub swap_quote: Vec<InterestRateSwap<'termstructure>>,
-    pub is_called: bool,
     pub stripped_curves: Option<Vec<StrippedCurve>>,
+    pub is_called: bool,
 }
 
 impl<'termstructure> YieldTermStructure<'termstructure> {
@@ -456,7 +456,6 @@ mod tests {
                     Box::<Actual360>::default(),
                 ),
             ]),
-            None,
         );
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
