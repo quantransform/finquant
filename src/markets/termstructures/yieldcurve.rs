@@ -150,13 +150,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             outputs.push(StrippedCurve {
                 first_settle_date: swap.settle_date(self.valuation_date)?,
                 date: swap.maturity_date(self.valuation_date)?,
-                market_rate: swap
-                    .legs
-                    .borrow()
-                    .iter()
-                    .nth(0)
-                    .unwrap()
-                    .get_reference_rate(),
+                market_rate: swap.legs.first().unwrap().get_reference_rate(),
                 zero_rate: 0.005f64,
                 discount: 0f64,
                 hidden_pillar: false,
@@ -279,7 +273,6 @@ mod tests {
     use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
-    use std::cell::RefCell;
 
     #[test]
     fn test_retrieve_related_stripped_curve() {
@@ -440,7 +433,7 @@ mod tests {
             BusinessDayConvention::ModifiedFollowing,
             &ir_index,
             2i64,
-            RefCell::new(vec![
+            vec![
                 InterestRateSwapLeg::new(
                     InterestRateSwapLegType::Fixed { coupon: 0.0322925 },
                     Direction::Buy,
@@ -455,7 +448,7 @@ mod tests {
                     Period::Months(3),
                     Box::<Actual360>::default(),
                 ),
-            ]),
+            ],
         );
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),

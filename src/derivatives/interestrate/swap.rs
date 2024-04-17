@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 
 use crate::derivatives::basic::Direction;
 use crate::error::Result;
@@ -31,7 +30,7 @@ pub struct InterestRateSwapLeg {
     // TODO: tenor can be removed?
     pub tenor: Period,
     pub day_counter: Box<dyn DayCounters>,
-    pub schedule: RefCell<Vec<InterestRateSchedulePeriod>>,
+    pub schedule: Vec<InterestRateSchedulePeriod>,
 }
 
 impl InterestRateSwapLeg {
@@ -48,7 +47,7 @@ impl InterestRateSwapLeg {
             frequency,
             tenor,
             day_counter,
-            schedule: RefCell::new(vec![]),
+            schedule: vec![],
         }
     }
 
@@ -73,7 +72,7 @@ pub struct InterestRateSwap<'terms> {
     pub convention: BusinessDayConvention,
     pub interest_rate_index: &'terms InterestRateIndex,
     pub settlement_days: i64,
-    pub legs: RefCell<Vec<InterestRateSwapLeg>>,
+    pub legs: Vec<InterestRateSwapLeg>,
     // TODO: make market condition somewhere? or combined?
     is_called: bool,
 }
@@ -84,7 +83,7 @@ impl<'terms> InterestRateSwap<'terms> {
         convention: BusinessDayConvention,
         interest_rate_index: &'terms InterestRateIndex,
         settlement_days: i64,
-        legs: RefCell<Vec<InterestRateSwapLeg>>,
+        legs: Vec<InterestRateSwapLeg>,
     ) -> Self {
         Self {
             calendar,
@@ -165,8 +164,8 @@ impl InterestRateQuote for InterestRateSwap<'_> {
             return Ok(valuation_date);
         }
         let mut last_end_dates = Vec::new();
-        for leg in self.legs.borrow_mut().iter() {
-            last_end_dates.push(leg.schedule.borrow().last().unwrap().accrual_end_date);
+        for leg in self.legs.iter() {
+            last_end_dates.push(leg.schedule.last().unwrap().accrual_end_date);
         }
         let maturity = *last_end_dates.iter().max().unwrap();
 
@@ -248,8 +247,8 @@ impl InterestRateSwap<'_> {
         }
         self.attached_market_data_to_period(yield_term_structure)?;
         let mut npv: f64 = 0.0;
-        for leg in self.legs.borrow().iter() {
-            for period in leg.schedule.borrow().iter() {
+        for leg in self.legs.iter() {
+            for period in leg.schedule.iter() {
                 for cashflow in &period.cashflow {
                     npv += cashflow.present_value.unwrap()
                         * match leg.direction {
@@ -266,8 +265,8 @@ impl InterestRateSwap<'_> {
         &mut self,
         yield_term_structure: &mut YieldTermStructure,
     ) -> Result<()> {
-        for leg in self.legs.borrow_mut().iter_mut() {
-            for period in leg.schedule.borrow_mut().iter_mut() {
+        for leg in self.legs.iter_mut() {
+            for period in leg.schedule.iter_mut() {
                 if !period.is_call {
                     let reset_rate = yield_term_structure.forward_rate(
                         period.reset_date,
@@ -310,7 +309,7 @@ impl InterestRateSwap<'_> {
         days_before_accrual: i64,
     ) -> Result<()> {
         // TODO: amortisation
-        for leg in self.legs.borrow_mut().iter_mut() {
+        for leg in self.legs.iter_mut() {
             let num = match leg.tenor {
                 Period::Days(num) | Period::Weeks(num) => num as u32,
                 Period::Months(num) | Period::Years(num) => num,
@@ -356,7 +355,7 @@ impl InterestRateSwap<'_> {
                 schedule.push(irs);
                 start_date = end_date;
             }
-            leg.schedule = RefCell::new(schedule);
+            leg.schedule = schedule;
         }
         Ok(())
     }
@@ -382,7 +381,6 @@ mod tests {
     use crate::time::frequency::Frequency;
     use crate::time::period::Period;
     use chrono::NaiveDate;
-    use std::cell::RefCell;
 
     #[test]
     fn test_none_schedule() -> Result<()> {
@@ -393,7 +391,7 @@ mod tests {
             BusinessDayConvention::ModifiedFollowing,
             &ir_index,
             2,
-            RefCell::new(vec![
+            vec![
                 InterestRateSwapLeg::new(
                     InterestRateSwapLegType::Fixed { coupon: 0.0330800 },
                     Direction::Buy,
@@ -408,17 +406,11 @@ mod tests {
                     Period::SPOT,
                     Box::new(Actual360),
                 ),
-            ]),
+            ],
         );
         random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap())?;
-        assert_eq!(
-            random_irs.legs.borrow().get(0).unwrap().schedule,
-            RefCell::new(vec![])
-        );
-        assert_eq!(
-            random_irs.legs.borrow().get(1).unwrap().schedule,
-            RefCell::new(vec![])
-        );
+        assert_eq!(random_irs.legs.get(0).unwrap().schedule, vec![]);
+        assert_eq!(random_irs.legs.get(1).unwrap().schedule, vec![]);
 
         Ok(())
     }
@@ -432,7 +424,7 @@ mod tests {
             BusinessDayConvention::ModifiedFollowing,
             &ir_index,
             2,
-            RefCell::new(vec![
+            vec![
                 InterestRateSwapLeg::new(
                     InterestRateSwapLegType::Fixed { coupon: 0.0330800 },
                     Direction::Buy,
@@ -447,12 +439,12 @@ mod tests {
                     Period::Weeks(1),
                     Box::new(Thirty360::default()),
                 ),
-            ]),
+            ],
         );
         random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap())?;
-        let legs = random_irs.legs.borrow();
-        let fix_schedule = legs.get(0).unwrap().schedule.borrow();
-        let float_schedule = legs.get(1).unwrap().schedule.borrow();
+        let legs = random_irs.legs;
+        let fix_schedule = &legs.get(0).unwrap().schedule;
+        let float_schedule = &legs.get(1).unwrap().schedule;
         assert_eq!(
             fix_schedule.get(0).unwrap().accrual_end_date,
             NaiveDate::from_ymd_opt(2023, 11, 7).unwrap()
@@ -649,7 +641,7 @@ mod tests {
             BusinessDayConvention::ModifiedFollowing,
             &ir_index,
             2,
-            RefCell::new(vec![
+            vec![
                 InterestRateSwapLeg::new(
                     InterestRateSwapLegType::Fixed { coupon: 0.03308 },
                     Direction::Buy,
@@ -664,13 +656,13 @@ mod tests {
                     Period::Months(12),
                     Box::new(Actual360),
                 ),
-            ]),
+            ],
         );
         eusw3v3.make_schedule(valuation_date)?;
         {
-            let legs = eusw3v3.legs.borrow_mut();
-            let fixed_schedule = legs.get(0).unwrap().schedule.borrow();
-            let float_schedule = legs.get(1).unwrap().schedule.borrow();
+            let legs = &eusw3v3.legs;
+            let fixed_schedule = &legs.get(0).unwrap().schedule;
+            let float_schedule = &legs.get(1).unwrap().schedule;
             assert_eq!(fixed_schedule.len(), 3);
             assert_eq!(float_schedule.len(), 12);
 
