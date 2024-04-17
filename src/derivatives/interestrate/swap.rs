@@ -355,7 +355,7 @@ impl InterestRateSwap<'_> {
                 schedule.push(irs);
                 start_date = end_date;
             }
-            leg.schedule =schedule;
+            leg.schedule = schedule;
         }
         Ok(())
     }
@@ -409,14 +409,8 @@ mod tests {
             ],
         );
         random_irs.make_schedule(NaiveDate::from_ymd_opt(2023, 10, 27).unwrap())?;
-        assert_eq!(
-            random_irs.legs.get(0).unwrap().schedule,
-            vec![]
-        );
-        assert_eq!(
-            random_irs.legs.get(1).unwrap().schedule,
-            vec![]
-        );
+        assert_eq!(random_irs.legs.get(0).unwrap().schedule, vec![]);
+        assert_eq!(random_irs.legs.get(1).unwrap().schedule, vec![]);
 
         Ok(())
     }

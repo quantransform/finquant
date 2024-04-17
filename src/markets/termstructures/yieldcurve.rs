@@ -150,11 +150,7 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             outputs.push(StrippedCurve {
                 first_settle_date: swap.settle_date(self.valuation_date)?,
                 date: swap.maturity_date(self.valuation_date)?,
-                market_rate: swap
-                    .legs
-                    .first()
-                    .unwrap()
-                    .get_reference_rate(),
+                market_rate: swap.legs.first().unwrap().get_reference_rate(),
                 zero_rate: 0.005f64,
                 discount: 0f64,
                 hidden_pillar: false,
