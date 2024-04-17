@@ -73,7 +73,6 @@ pub struct InterestRateSwap<'terms> {
     pub interest_rate_index: &'terms InterestRateIndex,
     pub settlement_days: i64,
     pub legs: Vec<InterestRateSwapLeg>,
-    // TODO: make market condition somewhere? or combined?
     is_called: bool,
 }
 
@@ -113,16 +112,15 @@ impl<'terms> InterestRateSwap<'terms> {
         self.is_called = false;
         let new_stripped_curve = &mut stripped_curves.to_vec();
         let _ = self.amend_last(zero_rate, new_stripped_curve);
-        let yts = &mut YieldTermStructure {
+        let yts = &mut YieldTermStructure::new(
             valuation_date,
-            calendar: Box::new(Target),
-            day_counter: Box::<Actual365Fixed>::default(),
-            cash_quote: vec![],
-            futures_quote: vec![],
-            swap_quote: vec![],
-            stripped_curves: Some(new_stripped_curve.clone()),
-            is_called: true,
-        };
+            Box::new(Target),
+            Box::<Actual365Fixed>::default(),
+            vec![],
+            vec![],
+            vec![],
+            Some(new_stripped_curve.clone()),
+        );
         self.npv(valuation_date, yts)
     }
 
@@ -461,14 +459,14 @@ mod tests {
     #[test]
     fn test_eusw3v3_schedule() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        let yts = &mut YieldTermStructure {
+        let yts = &mut YieldTermStructure::new(
             valuation_date,
-            calendar: Box::new(Target::default()),
-            day_counter: Box::new(Actual365Fixed::default()),
-            cash_quote: vec![],
-            futures_quote: vec![],
-            swap_quote: vec![],
-            stripped_curves: Some(vec![
+            Box::new(Target::default()),
+            Box::new(Actual365Fixed::default()),
+            vec![],
+            vec![],
+            vec![],
+            Some(vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
                     date: NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
@@ -632,8 +630,7 @@ mod tests {
                     hidden_pillar: false,
                 },
             ]),
-            is_called: true,
-        };
+        );
         let ir_index =
             InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let mut eusw3v3 = InterestRateSwap::new(

@@ -92,7 +92,7 @@ pub struct YieldTermStructure<'termstructure> {
     pub futures_quote: Vec<FuturesRate<'termstructure>>,
     pub swap_quote: Vec<InterestRateSwap<'termstructure>>,
     pub stripped_curves: Option<Vec<StrippedCurve>>,
-    pub is_called: bool,
+    is_called: bool,
 }
 
 impl<'termstructure> YieldTermStructure<'termstructure> {
@@ -103,7 +103,9 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
         cash_quote: Vec<OISRate<'termstructure>>,
         futures_quote: Vec<FuturesRate<'termstructure>>,
         swap_quote: Vec<InterestRateSwap<'termstructure>>,
+        stripped_curves: Option<Vec<StrippedCurve>>,
     ) -> Self {
+        let if_stripped_curves = stripped_curves.is_some();
         Self {
             valuation_date,
             calendar,
@@ -111,8 +113,8 @@ impl<'termstructure> YieldTermStructure<'termstructure> {
             cash_quote,
             futures_quote,
             swap_quote,
-            is_called: false,
-            stripped_curves: None,
+            stripped_curves,
+            is_called: if_stripped_curves,
         }
     }
 
@@ -470,6 +472,7 @@ mod tests {
                 future_quote_u5,
             ],
             vec![swap_quote_3y],
+            None,
         );
         yts.get_stripped_curve()?;
         let stripped_curve = yts.stripped_curves.as_ref().unwrap();
