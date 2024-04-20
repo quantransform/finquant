@@ -258,7 +258,7 @@ mod tests {
     };
     use crate::derivatives::basic::Direction;
     use crate::derivatives::interestrate::swap::{
-        InterestRateSwap, InterestRateSwapLeg, InterestRateSwapLegType,
+        InterestRateSwap, InterestRateSwapLeg, InterestRateSwapLegType, ScheduleDetail,
     };
     use crate::error::Result;
     use crate::markets::interestrate::futures::InterestRateFutures;
@@ -269,7 +269,6 @@ mod tests {
     use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
     use crate::time::businessdayconvention::BusinessDayConvention;
     use crate::time::calendars::Target;
-    use crate::time::daycounters::actual360::Actual360;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use crate::time::daycounters::thirty360::Thirty360;
     use crate::time::frequency::Frequency;
@@ -430,28 +429,42 @@ mod tests {
             futures_spec: &future,
             interest_rate_index: &ir_index,
         };
-        let swap_quote_3y = InterestRateSwap::new(
-            Box::<Target>::default(),
-            BusinessDayConvention::ModifiedFollowing,
-            &ir_index,
-            2i64,
-            vec![
-                InterestRateSwapLeg::new(
-                    InterestRateSwapLegType::Fixed { coupon: 0.0322925 },
-                    Direction::Buy,
+        let swap_quote_3y = InterestRateSwap::new(vec![
+            InterestRateSwapLeg::new(
+                InterestRateSwapLegType::Fixed { coupon: 0.0322925 },
+                Direction::Buy,
+                &ir_index,
+                1f64,
+                ScheduleDetail::new(
                     Frequency::Annual,
                     Period::Months(12),
-                    Box::<Thirty360>::default(),
+                    Box::new(Thirty360::default()),
+                    Box::<Target>::default(),
+                    BusinessDayConvention::ModifiedFollowing,
+                    2,
+                    0i64,
+                    0i64,
                 ),
-                InterestRateSwapLeg::new(
-                    InterestRateSwapLegType::Float { spread: 0f64 },
-                    Direction::Sell,
+                vec![],
+            ),
+            InterestRateSwapLeg::new(
+                InterestRateSwapLegType::Float { spread: 0f64 },
+                Direction::Sell,
+                &ir_index,
+                1f64,
+                ScheduleDetail::new(
                     Frequency::Quarterly,
                     Period::Months(3),
-                    Box::<Actual360>::default(),
+                    Box::new(Thirty360::default()),
+                    Box::<Target>::default(),
+                    BusinessDayConvention::ModifiedFollowing,
+                    2,
+                    0i64,
+                    0i64,
                 ),
-            ],
-        );
+                vec![],
+            ),
+        ]);
         let mut yts = YieldTermStructure::new(
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Box::new(Target::default()),
