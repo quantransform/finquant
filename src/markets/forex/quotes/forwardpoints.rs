@@ -154,10 +154,10 @@ mod tests {
     #[test]
     fn test_settlement_date_gbpusd() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap();
-        let calendar = JointCalendar {
-            c1: UnitedStates::default(),
-            c2: UnitedKingdom::default(),
-        };
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
 
         assert_eq!(
             Period::ON.settlement_date(valuation_date, &calendar)?,
@@ -235,7 +235,10 @@ mod tests {
     #[test]
     fn test_forward_points() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
-        let calendar = JointCalendar::new(UnitedStates::default(), UnitedKingdom::default());
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
 
         let fx_forward_helper = FXForwardHelper {
             quotes: vec![

@@ -5,7 +5,7 @@ use crate::error::Result;
 use crate::time::daycounters::DayCounters;
 
 #[warn(clippy::upper_case_acronyms)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub enum Thirty360Market {
     USA,
     European,
@@ -15,7 +15,7 @@ pub enum Thirty360Market {
     German(NaiveDate),
     NASD,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Thirty360 {
     market: Thirty360Market,
 }
@@ -160,7 +160,7 @@ impl Default for Thirty360 {
     }
 }
 
-#[typetag::serialize]
+#[typetag::serde]
 impl DayCounters for Thirty360 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
         let day_count = match self.market {

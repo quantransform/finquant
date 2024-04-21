@@ -49,7 +49,7 @@ impl IMM {
     }
 
     /// IMM Codes are constructed by IMMMonth + year.
-    pub fn is_imm_code(&self, imm_code: &str, main_cycle: bool) -> bool {
+    pub fn is_imm_code(&self, imm_code: String, main_cycle: bool) -> bool {
         if imm_code.len() != 2 {
             return false;
         }
@@ -64,9 +64,9 @@ impl IMM {
         }
 
         let str = if main_cycle {
-            "hmzuHMZU"
+            "hmzuHMZU".to_string()
         } else {
-            "fghjkmnquvxzFGHJKMNQUVXZ"
+            "fghjkmnquvxzFGHJKMNQUVXZ".to_string()
         };
 
         let imm_month = imm_code
@@ -97,8 +97,8 @@ impl IMM {
     }
 
     /// IMM Code to maturity date.
-    pub fn date(&self, imm_code: &str, ref_date: Option<NaiveDate>) -> Option<NaiveDate> {
-        if !self.is_imm_code(imm_code, false) {
+    pub fn date(&self, imm_code: String, ref_date: Option<NaiveDate>) -> Option<NaiveDate> {
+        if !self.is_imm_code(imm_code.clone(), false) {
             None
         } else {
             let ref_date = ref_date.unwrap_or(chrono::offset::Utc::now().date_naive());
@@ -181,70 +181,70 @@ mod tests {
     }
     #[test]
     fn test_imm_code() {
-        assert_eq!(IMM.is_imm_code("more_than_2", false), false);
-        assert_eq!(IMM.is_imm_code("1", false), false);
-        assert_eq!(IMM.is_imm_code("", false), false);
-        assert_eq!(IMM.is_imm_code("1F", false), false);
-        assert_eq!(IMM.is_imm_code("F1", true), false);
-        assert_eq!(IMM.is_imm_code("F1", false), true);
+        assert_eq!(IMM.is_imm_code("more_than_2".to_string(), false), false);
+        assert_eq!(IMM.is_imm_code("1".to_string(), false), false);
+        assert_eq!(IMM.is_imm_code("".to_string(), false), false);
+        assert_eq!(IMM.is_imm_code("1F".to_string(), false), false);
+        assert_eq!(IMM.is_imm_code("F1".to_string(), true), false);
+        assert_eq!(IMM.is_imm_code("F1".to_string(), false), true);
     }
 
     #[test]
     fn test_generate_code() {
         assert_eq!(
             IMM.code(NaiveDate::from_ymd_opt(2023, 9, 20).unwrap()),
-            Some(String::from("U3"))
+            Some(String::from("U3".to_string()))
         );
     }
 
     #[test]
     fn test_imm_code_to_date() {
         assert_eq!(
-            IMM.date("X3", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("X3".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2023, 11, 15)
         );
         assert_eq!(
-            IMM.date("Z3", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("Z3".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2023, 12, 20)
         );
         assert_eq!(
-            IMM.date("F4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("F4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 1, 17)
         );
         assert_eq!(
-            IMM.date("G4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("G4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 2, 21)
         );
         assert_eq!(
-            IMM.date("H4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("H4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 3, 20)
         );
         assert_eq!(
-            IMM.date("J4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("J4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 4, 17)
         );
         assert_eq!(
-            IMM.date("M4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("M4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 6, 19)
         );
         assert_eq!(
-            IMM.date("U4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("U4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 9, 18)
         );
         assert_eq!(
-            IMM.date("Z4", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("Z4".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2024, 12, 18)
         );
         assert_eq!(
-            IMM.date("H5", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("H5".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2025, 3, 19)
         );
         assert_eq!(
-            IMM.date("M5", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("M5".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2025, 6, 18)
         );
         assert_eq!(
-            IMM.date("U5", NaiveDate::from_ymd_opt(2023, 10, 29)),
+            IMM.date("U5".to_string(), NaiveDate::from_ymd_opt(2023, 10, 29)),
             NaiveDate::from_ymd_opt(2025, 9, 17)
         );
     }

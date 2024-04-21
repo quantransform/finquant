@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::string::ToString;
 use strum_macros::{Display, EnumString};
 
-#[derive(Serialize, Deserialize, Display, EnumString, Debug)]
+#[derive(Deserialize, Serialize, Display, EnumString, Debug)]
 pub enum FXUnderlying {
     EURGBP,
     EURUSD,

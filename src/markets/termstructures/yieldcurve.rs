@@ -22,7 +22,7 @@ pub enum InterpolationMethodEnum {
     PiecewiseLinearContinuous,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Debug)]
 pub enum InterestRateQuoteEnum {
     OIS,
     Futures,
@@ -70,7 +70,7 @@ pub trait InterestRateQuote {
 }
 
 /// Stripped curve - this matches Bloomberg ICVS stripped curve page.
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Debug)]
 pub struct StrippedCurve {
     pub first_settle_date: NaiveDate,
     pub date: NaiveDate,
@@ -83,26 +83,26 @@ pub struct StrippedCurve {
 
 /// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
 /// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
-#[derive(Serialize, Debug)]
-pub struct YieldTermStructure<'termstructure> {
+#[derive(Deserialize, Serialize, Debug)]
+pub struct YieldTermStructure {
     pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
-    pub cash_quote: Vec<OISRate<'termstructure>>,
-    pub futures_quote: Vec<FuturesRate<'termstructure>>,
-    pub swap_quote: Vec<InterestRateSwap<'termstructure>>,
+    pub cash_quote: Vec<OISRate>,
+    pub futures_quote: Vec<FuturesRate>,
+    pub swap_quote: Vec<InterestRateSwap>,
     pub stripped_curves: Option<Vec<StrippedCurve>>,
     is_called: bool,
 }
 
-impl<'termstructure> YieldTermStructure<'termstructure> {
+impl YieldTermStructure {
     pub fn new(
         valuation_date: NaiveDate,
         calendar: Box<dyn Calendar>,
         day_counter: Box<dyn DayCounters>,
-        cash_quote: Vec<OISRate<'termstructure>>,
-        futures_quote: Vec<FuturesRate<'termstructure>>,
-        swap_quote: Vec<InterestRateSwap<'termstructure>>,
+        cash_quote: Vec<OISRate>,
+        futures_quote: Vec<FuturesRate>,
+        swap_quote: Vec<InterestRateSwap>,
         stripped_curves: Option<Vec<StrippedCurve>>,
     ) -> Self {
         let if_stripped_curves = stripped_curves.is_some();
@@ -279,7 +279,7 @@ mod tests {
     fn test_retrieve_related_stripped_curve() {
         let ois_quote = OISRate {
             value: 0.03872,
-            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Weeks(1),
             ))
             .unwrap(),
@@ -324,116 +324,144 @@ mod tests {
     fn test_yts() -> Result<()> {
         let ois_quote_1wk = OISRate {
             value: 0.03872,
-            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Weeks(1),
             ))
             .unwrap(),
         };
         let ois_quote_3m = OISRate {
             value: 0.03948,
-            interest_rate_index: &InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
                 Period::Months(3),
             ))
             .unwrap(),
         };
-        let future = InterestRateFutures {
-            period: Period::Months(3),
-            calendar: Box::<Target>::default(),
-            convention: BusinessDayConvention::ModifiedFollowing,
-            day_counter: Box::<Actual365Fixed>::default(),
-            end_of_month: false,
-        };
-        let ir_index =
-            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let future_quote_x3 = FuturesRate {
             value: 96.045,
-            imm_code: "X3",
+            imm_code: "X3".to_string(),
             convexity_adjustment: -0.00015,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_z3 = FuturesRate {
             value: 96.035,
-            imm_code: "Z3",
+            imm_code: "Z3".to_string(),
             convexity_adjustment: -0.00056,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_f4 = FuturesRate {
             value: 96.045,
-            imm_code: "F4",
+            imm_code: "F4".to_string(),
             convexity_adjustment: -0.00097,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_g4 = FuturesRate {
             value: 96.100,
-            imm_code: "G4",
+            imm_code: "G4".to_string(),
             convexity_adjustment: -0.00152,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_h4 = FuturesRate {
             value: 96.150,
-            imm_code: "H4",
+            imm_code: "H4".to_string(),
             convexity_adjustment: -0.00217,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_j4 = FuturesRate {
             value: 96.21,
-            imm_code: "J4",
+            imm_code: "J4".to_string(),
             convexity_adjustment: -0.00282,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_m4 = FuturesRate {
             value: 96.35,
-            imm_code: "M4",
+            imm_code: "M4".to_string(),
             convexity_adjustment: -0.00455,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_u4 = FuturesRate {
             value: 96.59,
-            imm_code: "U4",
+            imm_code: "U4".to_string(),
             convexity_adjustment: -0.00767,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_z4 = FuturesRate {
             value: 96.815,
-            imm_code: "Z4",
+            imm_code: "Z4".to_string(),
             convexity_adjustment: -0.01150,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_h5 = FuturesRate {
             value: 96.985,
-            imm_code: "H5",
+            imm_code: "H5".to_string(),
             convexity_adjustment: -0.01605,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_m5 = FuturesRate {
             value: 97.09,
-            imm_code: "M5",
+            imm_code: "M5".to_string(),
             convexity_adjustment: -0.02129,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let future_quote_u5 = FuturesRate {
             value: 97.135,
-            imm_code: "U5",
+            imm_code: "U5".to_string(),
             convexity_adjustment: -0.02720,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         let swap_quote_3y = InterestRateSwap::new(vec![
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Fixed { coupon: 0.0322925 },
                 Direction::Buy,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
@@ -450,7 +478,8 @@ mod tests {
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Float { spread: 0f64 },
                 Direction::Sell,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Quarterly,

@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::time::daycounters::DayCounters;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub enum Actual365FixedMarket {
     Standard,
     NoLeap,
 }
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct Actual365Fixed {
     market: Option<Actual365FixedMarket>,
 }
@@ -36,7 +36,7 @@ impl Actual365Fixed {
     }
 }
 
-#[typetag::serialize]
+#[typetag::serde]
 impl DayCounters for Actual365Fixed {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
         Ok(match self.market {

@@ -13,7 +13,7 @@ use std::fmt::Debug;
 use crate::error::Result;
 use crate::time::period::Period;
 
-#[typetag::serialize(tag = "type")]
+#[typetag::serde(tag = "type")]
 pub trait DayCounters: Debug {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64>;
     fn year_fraction(&self, d1: NaiveDate, d2: NaiveDate) -> Result<f64>;

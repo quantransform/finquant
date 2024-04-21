@@ -1,12 +1,12 @@
 use chrono::{Datelike, NaiveDate};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::Period::Months;
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Business252 {
     calendar: Box<dyn Calendar>,
 }
@@ -17,7 +17,7 @@ impl Business252 {
     }
 }
 
-#[typetag::serialize]
+#[typetag::serde]
 impl DayCounters for Business252 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
         if self.same_month(d1, d2) || d1 > d2 {
