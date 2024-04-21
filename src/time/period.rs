@@ -13,7 +13,7 @@ use crate::utils::const_unwrap;
 pub const ONE_DAY: TimeDelta = const_unwrap!(Duration::try_days(1));
 pub const TWO_DAYS: TimeDelta = const_unwrap!(Duration::try_days(2));
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Copy, Debug)]
 pub enum Period {
     ON,
     SPOT,

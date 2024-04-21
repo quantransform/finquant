@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::time::daycounters::DayCounters;
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct Actual360;
 
-#[typetag::serialize]
+#[typetag::serde]
 impl DayCounters for Actual360 {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
         let duration = d2 - d1;

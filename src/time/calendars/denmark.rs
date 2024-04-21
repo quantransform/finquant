@@ -4,10 +4,10 @@ use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct Denmark;
 
-#[typetag::serialize]
+#[typetag::serde]
 impl Calendar for Denmark {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         let (d, _, m, y, dd) = self.naive_date_to_dkmy(date);

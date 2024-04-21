@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 use crate::markets::interestrate::futures::InterestRateFutures;
@@ -12,16 +12,16 @@ use crate::time::daycounters::DayCounters;
 use crate::time::imm::IMM;
 
 /// Interest rate futures.
-#[derive(Serialize, Debug)]
-pub struct FuturesRate<'terms> {
+#[derive(Deserialize, Serialize, Debug)]
+pub struct FuturesRate {
     pub value: f64,
-    pub imm_code: &'static str,
+    pub imm_code: String,
     pub convexity_adjustment: f64,
-    pub futures_spec: &'terms InterestRateFutures,
-    pub interest_rate_index: &'terms InterestRateIndex,
+    pub futures_spec: InterestRateFutures,
+    pub interest_rate_index: InterestRateIndex,
 }
 
-impl FuturesRate<'_> {
+impl FuturesRate {
     pub fn implied_quote(&self) -> f64 {
         1f64 - self.value / 100.0 + self.convexity_adjustment / 100.0
     }
@@ -83,12 +83,14 @@ impl FuturesRate<'_> {
     }
 }
 
-impl InterestRateQuote for FuturesRate<'_> {
+impl InterestRateQuote for FuturesRate {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::Futures
     }
     fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
-        Ok(IMM.date(self.imm_code, Some(valuation_date)).unwrap())
+        Ok(IMM
+            .date(self.imm_code.clone(), Some(valuation_date))
+            .unwrap())
     }
     fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         self.futures_spec
@@ -105,30 +107,21 @@ mod tests {
         InterestRateIndex, InterestRateIndexEnum,
     };
     use crate::markets::termstructures::yieldcurve::InterestRateQuote;
-    use crate::time::businessdayconvention::BusinessDayConvention;
-    use crate::time::calendars::Target;
-    use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use crate::time::period::Period;
     use chrono::NaiveDate;
 
     #[test]
     fn test_settle_date_and_maturity_date() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
-        let future = InterestRateFutures {
-            period: Period::Months(3),
-            calendar: Box::<Target>::default(),
-            convention: BusinessDayConvention::ModifiedFollowing,
-            day_counter: Box::<Actual365Fixed>::default(),
-            end_of_month: false,
-        };
-        let ir_index =
-            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let future_quote = FuturesRate {
             value: 96.045,
-            imm_code: "X3",
+            imm_code: "X3".to_string(),
             convexity_adjustment: -0.00015,
-            futures_spec: &future,
-            interest_rate_index: &ir_index,
+            futures_spec: InterestRateFutures::new(Period::Months(3)),
+            interest_rate_index: InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(
+                Period::Months(3),
+            ))
+            .unwrap(),
         };
         assert_eq!(
             future_quote.settle_date(valuation_date)?,

@@ -1,7 +1,7 @@
 // Business Day Convention.
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Copy, Clone)]
 pub enum BusinessDayConvention {
     Following,
     ModifiedFollowing,

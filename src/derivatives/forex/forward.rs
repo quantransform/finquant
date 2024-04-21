@@ -3,7 +3,7 @@ use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct FXForward {
     pub basic_info: BasicInfo,
     pub asset: FXUnderlying,

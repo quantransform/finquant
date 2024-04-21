@@ -16,13 +16,13 @@ use crate::time::frequency::Frequency;
 use crate::time::period::Period;
 use roots::{find_root_brent, SimpleConvergency};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub enum InterestRateSwapLegType {
     Float { spread: f64 },
     Fixed { coupon: f64 },
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ScheduleDetail {
     pub frequency: Frequency,
     // TODO: tenor can be removed?
@@ -60,22 +60,22 @@ impl ScheduleDetail {
     }
 }
 
-#[derive(Serialize, Debug)]
-pub struct InterestRateSwapLeg<'terms> {
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InterestRateSwapLeg {
     pub swap_type: InterestRateSwapLegType,
     pub direction: Direction,
-    pub interest_rate_index: &'terms InterestRateIndex,
+    pub interest_rate_index: InterestRateIndex,
     pub notional: f64,
     pub schedule_detail: ScheduleDetail,
     pub schedule: Vec<InterestRateSchedulePeriod>,
     is_called: bool,
 }
 
-impl<'terms> InterestRateSwapLeg<'terms> {
+impl InterestRateSwapLeg {
     pub fn new(
         swap_type: InterestRateSwapLegType,
         direction: Direction,
-        interest_rate_index: &'terms InterestRateIndex,
+        interest_rate_index: InterestRateIndex,
         notional: f64,
         schedule_detail: ScheduleDetail,
         schedule: Vec<InterestRateSchedulePeriod>,
@@ -173,13 +173,13 @@ impl<'terms> InterestRateSwapLeg<'terms> {
     }
 }
 
-#[derive(Serialize, Debug)]
-pub struct InterestRateSwap<'terms> {
-    pub legs: Vec<InterestRateSwapLeg<'terms>>,
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InterestRateSwap {
+    pub legs: Vec<InterestRateSwapLeg>,
 }
 
-impl<'terms> InterestRateSwap<'terms> {
-    pub fn new(legs: Vec<InterestRateSwapLeg<'terms>>) -> Self {
+impl InterestRateSwap {
+    pub fn new(legs: Vec<InterestRateSwapLeg>) -> Self {
         Self { legs }
     }
 
@@ -240,7 +240,7 @@ impl<'terms> InterestRateSwap<'terms> {
     }
 }
 
-impl InterestRateQuote for InterestRateSwap<'_> {
+impl InterestRateQuote for InterestRateSwap {
     fn yts_type(&self) -> InterestRateQuoteEnum {
         InterestRateQuoteEnum::Swap
     }
@@ -270,7 +270,7 @@ impl InterestRateQuote for InterestRateSwap<'_> {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Default, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
 pub struct InterestRateSchedulePeriod {
     pub accrual_start_date: NaiveDate,
     pub accrual_end_date: NaiveDate,
@@ -305,7 +305,7 @@ impl InterestRateSchedulePeriod {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Default, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
 pub struct InterestRateCashflow {
     pub day_counts: Option<i64>,
     pub notional: Option<f64>,
@@ -316,7 +316,7 @@ pub struct InterestRateCashflow {
     pub present_value: Option<f64>,
 }
 
-impl InterestRateSwap<'_> {
+impl InterestRateSwap {
     pub fn npv(
         &mut self,
         valuation_date: NaiveDate,
@@ -406,13 +406,12 @@ mod tests {
 
     #[test]
     fn test_none_schedule() -> Result<()> {
-        let ir_index =
-            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let mut random_irs = InterestRateSwap::new(vec![
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Fixed { coupon: 0.0330800 },
                 Direction::Buy,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
@@ -429,7 +428,8 @@ mod tests {
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Float { spread: 0f64 },
                 Direction::Sell,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Quarterly,
@@ -456,13 +456,12 @@ mod tests {
 
     #[test]
     fn test_week_schedule() -> Result<()> {
-        let ir_index =
-            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let mut random_irs = InterestRateSwap::new(vec![
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Fixed { coupon: 0.0330800 },
                 Direction::Buy,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Weekly,
@@ -479,7 +478,8 @@ mod tests {
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Float { spread: 0f64 },
                 Direction::Sell,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Weekly,
@@ -688,13 +688,12 @@ mod tests {
                 },
             ]),
         );
-        let ir_index =
-            InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3))).unwrap();
         let mut eusw3v3 = InterestRateSwap::new(vec![
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Fixed { coupon: 0.03308 },
                 Direction::Buy,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
@@ -711,7 +710,8 @@ mod tests {
             InterestRateSwapLeg::new(
                 InterestRateSwapLegType::Float { spread: 0f64 },
                 Direction::Sell,
-                &ir_index,
+                InterestRateIndex::from_enum(InterestRateIndexEnum::EUIBOR(Period::Months(3)))
+                    .unwrap(),
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Quarterly,

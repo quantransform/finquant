@@ -5,12 +5,12 @@ use crate::error::Result;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::ONE_DAY;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub enum ActualActualMarket {
     Isda,
     Euro,
 }
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct ActualActual {
     pub market: Option<ActualActualMarket>,
 }
@@ -65,7 +65,7 @@ impl ActualActual {
     }
 }
 
-#[typetag::serialize]
+#[typetag::serde]
 impl DayCounters for ActualActual {
     fn day_count(&self, d1: NaiveDate, d2: NaiveDate) -> Result<i64> {
         let duration = d2 - d1;

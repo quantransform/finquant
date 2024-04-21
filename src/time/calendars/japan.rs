@@ -5,7 +5,7 @@ use crate::time::calendars::Calendar;
 use chrono::{NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct Japan;
 
 impl Japan {
@@ -23,7 +23,7 @@ impl Japan {
     }
 }
 
-#[typetag::serialize]
+#[typetag::serde]
 impl Calendar for Japan {
     fn is_business_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, _) = self.naive_date_to_dkmy(date);
