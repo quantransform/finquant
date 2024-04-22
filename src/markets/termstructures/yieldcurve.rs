@@ -5,7 +5,7 @@ use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::{Observer};
+use crate::patterns::observer::Observer;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -91,7 +91,7 @@ pub struct YieldTermMarketData {
 }
 
 impl YieldTermMarketData {
-    pub fn new (
+    pub fn new(
         cash_quote: Vec<OISRate>,
         futures_quote: Vec<FuturesRate>,
         swap_quote: Vec<InterestRateSwap>,
@@ -140,7 +140,8 @@ impl YieldTermStructure {
         let total_size = self.market_data.cash_quote.len() + self.market_data.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
-        self.market_data.cash_quote
+        self.market_data
+            .cash_quote
             .sort_by_key(|quote| quote.maturity_date(self.valuation_date).unwrap());
         for cash in &self.market_data.cash_quote {
             outputs.push(StrippedCurve {
@@ -275,7 +276,10 @@ impl Observer for YieldTermStructure {
 
 #[cfg(test)]
 mod tests {
-    use super::{InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure};
+    use super::{
+        InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
+        YieldTermMarketData, YieldTermStructure,
+    };
     use crate::derivatives::basic::Direction;
     use crate::derivatives::interestrate::swap::{
         InterestRateSwap, InterestRateSwapLeg, InterestRateSwapLegType, ScheduleDetail,
@@ -519,22 +523,22 @@ mod tests {
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
             YieldTermMarketData::new(
-            vec![ois_quote_3m, ois_quote_1wk],
-            vec![
-                future_quote_x3,
-                future_quote_z3,
-                future_quote_f4,
-                future_quote_g4,
-                future_quote_h4,
-                future_quote_j4,
-                future_quote_m4,
-                future_quote_u4,
-                future_quote_z4,
-                future_quote_h5,
-                future_quote_m5,
-                future_quote_u5,
-            ],
-            vec![swap_quote_3y],
+                vec![ois_quote_3m, ois_quote_1wk],
+                vec![
+                    future_quote_x3,
+                    future_quote_z3,
+                    future_quote_f4,
+                    future_quote_g4,
+                    future_quote_h4,
+                    future_quote_j4,
+                    future_quote_m4,
+                    future_quote_u4,
+                    future_quote_z4,
+                    future_quote_h5,
+                    future_quote_m5,
+                    future_quote_u5,
+                ],
+                vec![swap_quote_3y],
             ),
             None,
         );
@@ -542,7 +546,10 @@ mod tests {
         let stripped_curve = yts.stripped_curves.as_ref().unwrap();
 
         // OIS Check
-        assert_eq!(yts.market_data.cash_quote[0].yts_type(), InterestRateQuoteEnum::OIS);
+        assert_eq!(
+            yts.market_data.cash_quote[0].yts_type(),
+            InterestRateQuoteEnum::OIS
+        );
         assert_eq!(
             stripped_curve[0].first_settle_date,
             NaiveDate::from_ymd_opt(2023, 10, 31).unwrap()

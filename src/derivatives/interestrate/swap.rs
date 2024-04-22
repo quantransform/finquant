@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::derivatives::basic::Direction;
 use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
-use crate::markets::termstructures::yieldcurve::{InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure};
+use crate::markets::termstructures::yieldcurve::{
+    InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
+    YieldTermMarketData, YieldTermStructure,
+};
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::{Calendar, Target};
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
@@ -236,11 +239,7 @@ impl InterestRateSwap {
             valuation_date,
             Box::new(Target),
             Box::<Actual365Fixed>::default(),
-            YieldTermMarketData::new(
-            vec![],
-            vec![],
-            vec![],
-            ),
+            YieldTermMarketData::new(vec![], vec![], vec![]),
             Some(new_stripped_curve.clone()),
         );
         for leg in self.legs.iter_mut() {
@@ -389,7 +388,9 @@ mod tests {
     use crate::markets::interestrate::interestrateindex::{
         InterestRateIndex, InterestRateIndexEnum,
     };
-    use crate::markets::termstructures::yieldcurve::{InterestRateQuoteEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure};
+    use crate::markets::termstructures::yieldcurve::{
+        InterestRateQuoteEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure,
+    };
     use crate::time::businessdayconvention::BusinessDayConvention;
     use crate::time::calendars::Target;
     use crate::time::daycounters::actual360::Actual360;
@@ -515,11 +516,7 @@ mod tests {
             valuation_date,
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
-            YieldTermMarketData::new(
-            vec![],
-            vec![],
-            vec![],
-            ),
+            YieldTermMarketData::new(vec![], vec![], vec![]),
             Some(vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
