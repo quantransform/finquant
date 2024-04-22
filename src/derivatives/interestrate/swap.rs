@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
     InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
-    YieldTermStructure,
+    YieldTermMarketData, YieldTermStructure,
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::{Calendar, Target};
@@ -173,103 +173,6 @@ impl InterestRateSwapLeg {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct InterestRateSwap {
-    pub legs: Vec<InterestRateSwapLeg>,
-}
-
-impl InterestRateSwap {
-    pub fn new(legs: Vec<InterestRateSwapLeg>) -> Self {
-        Self { legs }
-    }
-
-    fn amend_last<'a>(
-        &'a self,
-        zero_rate: f64,
-        stripped_curves: &'a mut Vec<StrippedCurve>,
-    ) -> Result<&mut Vec<StrippedCurve>> {
-        stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
-        Ok(stripped_curves)
-    }
-
-    fn calculate_npv(
-        &mut self,
-        zero_rate: f64,
-        valuation_date: NaiveDate,
-        stripped_curves: &mut [StrippedCurve],
-    ) -> Result<f64> {
-        let new_stripped_curve = &mut stripped_curves.to_vec();
-        let _ = self.amend_last(zero_rate, new_stripped_curve);
-        let yts = &mut YieldTermStructure::new(
-            valuation_date,
-            Box::new(Target),
-            Box::<Actual365Fixed>::default(),
-            vec![],
-            vec![],
-            vec![],
-            Some(new_stripped_curve.clone()),
-        );
-        for leg in self.legs.iter_mut() {
-            for period in leg.schedule.iter_mut() {
-                period.is_called = false;
-            }
-        }
-        self.npv(valuation_date, yts)
-    }
-
-    pub fn solve_zero_rate(
-        &mut self,
-        valuation_date: NaiveDate,
-        stripped_curves: Vec<StrippedCurve>,
-    ) -> f64 {
-        let mut convergency = SimpleConvergency {
-            eps: 1e-15f64,
-            max_iter: 30,
-        };
-        let mut f = |x| {
-            self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
-                .unwrap()
-        };
-        let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
-        root.unwrap()
-    }
-
-    pub fn discount(self, _valuation_date: NaiveDate) -> Result<f64> {
-        // TODO: make discount
-        Ok(1f64)
-    }
-}
-
-impl InterestRateQuote for InterestRateSwap {
-    fn yts_type(&self) -> InterestRateQuoteEnum {
-        InterestRateQuoteEnum::Swap
-    }
-
-    fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
-        Ok(if self.legs.is_empty() {
-            valuation_date
-        } else {
-            self.legs[0].effective_date(valuation_date)?.unwrap()
-        })
-    }
-
-    fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
-        let mut last_end_dates = Vec::new();
-        for leg in self.legs.iter() {
-            if !leg.schedule.is_empty() {
-                last_end_dates.push(leg.schedule.last().unwrap().accrual_end_date);
-            }
-        }
-        let maturity = if !last_end_dates.is_empty() {
-            *last_end_dates.iter().max().unwrap()
-        } else {
-            valuation_date
-        };
-
-        Ok(maturity)
-    }
-}
-
 #[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
 pub struct InterestRateSchedulePeriod {
     pub accrual_start_date: NaiveDate,
@@ -305,18 +208,70 @@ impl InterestRateSchedulePeriod {
     }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
-pub struct InterestRateCashflow {
-    pub day_counts: Option<i64>,
-    pub notional: Option<f64>,
-    pub principal: Option<f64>,
-    pub reset_rate: Option<f64>,
-    pub payment: Option<f64>,
-    pub discount: Option<f64>,
-    pub present_value: Option<f64>,
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InterestRateSwap {
+    pub legs: Vec<InterestRateSwapLeg>,
 }
 
 impl InterestRateSwap {
+    pub fn new(legs: Vec<InterestRateSwapLeg>) -> Self {
+        Self { legs }
+    }
+
+    fn amend_last<'a>(
+        &'a self,
+        zero_rate: f64,
+        stripped_curves: &'a mut Vec<StrippedCurve>,
+    ) -> Result<&mut Vec<StrippedCurve>> {
+        stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
+        Ok(stripped_curves)
+    }
+
+    fn calculate_npv(
+        &mut self,
+        zero_rate: f64,
+        valuation_date: NaiveDate,
+        stripped_curves: &mut [StrippedCurve],
+    ) -> Result<f64> {
+        let new_stripped_curve = &mut stripped_curves.to_vec();
+        let _ = self.amend_last(zero_rate, new_stripped_curve);
+        let yts = &mut YieldTermStructure::new(
+            valuation_date,
+            Box::new(Target),
+            Box::<Actual365Fixed>::default(),
+            YieldTermMarketData::new(vec![], vec![], vec![]),
+            Some(new_stripped_curve.clone()),
+        );
+        for leg in self.legs.iter_mut() {
+            for period in leg.schedule.iter_mut() {
+                period.is_called = false;
+            }
+        }
+        self.npv(valuation_date, yts)
+    }
+
+    pub fn solve_zero_rate(
+        &mut self,
+        valuation_date: NaiveDate,
+        stripped_curves: Vec<StrippedCurve>,
+    ) -> f64 {
+        let mut convergency = SimpleConvergency {
+            eps: 1e-15f64,
+            max_iter: 30,
+        };
+        let mut f = |x| {
+            self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
+                .unwrap()
+        };
+        let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
+        root.unwrap()
+    }
+
+    pub fn discount(self, _valuation_date: NaiveDate) -> Result<f64> {
+        // TODO: make discount
+        Ok(1f64)
+    }
+
     pub fn npv(
         &mut self,
         valuation_date: NaiveDate,
@@ -383,6 +338,47 @@ impl InterestRateSwap {
     }
 }
 
+impl InterestRateQuote for InterestRateSwap {
+    fn yts_type(&self) -> InterestRateQuoteEnum {
+        InterestRateQuoteEnum::Swap
+    }
+
+    fn settle_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
+        Ok(if self.legs.is_empty() {
+            valuation_date
+        } else {
+            self.legs[0].effective_date(valuation_date)?.unwrap()
+        })
+    }
+
+    fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
+        let mut last_end_dates = Vec::new();
+        for leg in self.legs.iter() {
+            if !leg.schedule.is_empty() {
+                last_end_dates.push(leg.schedule.last().unwrap().accrual_end_date);
+            }
+        }
+        let maturity = if !last_end_dates.is_empty() {
+            *last_end_dates.iter().max().unwrap()
+        } else {
+            valuation_date
+        };
+
+        Ok(maturity)
+    }
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
+pub struct InterestRateCashflow {
+    pub day_counts: Option<i64>,
+    pub notional: Option<f64>,
+    pub principal: Option<f64>,
+    pub reset_rate: Option<f64>,
+    pub payment: Option<f64>,
+    pub discount: Option<f64>,
+    pub present_value: Option<f64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{InterestRateSwap, InterestRateSwapLegType, ScheduleDetail};
@@ -393,7 +389,7 @@ mod tests {
         InterestRateIndex, InterestRateIndexEnum,
     };
     use crate::markets::termstructures::yieldcurve::{
-        InterestRateQuoteEnum, StrippedCurve, YieldTermStructure,
+        InterestRateQuoteEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure,
     };
     use crate::time::businessdayconvention::BusinessDayConvention;
     use crate::time::calendars::Target;
@@ -520,9 +516,7 @@ mod tests {
             valuation_date,
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
-            vec![],
-            vec![],
-            vec![],
+            YieldTermMarketData::new(vec![], vec![], vec![]),
             Some(vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
