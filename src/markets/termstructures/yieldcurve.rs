@@ -5,7 +5,7 @@ use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::{Observable, Observer};
+use crate::patterns::observer::{Observer};
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -84,13 +84,13 @@ pub struct StrippedCurve {
 
 /// Market Data for Yield
 #[derive(Deserialize, Serialize, Debug)]
-pub struct YieldTermMarketData<'a, T: Observer> {
+pub struct YieldTermMarketData {
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
 }
 
-impl<'a, T> YieldTermMarketData<'a, T> {
+impl YieldTermMarketData {
     pub fn new (
         cash_quote: Vec<OISRate>,
         futures_quote: Vec<FuturesRate>,
@@ -104,17 +104,6 @@ impl<'a, T> YieldTermMarketData<'a, T> {
     }
 }
 
-impl<'a, T: Observer> Observable<'a, T> for YieldTermMarketData<'a, T> {
-    fn attach(&mut self, observer: &'a T) {
-        todo!()
-    }
-    fn detach(&mut self, observer: &'a T) {
-        todo!()
-    }
-    fn notify_observers(&self) {
-        todo!()
-    }
-}
 /// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
 /// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
 #[derive(Deserialize, Serialize, Debug)]
