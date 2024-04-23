@@ -275,7 +275,7 @@ impl InterestRateSwap {
     pub fn npv(
         &mut self,
         valuation_date: NaiveDate,
-        yield_term_structure: &mut YieldTermStructure,
+        yield_term_structure: &mut YieldTermStructure<T>,
     ) -> Result<f64> {
         self.attached_market_data_to_period(yield_term_structure)?;
         let mut npv: f64 = 0.0;
