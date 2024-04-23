@@ -5,7 +5,7 @@ use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::Observer;
+use crate::patterns::observer::{Observable, Observer};
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -84,13 +84,14 @@ pub struct StrippedCurve {
 
 /// Market Data for Yield
 #[derive(Deserialize, Serialize, Debug)]
-pub struct YieldTermMarketData {
+pub struct YieldTermMarketData<'a, T> {
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
+    observers: Vec<dyn Observer>,
 }
 
-impl YieldTermMarketData {
+impl<'a, T: Observer> YieldTermMarketData<'a, T> {
     pub fn new(
         cash_quote: Vec<OISRate>,
         futures_quote: Vec<FuturesRate>,
@@ -100,28 +101,43 @@ impl YieldTermMarketData {
             cash_quote,
             futures_quote,
             swap_quote,
+            observers: vec![],
         }
+    }
+}
+
+impl<'a, T: Observer> Observable<'a, T> for YieldTermMarketData<'a, T> {
+    fn attach(&mut self, observer: &'a T) {
+        self.observers.push(observer);
+    }
+
+    fn detach(&mut self, observer: &'a T) {
+        todo!()
+    }
+
+    fn notify_observers(&self) {
+        todo!()
     }
 }
 
 /// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
 /// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
 #[derive(Deserialize, Serialize, Debug)]
-pub struct YieldTermStructure {
+pub struct YieldTermStructure<'a, T> {
     pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
-    pub market_data: YieldTermMarketData,
+    pub market_data: YieldTermMarketData<'a, T>,
     pub stripped_curves: Option<Vec<StrippedCurve>>,
     is_called: bool,
 }
 
-impl YieldTermStructure {
+impl<'a, T> YieldTermStructure<'a, T> {
     pub fn new(
         valuation_date: NaiveDate,
         calendar: Box<dyn Calendar>,
         day_counter: Box<dyn DayCounters>,
-        market_data: YieldTermMarketData,
+        market_data: YieldTermMarketData<'a, T>,
         stripped_curves: Option<Vec<StrippedCurve>>,
     ) -> Self {
         let if_stripped_curves = stripped_curves.is_some();
@@ -268,7 +284,7 @@ impl YieldTermStructure {
     }
 }
 
-impl Observer for YieldTermStructure {
+impl<'a, T> Observer for YieldTermStructure<'a, T> {
     fn update(&mut self) -> Result<()> {
         self.get_stripped_curve()
     }
