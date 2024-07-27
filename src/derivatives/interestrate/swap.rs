@@ -313,10 +313,12 @@ impl InterestRateSwap {
             InterestRateSwapLegType::Fixed { coupon } => Some(coupon),
             InterestRateSwapLegType::Float { spread } => Some(reset_rate + spread),
         };
-        let day_count = leg.schedule_detail
-                .day_counter
-                .day_count(period.accrual_start_date, period.accrual_end_date)?;
-        let year_fraction = leg.schedule_detail
+        let day_count = leg
+            .schedule_detail
+            .day_counter
+            .day_count(period.accrual_start_date, period.accrual_end_date)?;
+        let year_fraction = leg
+            .schedule_detail
             .day_counter
             .year_fraction(period.accrual_start_date, period.accrual_end_date)?;
 
