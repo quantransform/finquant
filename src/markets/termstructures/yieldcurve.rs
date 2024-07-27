@@ -52,10 +52,10 @@ pub trait InterestRateQuote {
         for stripped_curve in stripped_curves {
             if stripped_curve.first_settle_date < target_date && stripped_curve.date >= target_date
             {
-                second = &stripped_curve;
+                second = stripped_curve;
                 break;
             }
-            first = &stripped_curve;
+            first = stripped_curve;
         }
         if second == stripped_curves.first().unwrap() {
             first = stripped_curves.first().unwrap();
@@ -85,6 +85,7 @@ pub struct StrippedCurve {
 /// Market Data for Yield
 #[derive(Deserialize, Serialize, Debug)]
 pub struct YieldTermMarketData {
+    pub valuation_date: NaiveDate,
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
@@ -92,11 +93,13 @@ pub struct YieldTermMarketData {
 
 impl YieldTermMarketData {
     pub fn new(
+        valuation_date: NaiveDate,
         cash_quote: Vec<OISRate>,
         futures_quote: Vec<FuturesRate>,
         swap_quote: Vec<InterestRateSwap>,
     ) -> Self {
         Self {
+            valuation_date,
             cash_quote,
             futures_quote,
             swap_quote,
@@ -108,7 +111,6 @@ impl YieldTermMarketData {
 /// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct YieldTermStructure {
-    pub valuation_date: NaiveDate,
     pub calendar: Box<dyn Calendar>,
     pub day_counter: Box<dyn DayCounters>,
     pub market_data: YieldTermMarketData,
@@ -118,7 +120,6 @@ pub struct YieldTermStructure {
 
 impl YieldTermStructure {
     pub fn new(
-        valuation_date: NaiveDate,
         calendar: Box<dyn Calendar>,
         day_counter: Box<dyn DayCounters>,
         market_data: YieldTermMarketData,
@@ -126,7 +127,6 @@ impl YieldTermStructure {
     ) -> Self {
         let if_stripped_curves = stripped_curves.is_some();
         Self {
-            valuation_date,
             calendar,
             day_counter,
             market_data,
@@ -140,16 +140,18 @@ impl YieldTermStructure {
         let total_size = self.market_data.cash_quote.len() + self.market_data.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
-        self.market_data
-            .cash_quote
-            .sort_by_key(|quote| quote.maturity_date(self.valuation_date).unwrap());
+        self.market_data.cash_quote.sort_by_key(|quote| {
+            quote
+                .maturity_date(self.market_data.valuation_date)
+                .unwrap()
+        });
         for cash in &self.market_data.cash_quote {
             outputs.push(StrippedCurve {
-                first_settle_date: cash.settle_date(self.valuation_date)?,
-                date: cash.maturity_date(self.valuation_date)?,
+                first_settle_date: cash.settle_date(self.market_data.valuation_date)?,
+                date: cash.maturity_date(self.market_data.valuation_date)?,
                 market_rate: cash.value,
-                zero_rate: cash.zero_rate(self.valuation_date)?,
-                discount: cash.discount(self.valuation_date)?,
+                zero_rate: cash.zero_rate(self.market_data.valuation_date)?,
+                discount: cash.discount(self.market_data.valuation_date)?,
                 // TODO: Make this more meaningful
                 hidden_pillar: cash.interest_rate_index.period == Period::Weeks(1),
                 source: cash.yts_type(),
@@ -157,26 +159,26 @@ impl YieldTermStructure {
         }
         for future in &self.market_data.futures_quote {
             outputs.push(StrippedCurve {
-                first_settle_date: future.settle_date(self.valuation_date)?,
-                date: future.maturity_date(self.valuation_date)?,
+                first_settle_date: future.settle_date(self.market_data.valuation_date)?,
+                date: future.maturity_date(self.market_data.valuation_date)?,
                 market_rate: future.value,
-                zero_rate: future.zero_rate(self.valuation_date, &outputs)?,
-                discount: future.discount(self.valuation_date, &outputs)?,
+                zero_rate: future.zero_rate(self.market_data.valuation_date, &outputs)?,
+                discount: future.discount(self.market_data.valuation_date, &outputs)?,
                 hidden_pillar: false,
                 source: future.yts_type(),
             })
         }
         for swap in &mut self.market_data.swap_quote {
             outputs.push(StrippedCurve {
-                first_settle_date: swap.settle_date(self.valuation_date)?,
-                date: swap.maturity_date(self.valuation_date)?,
+                first_settle_date: swap.settle_date(self.market_data.valuation_date)?,
+                date: swap.maturity_date(self.market_data.valuation_date)?,
                 market_rate: swap.legs.first().unwrap().get_reference_rate(),
                 zero_rate: 0.005f64,
                 discount: 0f64,
                 hidden_pillar: false,
                 source: swap.yts_type(),
             });
-            let zero_rate = swap.solve_zero_rate(self.valuation_date, outputs.clone());
+            let zero_rate = swap.solve_zero_rate(self.market_data.valuation_date, outputs.clone());
             outputs.last_mut().unwrap().zero_rate = zero_rate;
         }
         self.is_called = true;
@@ -238,7 +240,8 @@ impl YieldTermStructure {
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
         let zero_rate = self.zero_rate(date, interpolation_method_enum)?;
-        let duration = Actual365Fixed::default().year_fraction(self.valuation_date, date)?;
+        let duration =
+            Actual365Fixed::default().year_fraction(self.market_data.valuation_date, date)?;
         Ok((-zero_rate * duration).exp())
     }
 
@@ -253,10 +256,10 @@ impl YieldTermStructure {
             self.get_stripped_curve()?;
         }
         let accrual_end_date = (accrual_start_date + tenor)?;
-        let year_fraction_1 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_start_date)?;
-        let year_fraction_2 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_end_date)?;
+        let year_fraction_1 = Actual365Fixed::default()
+            .year_fraction(self.market_data.valuation_date, accrual_start_date)?;
+        let year_fraction_2 = Actual365Fixed::default()
+            .year_fraction(self.market_data.valuation_date, accrual_end_date)?;
         let zero_rate_1 = self.zero_rate(accrual_start_date, interpolation_method_enum)?;
         let zero_rate_2 = self.zero_rate(accrual_end_date, interpolation_method_enum)?;
 
@@ -519,10 +522,10 @@ mod tests {
             ),
         ]);
         let mut yts = YieldTermStructure::new(
-            NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
             YieldTermMarketData::new(
+                NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
                 vec![ois_quote_3m, ois_quote_1wk],
                 vec![
                     future_quote_x3,

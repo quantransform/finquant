@@ -236,10 +236,9 @@ impl InterestRateSwap {
         let new_stripped_curve = &mut stripped_curves.to_vec();
         let _ = self.amend_last(zero_rate, new_stripped_curve);
         let yts = &mut YieldTermStructure::new(
-            valuation_date,
             Box::new(Target),
             Box::<Actual365Fixed>::default(),
-            YieldTermMarketData::new(vec![], vec![], vec![]),
+            YieldTermMarketData::new(valuation_date, vec![], vec![], vec![]),
             Some(new_stripped_curve.clone()),
         );
         for leg in self.legs.iter_mut() {
@@ -284,7 +283,7 @@ impl InterestRateSwap {
                 leg.generate_schedule(valuation_date)?;
             }
             for period in leg.schedule.iter() {
-                for cashflow in &period.cashflow {
+                while let Some(cashflow) = &period.cashflow {
                     npv += cashflow.present_value.unwrap()
                         * match leg.direction {
                             Direction::Buy => 1f64,
@@ -513,10 +512,9 @@ mod tests {
     fn test_eusw3v3_schedule() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 27).unwrap();
         let yts = &mut YieldTermStructure::new(
-            valuation_date,
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
-            YieldTermMarketData::new(vec![], vec![], vec![]),
+            YieldTermMarketData::new(valuation_date, vec![], vec![], vec![]),
             Some(vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
