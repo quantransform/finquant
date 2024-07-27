@@ -247,13 +247,13 @@ impl InterestRateSwap {
     ) -> f64 {
         let mut convergency = SimpleConvergency {
             eps: 1e-15f64,
-            max_iter: 30,
+            max_iter: 100,
         };
         let mut f = |x| {
             self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
                 .unwrap()
         };
-        let root = find_root_brent(0f64, 1f64, &mut f, &mut convergency);
+        let root = find_root_brent(0f64, 0.25f64, &mut f, &mut convergency);
         root.unwrap()
     }
 
@@ -334,10 +334,9 @@ impl InterestRateQuote for InterestRateSwap {
 
     fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         let mut last_end_dates = Vec::new();
-        for leg in self.legs.iter() {
-            if !leg.schedule.is_empty() {
-                last_end_dates.push(leg.schedule.last().unwrap().accrual_end_date);
-            }
+        for leg in &self.legs {
+            let schedule = if leg.schedule.is_empty() {&leg.generate_schedule(valuation_date)?} else {&leg.schedule};
+            last_end_dates.push(schedule.last().unwrap().accrual_end_date);
         }
         let maturity = if !last_end_dates.is_empty() {
             *last_end_dates.iter().max().unwrap()
