@@ -24,9 +24,10 @@ pub enum InterestRateSwapLegType {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ScheduleDetail {
+    // TODO: tenor or frequency can be removed?
     pub frequency: Frequency,
-    // TODO: tenor can be removed?
     pub tenor: Period,
+    // TODO: duration can be just int as of 'tenor'?
     pub duration: Period,
     pub day_counter: Box<dyn DayCounters>,
     pub calendar: Box<dyn Calendar>,
