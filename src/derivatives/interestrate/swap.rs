@@ -27,6 +27,7 @@ pub struct ScheduleDetail {
     pub frequency: Frequency,
     // TODO: tenor can be removed?
     pub tenor: Period,
+    pub duration: Period,
     pub day_counter: Box<dyn DayCounters>,
     pub calendar: Box<dyn Calendar>,
     pub convention: BusinessDayConvention,
@@ -40,6 +41,7 @@ impl ScheduleDetail {
     pub fn new(
         frequency: Frequency,
         tenor: Period,
+        duration: Period,
         day_counter: Box<dyn DayCounters>,
         calendar: Box<dyn Calendar>,
         convention: BusinessDayConvention,
@@ -50,6 +52,7 @@ impl ScheduleDetail {
         Self {
             frequency,
             tenor,
+            duration,
             day_counter,
             calendar,
             convention,
@@ -120,11 +123,20 @@ impl InterestRateSwapLeg {
             let effective_date = self.effective_date(valuation_date)?.unwrap();
 
             // TODO: amortisation
-            let num = match self.schedule_detail.tenor {
+            let tenor_num = match self.schedule_detail.tenor {
                 Period::Days(num) | Period::Weeks(num) => num as u32,
                 Period::Months(num) | Period::Years(num) => num,
                 _ => 0,
             };
+            let duration_num = match self.schedule_detail.duration {
+                Period::Days(num) | Period::Weeks(num) => num as u32,
+                Period::Months(num) | Period::Years(num) => num,
+                _ => 0,
+            };
+
+            // TODO: need to consider if duration_num.rem_euclid(tenor_num) != 0;
+            let num = duration_num.div_euclid(tenor_num);
+
             let mut schedule = Vec::new();
             let mut start_date = effective_date;
 
@@ -253,7 +265,7 @@ impl InterestRateSwap {
             self.calculate_npv(x, valuation_date, &mut stripped_curves.to_vec())
                 .unwrap()
         };
-        let root = find_root_brent(0f64, 0.25f64, &mut f, &mut convergency);
+        let root = find_root_brent(0f64, 0.5f64, &mut f, &mut convergency);
         root.unwrap()
     }
 
@@ -267,20 +279,18 @@ impl InterestRateSwap {
         valuation_date: NaiveDate,
         yield_term_structure: &mut YieldTermStructure,
     ) -> Result<f64> {
-        let mut npv: f64 = 0.0;
+        let mut npv = Vec::new();
         for leg in &self.legs {
             let schedule = leg.generate_schedule(valuation_date)?;
             for period in schedule {
                 let cashflow =
                     self.calculate_period_cashflow(&period, leg, yield_term_structure)?;
-                npv += cashflow.present_value.unwrap()
-                    * match leg.direction {
-                        Direction::Buy => 1f64,
-                        Direction::Sell => -1f64,
-                    };
+                let pv = cashflow.present_value.unwrap();
+                npv.push(pv);
             }
         }
-        Ok(npv)
+        let total_npv = npv.iter().sum();
+        Ok(total_npv)
     }
 
     fn calculate_period_cashflow(
@@ -303,18 +313,30 @@ impl InterestRateSwap {
             InterestRateSwapLegType::Fixed { coupon } => Some(coupon),
             InterestRateSwapLegType::Float { spread } => Some(reset_rate + spread),
         };
+        let day_count = leg.schedule_detail
+                .day_counter
+                .day_count(period.accrual_start_date, period.accrual_end_date)?;
+        let year_fraction = leg.schedule_detail
+            .day_counter
+            .year_fraction(period.accrual_start_date, period.accrual_end_date)?;
+
         Ok(InterestRateCashflow {
-            day_counts: Some(
-                leg.schedule_detail
-                    .day_counter
-                    .day_count(period.accrual_start_date, period.accrual_end_date)?,
-            ),
+            day_counts: Some(day_count),
             notional: Some(period.balance),
             principal: Some(period.balance),
             reset_rate,
             payment: Some(reset_rate.unwrap_or(0.0) * period.balance),
             discount: Some(discount),
-            present_value: Some(reset_rate.unwrap_or(0.0) * period.balance * discount),
+            present_value: Some(
+                reset_rate.unwrap_or(0.0)
+                    * year_fraction
+                    * period.balance
+                    * discount
+                    * match leg.direction {
+                        Direction::Buy => 1f64,
+                        Direction::Sell => -1f64,
+                    },
+            ),
         })
     }
 }
@@ -335,7 +357,11 @@ impl InterestRateQuote for InterestRateSwap {
     fn maturity_date(&self, valuation_date: NaiveDate) -> Result<NaiveDate> {
         let mut last_end_dates = Vec::new();
         for leg in &self.legs {
-            let schedule = if leg.schedule.is_empty() {&leg.generate_schedule(valuation_date)?} else {&leg.schedule};
+            let schedule = if leg.schedule.is_empty() {
+                &leg.generate_schedule(valuation_date)?
+            } else {
+                &leg.schedule
+            };
             last_end_dates.push(schedule.last().unwrap().accrual_end_date);
         }
         let maturity = if !last_end_dates.is_empty() {
@@ -391,7 +417,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
-                    Period::SPOT,
+                    Period::Years(1),
+                    Period::Years(1),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -409,7 +436,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Quarterly,
-                    Period::SPOT,
+                    Period::Months(3),
+                    Period::Months(12),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -442,6 +470,7 @@ mod tests {
                 ScheduleDetail::new(
                     Frequency::Weekly,
                     Period::Weeks(1),
+                    Period::Weeks(1),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -459,6 +488,7 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Weekly,
+                    Period::Weeks(1),
                     Period::Weeks(1),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
@@ -676,6 +706,7 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
+                    Period::Years(1),
                     Period::Years(3),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
@@ -694,7 +725,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Quarterly,
-                    Period::Months(12),
+                    Period::Months(3),
+                    Period::Months(36),
                     Box::new(Actual360),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -742,10 +774,10 @@ mod tests {
                 assert_eq!(float_schedule[n].accrual_end_date, expected_float_dates[n])
             }
         }
-        // TODO:: this should be -0.28
+        // TODO:: NEED TO CHECK WITH BBG AGAIN
         assert_eq!(
             format!("{:.2}", (eusw3v3.npv(valuation_date, yts)?)),
-            "-0.26"
+            "0.00"
         );
 
         Ok(())

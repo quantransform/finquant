@@ -115,6 +115,7 @@ impl YieldTermMarketData {
         for cash in &self.cash_quote {
             cash_quote_maturity.push(cash.maturity_date(self.valuation_date).unwrap());
         }
+        cash_quote_maturity.sort();
 
         for maturity in cash_quote_maturity {
             for cash in &self.cash_quote {
@@ -483,7 +484,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
-                    Period::Months(12),
+                    Period::Years(1),
+                    Period::Years(3),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -502,6 +504,7 @@ mod tests {
                 ScheduleDetail::new(
                     Frequency::Quarterly,
                     Period::Months(3),
+                    Period::Months(36),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
