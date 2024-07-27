@@ -5,7 +5,6 @@ use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::Observer;
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -52,10 +51,10 @@ pub trait InterestRateQuote {
         for stripped_curve in stripped_curves {
             if stripped_curve.first_settle_date < target_date && stripped_curve.date >= target_date
             {
-                second = &stripped_curve;
+                second = stripped_curve;
                 break;
             }
-            first = &stripped_curve;
+            first = stripped_curve;
         }
         if second == stripped_curves.first().unwrap() {
             first = stripped_curves.first().unwrap();
@@ -85,6 +84,7 @@ pub struct StrippedCurve {
 /// Market Data for Yield
 #[derive(Deserialize, Serialize, Debug)]
 pub struct YieldTermMarketData {
+    pub valuation_date: NaiveDate,
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
@@ -92,70 +92,49 @@ pub struct YieldTermMarketData {
 
 impl YieldTermMarketData {
     pub fn new(
+        valuation_date: NaiveDate,
         cash_quote: Vec<OISRate>,
         futures_quote: Vec<FuturesRate>,
         swap_quote: Vec<InterestRateSwap>,
     ) -> Self {
         Self {
+            valuation_date,
             cash_quote,
             futures_quote,
             swap_quote,
         }
     }
-}
 
-/// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
-/// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
-#[derive(Deserialize, Serialize, Debug)]
-pub struct YieldTermStructure {
-    pub valuation_date: NaiveDate,
-    pub calendar: Box<dyn Calendar>,
-    pub day_counter: Box<dyn DayCounters>,
-    pub market_data: YieldTermMarketData,
-    pub stripped_curves: Option<Vec<StrippedCurve>>,
-    is_called: bool,
-}
-
-impl YieldTermStructure {
-    pub fn new(
-        valuation_date: NaiveDate,
-        calendar: Box<dyn Calendar>,
-        day_counter: Box<dyn DayCounters>,
-        market_data: YieldTermMarketData,
-        stripped_curves: Option<Vec<StrippedCurve>>,
-    ) -> Self {
-        let if_stripped_curves = stripped_curves.is_some();
-        Self {
-            valuation_date,
-            calendar,
-            day_counter,
-            market_data,
-            stripped_curves,
-            is_called: if_stripped_curves,
-        }
-    }
-
-    /// Calculate stripped curve by using market data.
-    pub fn get_stripped_curve(&mut self) -> Result<()> {
-        let total_size = self.market_data.cash_quote.len() + self.market_data.futures_quote.len();
+    pub fn get_stripped_curve(&self) -> Result<Vec<StrippedCurve>> {
+        let total_size = self.cash_quote.len() + self.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
 
-        self.market_data
-            .cash_quote
-            .sort_by_key(|quote| quote.maturity_date(self.valuation_date).unwrap());
-        for cash in &self.market_data.cash_quote {
-            outputs.push(StrippedCurve {
-                first_settle_date: cash.settle_date(self.valuation_date)?,
-                date: cash.maturity_date(self.valuation_date)?,
-                market_rate: cash.value,
-                zero_rate: cash.zero_rate(self.valuation_date)?,
-                discount: cash.discount(self.valuation_date)?,
-                // TODO: Make this more meaningful
-                hidden_pillar: cash.interest_rate_index.period == Period::Weeks(1),
-                source: cash.yts_type(),
-            })
+        // TODO: figure out a way to get sorted value
+        let mut cash_quote_maturity = Vec::new();
+
+        for cash in &self.cash_quote {
+            cash_quote_maturity.push(cash.maturity_date(self.valuation_date).unwrap());
         }
-        for future in &self.market_data.futures_quote {
+        cash_quote_maturity.sort();
+
+        for maturity in cash_quote_maturity {
+            for cash in &self.cash_quote {
+                if cash.maturity_date(self.valuation_date).unwrap() == maturity {
+                    outputs.push(StrippedCurve {
+                        first_settle_date: cash.settle_date(self.valuation_date)?,
+                        date: cash.maturity_date(self.valuation_date)?,
+                        market_rate: cash.value,
+                        zero_rate: cash.zero_rate(self.valuation_date)?,
+                        discount: cash.discount(self.valuation_date)?,
+                        // TODO: Make this more meaningful
+                        hidden_pillar: cash.interest_rate_index.period == Period::Weeks(1),
+                        source: cash.yts_type(),
+                    })
+                }
+            }
+        }
+
+        for future in &self.futures_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: future.settle_date(self.valuation_date)?,
                 date: future.maturity_date(self.valuation_date)?,
@@ -166,7 +145,7 @@ impl YieldTermStructure {
                 source: future.yts_type(),
             })
         }
-        for swap in &mut self.market_data.swap_quote {
+        for swap in &self.swap_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: swap.settle_date(self.valuation_date)?,
                 date: swap.maturity_date(self.valuation_date)?,
@@ -179,26 +158,53 @@ impl YieldTermStructure {
             let zero_rate = swap.solve_zero_rate(self.valuation_date, outputs.clone());
             outputs.last_mut().unwrap().zero_rate = zero_rate;
         }
-        self.is_called = true;
-        self.stripped_curves = Some(outputs);
-
-        Ok(())
+        Ok(outputs)
     }
+}
 
+/// Yield term structure - this includes raw market data (cash, fra, futures, swaps), which yields
+/// stripped curves. Using stripped curves, one can get desired zero rate, forward rate and discount.
+#[derive(Deserialize, Serialize, Debug)]
+pub struct YieldTermStructure {
+    pub calendar: Box<dyn Calendar>,
+    pub day_counter: Box<dyn DayCounters>,
+    pub market_data: YieldTermMarketData,
+    pub stripped_curves: Vec<StrippedCurve>,
+}
+
+impl YieldTermStructure {
+    pub fn new(
+        calendar: Box<dyn Calendar>,
+        day_counter: Box<dyn DayCounters>,
+        market_data: YieldTermMarketData,
+        stripped_curves: Vec<StrippedCurve>,
+    ) -> Self {
+        let stripped_curves = if stripped_curves.is_empty() {
+            market_data.get_stripped_curve().unwrap()
+        } else {
+            stripped_curves
+        };
+
+        Self {
+            calendar,
+            day_counter,
+            market_data,
+            stripped_curves,
+        }
+    }
     fn step_function_forward_zero_rate(&self, date: NaiveDate) -> f64 {
         let target_date = date + ONE_DAY;
-        let stripped_curves = self.stripped_curves.as_ref().unwrap();
-        let mut first = stripped_curves.first().unwrap();
-        let mut second = stripped_curves.first().unwrap();
-        let mut true_first = stripped_curves.first().unwrap();
-        for strip_curve in &**stripped_curves {
+        let mut first = self.stripped_curves.first().unwrap();
+        let mut second = self.stripped_curves.first().unwrap();
+        let mut true_first = self.stripped_curves.first().unwrap();
+        for strip_curve in &self.stripped_curves {
             if target_date <= strip_curve.date && !strip_curve.hidden_pillar {
                 second = strip_curve;
                 break;
             }
             first = strip_curve;
         }
-        for strip_curve in &**stripped_curves {
+        for strip_curve in &self.stripped_curves {
             if !strip_curve.hidden_pillar {
                 true_first = strip_curve;
                 break;
@@ -215,13 +221,10 @@ impl YieldTermStructure {
 
     /// Get zero rate by using stripped curve.
     pub fn zero_rate(
-        &mut self,
+        &self,
         date: NaiveDate,
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
-        if !self.is_called {
-            self.get_stripped_curve()?;
-        }
         Ok(match interpolation_method_enum {
             InterpolationMethodEnum::StepFunctionForward => {
                 self.step_function_forward_zero_rate(date)
@@ -233,30 +236,28 @@ impl YieldTermStructure {
 
     /// Get discount factor by using stripped curve.
     pub fn discount(
-        &mut self,
+        &self,
         date: NaiveDate,
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
         let zero_rate = self.zero_rate(date, interpolation_method_enum)?;
-        let duration = Actual365Fixed::default().year_fraction(self.valuation_date, date)?;
+        let duration =
+            Actual365Fixed::default().year_fraction(self.market_data.valuation_date, date)?;
         Ok((-zero_rate * duration).exp())
     }
 
     /// Get forward rate from zero rate.
     pub fn forward_rate(
-        &mut self,
+        &self,
         accrual_start_date: NaiveDate,
         tenor: Period,
         interpolation_method_enum: &InterpolationMethodEnum,
     ) -> Result<f64> {
-        if !self.is_called {
-            self.get_stripped_curve()?;
-        }
         let accrual_end_date = (accrual_start_date + tenor)?;
-        let year_fraction_1 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_start_date)?;
-        let year_fraction_2 =
-            Actual365Fixed::default().year_fraction(self.valuation_date, accrual_end_date)?;
+        let year_fraction_1 = Actual365Fixed::default()
+            .year_fraction(self.market_data.valuation_date, accrual_start_date)?;
+        let year_fraction_2 = Actual365Fixed::default()
+            .year_fraction(self.market_data.valuation_date, accrual_end_date)?;
         let zero_rate_1 = self.zero_rate(accrual_start_date, interpolation_method_enum)?;
         let zero_rate_2 = self.zero_rate(accrual_end_date, interpolation_method_enum)?;
 
@@ -265,12 +266,6 @@ impl YieldTermStructure {
                 / (year_fraction_2 - year_fraction_1);
 
         Ok(rate)
-    }
-}
-
-impl Observer for YieldTermStructure {
-    fn update(&mut self) -> Result<()> {
-        self.get_stripped_curve()
     }
 }
 
@@ -489,7 +484,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
-                    Period::Months(12),
+                    Period::Years(1),
+                    Period::Years(3),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -508,6 +504,7 @@ mod tests {
                 ScheduleDetail::new(
                     Frequency::Quarterly,
                     Period::Months(3),
+                    Period::Months(36),
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -518,11 +515,11 @@ mod tests {
                 vec![],
             ),
         ]);
-        let mut yts = YieldTermStructure::new(
-            NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
+        let yts = YieldTermStructure::new(
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
             YieldTermMarketData::new(
+                NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
                 vec![ois_quote_3m, ois_quote_1wk],
                 vec![
                     future_quote_x3,
@@ -540,10 +537,10 @@ mod tests {
                 ],
                 vec![swap_quote_3y],
             ),
-            None,
+            Vec::new(),
         );
-        yts.get_stripped_curve()?;
-        let stripped_curve = yts.stripped_curves.as_ref().unwrap();
+
+        let stripped_curve = yts.market_data.get_stripped_curve()?;
 
         // OIS Check
         assert_eq!(
