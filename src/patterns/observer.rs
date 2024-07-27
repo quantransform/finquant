@@ -1,5 +1,6 @@
 //! Observer patterns.
 //!     Observer is subscribed to Observable events.
+//!     https://medium.com/@learnwithshobhit/a-simple-implementation-of-observer-design-pattern-in-rust-fde3ef506a53
 
 use crate::error::Result;
 

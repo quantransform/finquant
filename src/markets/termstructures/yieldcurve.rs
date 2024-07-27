@@ -84,11 +84,11 @@ pub struct StrippedCurve {
 
 /// Market Data for Yield
 #[derive(Deserialize, Serialize, Debug)]
-pub struct YieldTermMarketData<'a, T> {
+pub struct YieldTermMarketData<'a, T: Observer> {
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
-    observers: Vec<dyn Observer>,
+    observers: Vec<&'a T>,
 }
 
 impl<'a, T: Observer> YieldTermMarketData<'a, T> {
@@ -101,22 +101,25 @@ impl<'a, T: Observer> YieldTermMarketData<'a, T> {
             cash_quote,
             futures_quote,
             swap_quote,
-            observers: vec![],
+            observers: Vec::new(),
         }
     }
 }
 
-impl<'a, T: Observer> Observable<'a, T> for YieldTermMarketData<'a, T> {
+impl<'a, T: Observer+PartialEq> Observable<'a, T> for YieldTermMarketData<'a, T> {
     fn attach(&mut self, observer: &'a T) {
         self.observers.push(observer);
     }
 
     fn detach(&mut self, observer: &'a T) {
-        todo!()
+        let index = self.observers.iter().position(|x| *x == observer).unwrap();
+        self.observers.remove(index);
     }
 
     fn notify_observers(&self) {
-        todo!()
+        for observer in self.observers.iter() {
+            observer.update().unwrap();
+        }
     }
 }
 

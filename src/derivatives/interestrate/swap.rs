@@ -213,7 +213,7 @@ pub struct InterestRateSwap {
     pub legs: Vec<InterestRateSwapLeg>,
 }
 
-impl InterestRateSwap {
+impl<T> InterestRateSwap {
     pub fn new(legs: Vec<InterestRateSwapLeg>) -> Self {
         Self { legs }
     }
@@ -298,7 +298,7 @@ impl InterestRateSwap {
 
     fn attached_market_data_to_period(
         &mut self,
-        yield_term_structure: &mut YieldTermStructure,
+        yield_term_structure: &mut YieldTermStructure<T>,
     ) -> Result<()> {
         for leg in self.legs.iter_mut() {
             for period in leg.schedule.iter_mut() {
