@@ -127,12 +127,12 @@ impl InterestRateSwapLeg {
             let tenor_num = match self.schedule_detail.tenor {
                 Period::Days(num) | Period::Weeks(num) => num as u32,
                 Period::Months(num) | Period::Years(num) => num,
-                _ => 0,
+                _ => 1,
             };
             let duration_num = match self.schedule_detail.duration {
                 Period::Days(num) | Period::Weeks(num) => num as u32,
                 Period::Months(num) | Period::Years(num) => num,
-                _ => 0,
+                _ => 1,
             };
 
             // TODO: need to consider if duration_num.rem_euclid(tenor_num) != 0;
@@ -420,8 +420,8 @@ mod tests {
                 1f64,
                 ScheduleDetail::new(
                     Frequency::Annual,
-                    Period::Years(1),
-                    Period::Years(1),
+                    Period::SPOT,
+                    Period::SPOT,
                     Box::new(Thirty360::default()),
                     Box::<Target>::default(),
                     BusinessDayConvention::ModifiedFollowing,
@@ -741,7 +741,7 @@ mod tests {
             ),
         ]);
         for leg in eusw3v3.legs.iter_mut() {
-            leg.generate_schedule(valuation_date)?;
+            leg.schedule = leg.generate_schedule(valuation_date)?;
         }
         {
             let legs = &eusw3v3.legs;
