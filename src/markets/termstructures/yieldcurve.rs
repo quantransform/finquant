@@ -5,6 +5,7 @@ use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
+use crate::patterns::observer::{Observable, Observer, StatusEnum};
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -88,6 +89,8 @@ pub struct YieldTermMarketData {
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
+    observers: Vec<Box<dyn Observer>>,
+    status: StatusEnum,
 }
 
 impl YieldTermMarketData {
@@ -102,9 +105,18 @@ impl YieldTermMarketData {
             cash_quote,
             futures_quote,
             swap_quote,
+            observers: Vec::new(),
+            status: StatusEnum::Initialised,
         }
     }
-
+    pub fn set_status(&mut self) {
+        self.status = match self.status {
+            StatusEnum::Initialised => StatusEnum::Updated { version: 1 },
+            StatusEnum::Updated { version } => StatusEnum::Updated {
+                version: version + 1,
+            },
+        };
+    }
     pub fn get_stripped_curve(&self) -> Result<Vec<StrippedCurve>> {
         let total_size = self.cash_quote.len() + self.futures_quote.len();
         let mut outputs: Vec<StrippedCurve> = Vec::with_capacity(total_size);
@@ -159,6 +171,20 @@ impl YieldTermMarketData {
             outputs.last_mut().unwrap().zero_rate = zero_rate;
         }
         Ok(outputs)
+    }
+}
+
+impl Observable for YieldTermMarketData {
+    fn attach(&mut self, observer: Box<dyn Observer>) {
+        self.observers.push(observer);
+    }
+    fn notify_observers(&self) {
+        for observer in &self.observers {
+            observer.update(self).unwrap();
+        }
+    }
+    fn get_status(&self) -> &StatusEnum {
+        &self.status
     }
 }
 
