@@ -180,7 +180,7 @@ impl Observable for YieldTermMarketData {
     }
     fn notify_observers(&self) {
         for observer in &self.observers {
-            observer.update(self).unwrap();
+            observer.update(self);
         }
     }
     fn get_status(&self) -> &StatusEnum {
@@ -288,6 +288,14 @@ impl YieldTermStructure {
     }
 }
 
+#[typetag::serde]
+impl Observer for YieldTermStructure {
+    fn update(&self, _observable: &dyn Observable) {
+        todo!()
+    }
+
+
+}
 #[cfg(test)]
 mod tests {
     use super::{

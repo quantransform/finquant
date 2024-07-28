@@ -1,7 +1,6 @@
 //! Observer patterns.
 //!     Observer is subscribed to Observable events.
 
-use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -14,7 +13,7 @@ pub enum StatusEnum {
 // Define the Observer trait with an update method
 #[typetag::serde(tag = "type")]
 pub trait Observer: Debug {
-    fn update(&self, observable: &dyn Observable) -> Result<()>;
+    fn update(&self, observable: &dyn Observable);
 }
 
 // Define the Observable trait with methods to register, remove, and notify observers
