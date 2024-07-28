@@ -293,8 +293,6 @@ impl Observer for YieldTermStructure {
     fn update(&self, _observable: &dyn Observable) {
         todo!()
     }
-
-
 }
 #[cfg(test)]
 mod tests {
