@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
     InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
-    YieldTermMarketData, YieldTermStructure,
+    YieldTermStructure,
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::{Calendar, Target};
@@ -244,10 +244,11 @@ impl InterestRateSwap {
     ) -> Result<f64> {
         let new_stripped_curve = &mut stripped_curves.to_vec();
         let new_stripped_curve = self.amend_last(zero_rate, new_stripped_curve)?;
+
         let yts = &mut YieldTermStructure::new(
             Box::new(Target),
             Box::<Actual365Fixed>::default(),
-            YieldTermMarketData::new(valuation_date, vec![], vec![], vec![]),
+            valuation_date,
             new_stripped_curve.clone(),
         );
         self.npv(valuation_date, yts)
@@ -398,7 +399,7 @@ mod tests {
         InterestRateIndex, InterestRateIndexEnum,
     };
     use crate::markets::termstructures::yieldcurve::{
-        InterestRateQuoteEnum, StrippedCurve, YieldTermMarketData, YieldTermStructure,
+        InterestRateQuoteEnum, StrippedCurve, YieldTermStructure,
     };
     use crate::time::businessdayconvention::BusinessDayConvention;
     use crate::time::calendars::Target;
@@ -534,7 +535,7 @@ mod tests {
         let yts = &mut YieldTermStructure::new(
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
-            YieldTermMarketData::new(valuation_date, vec![], vec![], vec![]),
+            valuation_date,
             vec![
                 StrippedCurve {
                     first_settle_date: NaiveDate::from_ymd_opt(2023, 10, 31).unwrap(),
