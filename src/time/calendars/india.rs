@@ -356,18 +356,20 @@ impl Calendar for India {
         }
 
         if (y == 2023) &
-                // Holi
-            (!(m != 3 || d != 8 && d != 22 && d != 30)
+                // Holi (7/3), Gudi Padwa (22/3), Ram Navami (30/3)
+            (!(m != 3 || d != 7 && d != 22 && d != 30)
                     // Mahavir Jayanti
                     || (d == 4 && m == 4)
                     // Buddha Pournima
                     || (d == 5 && m == 5)
                     // Bakri Id
-                    || (d == 28 && m == 6)
+                    || (d == 29 && m == 6)
+                    // Parsi New Year
+                    || (d == 16 && m == 8)
                     // Ganesh Chaturthi
                     || (d == 19 && m == 9)
-                    // Id-E-Milad (estimated Wednesday 27th or Thursday 28th)
-                    || (d == 28 && m == 9)
+                    // Id-E-Milad (was moved to Friday 29th)
+                    || (d == 29 && m == 9)
                     // Dasera
                     || (d == 24 && m == 10)
                     // Diwali - Balipratipada
@@ -378,33 +380,47 @@ impl Calendar for India {
             return false;
         }
 
-        if (y == 2024) &  // Chatrapati Shivaji Jayanti
-                ((d == 19 && m == 2)
+        if (y == 2024)
+            & (
+                // Special holiday
+                (d == 22 && m ==1)
+                    // Chatrapati Shivaji Jayanti
+                    || (d == 19 && m == 2)
                     // Mahashivratri
                     || (d == 8 && m == 3)
                     // Holi
                     || (d == 25 && m == 3)
+                    // Annual Bank Closing
+                    || (d == 1 && m == 4)
                     // Gudi Padwa
                     || (d == 9 && m == 4)
+                    // Id-Ul-Fitr (Ramadan Eid)
+                    || (d == 11 && m == 4)
                     // Ram Navami
                     || (d == 17 && m == 4)
                     // Mahavir Jayanti
                     || (d == 21 && m == 4)
+                    // General Parliamentary Elections
+                    || (d == 20 && m ==5)
                     // Buddha Pournima
                     || (d == 23 && m == 5)
-                    // Bakri Id (estimated Sunday 16th or Monday 17th)
+                    // Bakri Eid
                     || (d == 17 && m == 6)
-                    // Ganesh Chaturthi
-                    || (d == 27 && m == 8)
-                    // Id-E-Milad (estimated Sunday 15th or Monday 16th)
+                    // Moharram
+                    || (d == 17 && m ==7)
+                    // Eid-E-Milad (estimated Sunday 15th or Monday 16th)
                     || (d == 16 && m == 9)
+                    // Diwali-Laxmi Pujan
+                    || (d == 1 && m == 11)
                     // Gurunank Jayanti
-                    || (d == 15 && m == 11))
+                    || (d == 15 && m == 11)
+            )
         {
             return false;
         }
 
-        if (y == 2025) &  // Chatrapati Shivaji Jayanti
+        if (y == 2025) &
+            // Chatrapati Shivaji Jayanti (19/2) and Mahashivratri (26/2)
             (!(m != 2 || d != 19 && d != 26)
                     // Holi
                     || (d == 14 && m == 3)
@@ -444,7 +460,7 @@ mod tests {
             false, true, true, true, true, true, false, false, true, true, true, false, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
-            false, false, true, true, true, true, true, false, false, true, true, false, true,
+            false, false, true, true, true, true, true, false, false, true, false, true, true,
             true, false, false, true, true, true, true, true, false, false, true, true, false,
             true, true, false, false, true, true, true, false, true, false, false, true, false,
             true, true, false, false, false, true, true, true, true, false, false, false, true,
@@ -453,26 +469,64 @@ mod tests {
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
             false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, false, true, true, false, false, true, true, true, true, true,
+            false, true, true, true, false, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
-            false, false, true, true, true, true, true, false, false, true, false, true, true,
+            false, false, true, true, true, true, true, false, false, true, false, false, true,
             true, false, false, true, true, true, true, true, false, false, true, true, true, true,
             true, false, false, true, true, true, true, true, false, false, true, true, true, true,
             true, false, false, true, false, true, true, true, false, false, true, true, true,
-            false, true, false, false, false, true, true, true, true, false, false, true, true,
+            true, false, false, false, false, true, true, true, true, false, false, true, true,
             true, true, true, false, false, true, true, true, true, true, false, false, true,
             false, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, false, true, true, true, false,
             false, true, true, true, true, true, false, false, false, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, false, true, true, true,
-            true, false, false,
+            true, false, false, true,
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
+            assert_eq!(India.is_business_day(target_date), expected);
+        }
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024 = vec![
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, false, true, true, true, false, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, false, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true,
+            false, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, false, true, true, true, false, false, false, false, true,
+            true, true, true, false, false, true, false, true, false, true, false, false, true,
+            true, false, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, false, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, false, true, true, false, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, false, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, false,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            false, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, false, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, false, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, false, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, false,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, false, true,
+            true, false, false, true, true,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024[n as usize];
             assert_eq!(India.is_business_day(target_date), expected);
         }
     }

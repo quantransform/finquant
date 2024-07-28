@@ -21,7 +21,7 @@
 ## Roadmap (no set agenda yet)
 
 1. Basic settings 
-   - [x] Calendar
+   - [x] Calendar inline with QuantLib v1.35
    - [x] Day counts 
    - [x] Schedule generator
 2. Markets / Quotes

@@ -344,9 +344,9 @@ impl Calendar for Thailand {
 
         if (y == 2023)
             && (
-                (d == 6 && m == 3)        // Makha Bucha Day
-            || (d == 5 && m == 5)       // Additional special holiday (added)
-            || (d == 5 && m == 6)      // Substitution for H.M. Queen's birthday and Wisakha Bucha Day (Saturday 3rd June 2022)
+                (d == 6 && m == 3)   // Makha Bucha Day
+            || (d == 5 && m == 5)    // Additional special holiday (added)
+            || (d == 5 && m == 6)    // Substitution for H.M. Queen's birthday and Wisakha Bucha Day (Saturday 3rd June 2022)
             || (d == 1 && m == 8)    // Asarnha Bucha Day
             || (d == 23 && m == 10)  // Chulalongkorn Day
             || (d == 29 && m == 12)
@@ -358,12 +358,12 @@ impl Calendar for Thailand {
 
         if (y == 2024)
             && (
-                (d == 26 && m == 2)    // Substitution for Makha Bucha Day (Saturday 24th February 2024)
+                (d == 26 && m == 2)   // Substitution for Makha Bucha Day (Saturday 24th February 2024)
             || (d == 8 && m == 4)     // Substitution for Chakri Memorial Day (Saturday 6th April 2024)
             || (d == 12 && m == 4)    // Additional holiday in relation to the Songkran festival
-            || (d == 6 && m == 5)       // Substitution for Coronation Day (Saturday 4th May 2024)
-            || (d == 22 && m == 5)      // Wisakha Bucha Day
-            || (d == 22 && m == 7)     // Substitution for Asarnha Bucha Day (Saturday 20th July 2024)
+            || (d == 6 && m == 5)     // Substitution for Coronation Day (Saturday 4th May 2024)
+            || (d == 22 && m == 5)    // Wisakha Bucha Day
+            || (d == 22 && m == 7)    // Substitution for Asarnha Bucha Day (Saturday 20th July 2024)
             || (d == 23 && m == 10)
                 // Chulalongkorn Day
             )
@@ -429,5 +429,43 @@ mod tests {
         assert_eq!(Thailand.is_business_day(target_date), false);
         let target_date = NaiveDate::from_ymd_opt(2024, 10, 23).unwrap();
         assert_eq!(Thailand.is_business_day(target_date), false);
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024 = vec![
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, false, false, false, false, false, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, false,
+            true, true, false, false, false, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, false, true, true, false, false, true,
+            true, true, true, true, false, false, false, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            false, true, true, true, true, false, false, false, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, false, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, true, false, false, true, true, false, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true,
+            false, true, false, false, true, false, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true,
+            false,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024[n as usize];
+            assert_eq!(Thailand.is_business_day(target_date), expected);
+        }
     }
 }

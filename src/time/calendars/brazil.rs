@@ -36,6 +36,10 @@ impl Brazil {
             // Republic Day
             || (d == 15 && m == 11)
             // Black Awareness Day
+            // https://en.wikipedia.org/wiki/Black_Awareness_Day
+            // In Brazil, Black Consciousness Day is observed annually on November 20
+            // as a day "to celebrate a regained awareness by the black community
+            // about their great worth and contribution to the country"
             || (d == 20 && m == 11 && y >= 2024)
             // Christmas
             || (d == 25 && m == 12)
@@ -60,13 +64,13 @@ impl Brazil {
             // New Year's Day
             || (d == 1 && m == 1)
             // Sao Paulo City Day
-            || (d == 25 && m == 1)
+            || (d == 25 && m == 1 && y < 2022)
             // Tiradentes Day
             || (d == 21 && m == 4)
             // Labor Day
             || (d == 1 && m == 5)
             // Revolution Day
-            || (d == 9 && m == 7)
+            || (d == 9 && m == 7 && y < 2022)
             // Independence Day
             || (d == 7 && m == 9)
             // Nossa Sra. Aparecida Day
@@ -76,7 +80,7 @@ impl Brazil {
             // Republic Day
             || (d == 15 && m == 11)
             // Black Consciousness Day
-            || (d == 20 && m == 11 && y >= 2007)
+            || (d == 20 && m == 11 && y >= 2007 && y != 2022 && y != 2023)
             // Christmas Eve
             || (d == 24 && m == 12)
             // Christmas
@@ -150,6 +154,43 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
+            assert_eq!(Brazil::default().is_business_day(target_date), expected);
+        }
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024 = vec![
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, false, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, false, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, false,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            false, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, false, false, false, true, true, false, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, false, true, true, false, false, true, true,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024[n as usize];
             assert_eq!(Brazil::default().is_business_day(target_date), expected);
         }
     }

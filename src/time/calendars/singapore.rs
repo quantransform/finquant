@@ -178,12 +178,33 @@ impl Calendar for Singapore {
                     || (d == 2 && m == 6)
                     // Hari Raya Haji
                     || (d == 29 && m == 6)
+                    // Public holiday on polling day
+                    || (d ==1 && m == 9)
                     // Deepavali
                     || (d == 13 && m == 11)
             )
         {
             return false;
         }
+
+        // https://api2.sgx.com/sites/default/files/2024-01/SGX%20Calendar%202024_2.pdf
+        if (y == 2024)
+            & (
+                // Chinese New Year
+                (d == 12 && m == 2)
+                // Hari Raya Puasa
+                || (d == 10 && m == 4)
+                // Vesak Poya Day
+                || (d == 22 && m == 5)
+                // Hari Raya Haji
+                || (d == 17 && m == 6)
+                // Deepavali
+                || (d == 31 && m == 10)
+            )
+        {
+            return false;
+        }
+
         true
     }
 }
@@ -215,21 +236,58 @@ mod tests {
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, true, true, true, false, false, true, true, true, true, true, false, false,
             true, true, false, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
-            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, true, true, true, true, true, false, false, true, true, true, true, false,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
             false, false, true, true, true, true, true, false, false, true, true, true, true, true,
-            false, false, false, true, true, true, true, false, false,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, false, true, true, true, true, false, false, false,
         ];
         let first_date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
+            assert_eq!(Singapore.is_business_day(target_date), expected);
+        }
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024 = vec![
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, false, false, false, true, true, true, true,
+            true, false, false, true, true, false, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true,
+            false, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, false, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, false, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, false, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, false, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, false, true, true, false, false, true, true,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024[n as usize];
             assert_eq!(Singapore.is_business_day(target_date), expected);
         }
     }
