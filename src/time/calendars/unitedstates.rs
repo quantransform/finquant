@@ -214,9 +214,18 @@ impl UnitedStates {
             || ((15..=21).contains(&d) && w == Weekday::Mon && m == 1 && y >= 1983)
             // Washington's birthday (third Monday in February)
             || self.is_washington_birthday(date)
-            // Good Friday (2015, 2021, 2023 are half day due to NFP/SIFMA;
-            // see <https://www.sifma.org/resources/general/holiday-schedule/>)
-            || (dd == em-3 && y != 2015 && y != 2021 && y != 2023)
+            // Good Friday. Since 1996 it's an early close and not a full market
+            // close when it coincides with the NFP release date, which is the
+            // first Friday of the month(*).
+            // See <https://www.sifma.org/resources/general/holiday-schedule/>
+            //
+            // (*) The full rule is "the third Friday after the conclusion of the
+            // week which includes the 12th of the month". This is usually the
+            // first Friday of the next month, but can be the second Friday if the
+            // month has fewer than 31 days. Since Good Friday is always between
+            // March 20th and April 23rd, it can only coincide with the April NFP,
+            // which is always on the first Friday, because March has 31 days.
+            || (dd == em-3&& (y < 1996 || d > 7))
             // Memorial Day (last Monday in May)
             || self.is_memorial_day(date)
             // Juneteenth (Monday if Sunday or Friday if Saturday)
@@ -242,7 +251,7 @@ impl UnitedStates {
         // President Bush's Funeral
         (y == 2018 && m == 12 && d == 5)
                 // Hurricane Sandy
-                || (y == 2012 && m == 10 && (d == 30))
+                || (y == 2012 && m == 10 && d == 30)
                 // President Reagan's funeral
                 || (y == 2004 && m == 6 && d == 11)
         {
@@ -253,8 +262,11 @@ impl UnitedStates {
     }
 
     fn sofr_is_business_day(&self, date: NaiveDate) -> bool {
-        // Good Friday 2023 was only a half close for SIFMA but SOFR didn't fix
-        if date == NaiveDate::from_ymd_opt(2023, 4, 7).unwrap() {
+        // so far (that is, up to 2023 at the time of this change) SOFR never fixed
+        // on Good Friday.  We're extrapolating that pattern.  This might change if
+        // a fixing on Good Friday occurs in future years.
+        let (_, _, _, y, dd) = self.naive_date_to_dkmy(date);
+        if dd == (self.easter_monday(y) - 3) {
             false
         } else {
             self.government_bond_is_business_day(date)
@@ -376,6 +388,49 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023_sofr[n as usize];
+            assert_eq!(
+                UnitedStates {
+                    market: Some(UnitedStatesMarket::SOFR)
+                }
+                .is_business_day(target_date),
+                expected
+            );
+        }
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024_sofr = vec![
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, false, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, false, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, false, true,
+            true, true, true, false, false, true, true, true, true, true, false, false, true, true,
+            true, true, true, false, false, true, true, false, true, true, false, false, true,
+            true, true, true, true, false, false, true, true, true, false, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, false, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, false, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, false, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, false, true, true, false, false, true, true,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024_sofr[n as usize];
             assert_eq!(
                 UnitedStates {
                     market: Some(UnitedStatesMarket::SOFR)

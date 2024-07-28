@@ -60,6 +60,8 @@ impl Calendar for SouthAfrica {
             || (d == 27 && m == 12 && y == 2022)
             // one-shot: Special holiday to celebrate winning of Rugby World Cp 2023
             || (d == 15 && m == 12 && y == 2023)
+            // one-shot: Election day 2024
+            || (d == 29 && m == 5 && y == 2024)
         {
             false
         } else {
@@ -110,6 +112,43 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
+            assert_eq!(SouthAfrica.is_business_day(target_date), expected);
+        }
+
+        // Test all results from 2024-01-01 to 2024-12-31
+        let expected_results_for_2024 = vec![
+            false, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, false, true,
+            false, false, true, true, true, true, false, false, false, false, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, true, true,
+            true, false, false, true, true, true, true, true, false, false, true, true, false,
+            true, true, false, false, true, true, true, true, true, false, false, true, true, true,
+            true, true, false, false, true, true, true, true, true, false, false, true, true,
+            false, true, true, false, false, true, true, true, true, true, false, false, true,
+            true, true, true, true, false, false, false, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, true, false, false, true, true, true, true, true, false, false,
+            true, true, true, true, false, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, true, true, true, true, false,
+            false, true, true, true, true, true, false, false, true, false, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, true, true, true, true, true,
+            false, false, true, true, true, true, true, false, false, false, true, true, true,
+            true, false, false, true, true, false, false, true, false, false, true, true,
+        ];
+        let first_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        for n in 0i32..365 {
+            let target_date = first_date + Duration::try_days(n as i64).unwrap();
+            let expected = expected_results_for_2024[n as usize];
             assert_eq!(SouthAfrica.is_business_day(target_date), expected);
         }
     }
