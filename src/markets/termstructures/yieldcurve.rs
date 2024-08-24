@@ -1,20 +1,18 @@
-use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::{Downcast, Observable, Observer};
+use crate::patterns::observer::{Observable, Observer};
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
 use crate::time::period::{Period, ONE_DAY};
+use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
 
 pub mod oisratehelper;
 pub mod ratehelper;
+use std::any::Any;
 
 /// Supported interpolation methods.
 #[derive(Debug)]
@@ -86,20 +84,20 @@ pub struct StrippedCurve {
 
 /// Market Data for Yield
 #[derive(Debug)]
-pub struct YieldTermMarketData {
+pub struct YieldTermMarketData<'ytm> {
     pub valuation_date: NaiveDate,
-    pub cash_quote: Vec<OISRate>,
-    pub futures_quote: Vec<FuturesRate>,
-    pub swap_quote: Vec<InterestRateSwap>,
-    observers: Vec<Rc<RefCell<dyn Observer>>>,
+    pub cash_quote: &'ytm Vec<OISRate>,
+    pub futures_quote: &'ytm Vec<FuturesRate>,
+    pub swap_quote: &'ytm Vec<InterestRateSwap>,
+    observers: Vec<Box<dyn Observer>>,
 }
 
-impl YieldTermMarketData {
+impl<'ytm> YieldTermMarketData<'ytm> {
     pub fn new(
         valuation_date: NaiveDate,
-        cash_quote: Vec<OISRate>,
-        futures_quote: Vec<FuturesRate>,
-        swap_quote: Vec<InterestRateSwap>,
+        cash_quote: &'ytm Vec<OISRate>,
+        futures_quote: &'ytm Vec<FuturesRate>,
+        swap_quote: &'ytm Vec<InterestRateSwap>,
     ) -> Self {
         Self {
             valuation_date,
@@ -116,13 +114,13 @@ impl YieldTermMarketData {
         // TODO: figure out a way to get sorted value
         let mut cash_quote_maturity = Vec::new();
 
-        for cash in &self.cash_quote {
+        for cash in self.cash_quote {
             cash_quote_maturity.push(cash.maturity_date(self.valuation_date).unwrap());
         }
         cash_quote_maturity.sort();
 
         for maturity in cash_quote_maturity {
-            for cash in &self.cash_quote {
+            for cash in self.cash_quote {
                 if cash.maturity_date(self.valuation_date).unwrap() == maturity {
                     outputs.push(StrippedCurve {
                         first_settle_date: cash.settle_date(self.valuation_date)?,
@@ -138,7 +136,7 @@ impl YieldTermMarketData {
             }
         }
 
-        for future in &self.futures_quote {
+        for future in self.futures_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: future.settle_date(self.valuation_date)?,
                 date: future.maturity_date(self.valuation_date)?,
@@ -149,7 +147,7 @@ impl YieldTermMarketData {
                 source: future.yts_type(),
             })
         }
-        for swap in &self.swap_quote {
+        for swap in self.swap_quote {
             outputs.push(StrippedCurve {
                 first_settle_date: swap.settle_date(self.valuation_date)?,
                 date: swap.maturity_date(self.valuation_date)?,
@@ -166,16 +164,22 @@ impl YieldTermMarketData {
     }
 }
 
-impl Observable for YieldTermMarketData {
-    fn attach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+impl<'ytm> Observable for YieldTermMarketData<'ytm> {
+    fn attach(&'ytm mut self, observer: Box<dyn Observer>) {
         self.observers.push(observer);
     }
-    fn detach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
-        self.observers.retain(|obs| !Rc::ptr_eq(obs, &observer));
+    fn detach(&'ytm mut self, _observer: &dyn Observer) {
+        // This is tricky in Rust since Box<dyn Observer> cannot be compared by default.
+        // You'll need to implement some logic if you want to remove specific observers.
     }
-    fn notify_observers(&self) {
+    fn notify_observers(&'ytm self) {
         for observer in &self.observers {
-            observer.borrow().update(self);
+            observer.update(&YieldTermMarketData::new(
+                self.valuation_date,
+                &self.cash_quote,
+                &self.futures_quote,
+                &self.swap_quote,
+            ));
         }
     }
 }
@@ -281,16 +285,17 @@ impl YieldTermStructure {
 }
 
 impl Observer for YieldTermStructure {
-    fn update(&mut self, observable: &dyn Observable) {
+    fn update(&self, observable: &dyn Any) {
         if let Some(yield_term_market_data_observable) =
             observable.downcast_ref::<YieldTermMarketData>()
         {
-            self.stripped_curves = yield_term_market_data_observable
+            yield_term_market_data_observable
                 .get_stripped_curve()
                 .unwrap();
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::{
