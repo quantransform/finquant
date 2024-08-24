@@ -1,11 +1,13 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::derivatives::interestrate::swap::InterestRateSwap;
 use crate::error::Result;
 use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
-use crate::patterns::observer::{Observable, Observer, StatusEnum};
+use crate::patterns::observer::{Downcast, Observable, Observer};
 use crate::time::calendars::Calendar;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
@@ -83,14 +85,13 @@ pub struct StrippedCurve {
 }
 
 /// Market Data for Yield
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug)]
 pub struct YieldTermMarketData {
     pub valuation_date: NaiveDate,
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
-    observers: Vec<Box<dyn Observer>>,
-    status: StatusEnum,
+    observers: Vec<Rc<RefCell<dyn Observer>>>,
 }
 
 impl YieldTermMarketData {
@@ -106,16 +107,7 @@ impl YieldTermMarketData {
             futures_quote,
             swap_quote,
             observers: Vec::new(),
-            status: StatusEnum::Initialised,
         }
-    }
-    pub fn set_status(&mut self) {
-        self.status = match self.status {
-            StatusEnum::Initialised => StatusEnum::Updated { version: 1 },
-            StatusEnum::Updated { version } => StatusEnum::Updated {
-                version: version + 1,
-            },
-        };
     }
     pub fn get_stripped_curve(&self) -> Result<Vec<StrippedCurve>> {
         let total_size = self.cash_quote.len() + self.futures_quote.len();
@@ -175,16 +167,16 @@ impl YieldTermMarketData {
 }
 
 impl Observable for YieldTermMarketData {
-    fn attach(&mut self, observer: Box<dyn Observer>) {
+    fn attach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
         self.observers.push(observer);
+    }
+    fn detach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.retain(|obs| !Rc::ptr_eq(obs, &observer));
     }
     fn notify_observers(&self) {
         for observer in &self.observers {
-            observer.update(self);
+            observer.borrow().update(self);
         }
-    }
-    fn get_status(&self) -> &StatusEnum {
-        &self.status
     }
 }
 
@@ -288,10 +280,15 @@ impl YieldTermStructure {
     }
 }
 
-#[typetag::serde]
 impl Observer for YieldTermStructure {
-    fn update(&self, _observable: &dyn Observable) {
-        todo!()
+    fn update(&mut self, observable: &dyn Observable) {
+        if let Some(yield_term_market_data_observable) =
+            observable.downcast_ref::<YieldTermMarketData>()
+        {
+            self.stripped_curves = yield_term_market_data_observable
+                .get_stripped_curve()
+                .unwrap();
+        }
     }
 }
 #[cfg(test)]

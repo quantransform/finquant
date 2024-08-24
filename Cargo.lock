@@ -83,7 +83,7 @@ dependencies = [
 
 [[package]]
 name = "finquant"
-version = "0.0.48"
+version = "0.0.49"
 dependencies = [
  "chrono",
  "float_eq",
