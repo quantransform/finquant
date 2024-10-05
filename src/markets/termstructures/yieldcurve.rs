@@ -168,18 +168,10 @@ impl<'ytm> Observable for YieldTermMarketData<'ytm> {
     fn attach(&'ytm mut self, observer: Box<dyn Observer>) {
         self.observers.push(observer);
     }
-    fn detach(&'ytm mut self, _observer: &dyn Observer) {
-        // This is tricky in Rust since Box<dyn Observer> cannot be compared by default.
-        // You'll need to implement some logic if you want to remove specific observers.
-    }
+
     fn notify_observers(&'ytm self) {
         for observer in &self.observers {
-            observer.update(&YieldTermMarketData::new(
-                self.valuation_date,
-                &self.cash_quote,
-                &self.futures_quote,
-                &self.swap_quote,
-            ));
+            observer.update(&self);
         }
     }
 }
