@@ -571,13 +571,13 @@ mod tests {
             ],
             vec![swap_quote_3y],
         );
-        let mut yts = YieldTermStructure::new(
+        let yts = YieldTermStructure::new(
             Box::new(Target::default()),
             Box::new(Actual365Fixed::default()),
             NaiveDate::from_ymd_opt(2023, 10, 27).unwrap(),
             Vec::new(),
         );
-        let observer = Rc::new(RefCell::new(yts)) as Rc<RefCell<dyn Observer>>;
+        let observer: Rc<RefCell<dyn Observer>> = Rc::new(RefCell::new(yts));
         yield_market_data.attach(Rc::clone(&observer));
         yield_market_data.notify_observers()?;
 
@@ -586,308 +586,259 @@ mod tests {
             yield_market_data.cash_quote[0].yts_type(),
             InterestRateQuoteEnum::OIS
         );
-        if let Some(yts_observer) = observer.as_any().downcast_ref::<YieldTermStructure>() {
+
+        if let Some(yts_observer) = observer
+            .borrow()
+            .as_any()
+            .downcast_ref::<YieldTermStructure>()
+        {
             assert_eq!(
-                yts_observer.borrow().stripped_curves[0].first_settle_date,
+                yts_observer.stripped_curves[0].first_settle_date,
                 NaiveDate::from_ymd_opt(2023, 10, 31).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[0].date,
+                yts_observer.stripped_curves[0].date,
                 NaiveDate::from_ymd_opt(2023, 11, 7).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[0].zero_rate,
+                yts_observer.stripped_curves[0].zero_rate,
                 0.03924300681889011
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[0].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[0].zero_rate)),
                 "0.0392430"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[0].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[0].discount)),
                 "0.998818"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[1].first_settle_date,
+                yts_observer.stripped_curves[1].first_settle_date,
                 NaiveDate::from_ymd_opt(2023, 10, 31).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[1].date,
+                yts_observer.stripped_curves[1].date,
                 NaiveDate::from_ymd_opt(2024, 1, 31).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[1].zero_rate,
+                yts_observer.stripped_curves[1].zero_rate,
                 0.03982775176238838
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[1].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[1].zero_rate)),
                 "0.0398278"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[1].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[1].discount)),
                 "0.989579"
             );
 
             // Futures Check
             assert_eq!(
-                yts_observer.borrow().stripped_curves[2].first_settle_date,
+                yts_observer.stripped_curves[2].first_settle_date,
                 NaiveDate::from_ymd_opt(2023, 11, 15).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[2].date,
+                yts_observer.stripped_curves[2].date,
                 NaiveDate::from_ymd_opt(2024, 2, 21).unwrap()
             );
             // TODO: should be 0.0398744
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[2].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[2].zero_rate)),
                 "0.0398650"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[2].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[2].discount)),
                 "0.987330"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[3].first_settle_date,
+                yts_observer.stripped_curves[3].first_settle_date,
                 NaiveDate::from_ymd_opt(2023, 12, 20).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[3].date,
+                yts_observer.stripped_curves[3].date,
                 NaiveDate::from_ymd_opt(2024, 3, 20).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[3].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[3].zero_rate)),
                 "0.0399327"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[3].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[3].discount)),
                 "0.984261"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[4].first_settle_date,
+                yts_observer.stripped_curves[4].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 1, 17).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[4].date,
+                yts_observer.stripped_curves[4].date,
                 NaiveDate::from_ymd_opt(2024, 4, 17).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[4].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[4].zero_rate)),
                 "0.0398607"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[4].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[4].discount)),
                 "0.981284"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[5].first_settle_date,
+                yts_observer.stripped_curves[5].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 2, 21).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[5].date,
+                yts_observer.stripped_curves[5].date,
                 NaiveDate::from_ymd_opt(2024, 5, 15).unwrap()
             );
             // TODO: should be 0.0396542 impacted by first futures
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[5].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[5].zero_rate)),
                 "0.0396488"
             );
             // TODO: should be 0.978400 impacted by first futures
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[5].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[5].discount)),
                 "0.978403"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[6].first_settle_date,
+                yts_observer.stripped_curves[6].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 3, 20).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[6].date,
+                yts_observer.stripped_curves[6].date,
                 NaiveDate::from_ymd_opt(2024, 6, 19).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[6].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[6].zero_rate)),
                 "0.0395053"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[6].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[6].discount)),
                 "0.974780"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[7].first_settle_date,
+                yts_observer.stripped_curves[7].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 4, 17).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[7].date,
+                yts_observer.stripped_curves[7].date,
                 NaiveDate::from_ymd_opt(2024, 7, 17).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[7].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[7].zero_rate)),
                 "0.0392935"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[7].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[7].discount)),
                 "0.971980"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[8].first_settle_date,
+                yts_observer.stripped_curves[8].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 6, 19).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[8].date,
+                yts_observer.stripped_curves[8].date,
                 NaiveDate::from_ymd_opt(2024, 9, 18).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[8].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[8].zero_rate)),
                 "0.0387501"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[8].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[8].discount)),
                 "0.965880"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[9].first_settle_date,
+                yts_observer.stripped_curves[9].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 9, 18).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[9].date,
+                yts_observer.stripped_curves[9].date,
                 NaiveDate::from_ymd_opt(2024, 12, 18).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[9].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[9].zero_rate)),
                 "0.0377918"
             );
             assert_eq!(
-                format!("{:.6}", (yts_observer.borrow().stripped_curves[9].discount)),
+                format!("{:.6}", (yts_observer.stripped_curves[9].discount)),
                 "0.957644"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[10].first_settle_date,
+                yts_observer.stripped_curves[10].first_settle_date,
                 NaiveDate::from_ymd_opt(2024, 12, 18).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[10].date,
+                yts_observer.stripped_curves[10].date,
                 NaiveDate::from_ymd_opt(2025, 3, 19).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[10].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[10].zero_rate)),
                 "0.0367648"
             );
             assert_eq!(
-                format!(
-                    "{:.6}",
-                    (yts_observer.borrow().stripped_curves[10].discount)
-                ),
+                format!("{:.6}", (yts_observer.stripped_curves[10].discount)),
                 "0.950023"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[11].first_settle_date,
+                yts_observer.stripped_curves[11].first_settle_date,
                 NaiveDate::from_ymd_opt(2025, 3, 19).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[11].date,
+                yts_observer.stripped_curves[11].date,
                 NaiveDate::from_ymd_opt(2025, 6, 18).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[11].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[11].zero_rate)),
                 "0.0357830"
             );
             assert_eq!(
-                format!(
-                    "{:.6}",
-                    (yts_observer.borrow().stripped_curves[11].discount)
-                ),
+                format!("{:.6}", (yts_observer.stripped_curves[11].discount)),
                 "0.942875"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[12].first_settle_date,
+                yts_observer.stripped_curves[12].first_settle_date,
                 NaiveDate::from_ymd_opt(2025, 6, 18).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[12].date,
+                yts_observer.stripped_curves[12].date,
                 NaiveDate::from_ymd_opt(2025, 9, 17).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[12].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[12].zero_rate)),
                 "0.0349137"
             );
             assert_eq!(
-                format!(
-                    "{:.6}",
-                    (yts_observer.borrow().stripped_curves[12].discount)
-                ),
+                format!("{:.6}", (yts_observer.stripped_curves[12].discount)),
                 "0.936040"
             );
 
             assert_eq!(
-                yts_observer.borrow().stripped_curves[13].first_settle_date,
+                yts_observer.stripped_curves[13].first_settle_date,
                 NaiveDate::from_ymd_opt(2025, 9, 17).unwrap()
             );
             assert_eq!(
-                yts_observer.borrow().stripped_curves[13].date,
+                yts_observer.stripped_curves[13].date,
                 NaiveDate::from_ymd_opt(2025, 12, 17).unwrap()
             );
             assert_eq!(
-                format!(
-                    "{:.7}",
-                    (yts_observer.borrow().stripped_curves[13].zero_rate)
-                ),
+                format!("{:.7}", (yts_observer.stripped_curves[13].zero_rate)),
                 "0.0341870"
             );
             assert_eq!(
-                format!(
-                    "{:.6}",
-                    (yts_observer.borrow().stripped_curves[13].discount)
-                ),
+                format!("{:.6}", (yts_observer.stripped_curves[13].discount)),
                 "0.929373"
             );
 
@@ -895,7 +846,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.6}",
-                    yts_observer.borrow().zero_rate(
+                    yts_observer.zero_rate(
                         NaiveDate::from_ymd_opt(2024, 1, 27).unwrap(),
                         &InterpolationMethodEnum::StepFunctionForward,
                     )?
@@ -907,7 +858,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.6}",
-                    yts_observer.borrow().zero_rate(
+                    yts_observer.zero_rate(
                         NaiveDate::from_ymd_opt(2024, 2, 27).unwrap(),
                         &InterpolationMethodEnum::StepFunctionForward,
                     )?
@@ -918,7 +869,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.6}",
-                    yts_observer.borrow().zero_rate(
+                    yts_observer.zero_rate(
                         NaiveDate::from_ymd_opt(2024, 3, 27).unwrap(),
                         &InterpolationMethodEnum::StepFunctionForward,
                     )?
@@ -930,7 +881,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.7}",
-                    yts_observer.borrow().forward_rate(
+                    yts_observer.forward_rate(
                         NaiveDate::from_ymd_opt(2023, 12, 27).unwrap(),
                         Period::Months(1),
                         &InterpolationMethodEnum::StepFunctionForward,
@@ -943,7 +894,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.6}",
-                    yts_observer.borrow().forward_rate(
+                    yts_observer.forward_rate(
                         NaiveDate::from_ymd_opt(2024, 1, 27).unwrap(),
                         Period::Months(1),
                         &InterpolationMethodEnum::StepFunctionForward,
@@ -956,7 +907,7 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:.6}",
-                    yts_observer.borrow().forward_rate(
+                    yts_observer.forward_rate(
                         NaiveDate::from_ymd_opt(2024, 2, 27).unwrap(),
                         Period::Months(1),
                         &InterpolationMethodEnum::StepFunctionForward,
