@@ -86,12 +86,13 @@ pub struct StrippedCurve {
 }
 
 /// Market Data for Yield
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct YieldTermMarketData {
     pub valuation_date: NaiveDate,
     pub cash_quote: Vec<OISRate>,
     pub futures_quote: Vec<FuturesRate>,
     pub swap_quote: Vec<InterestRateSwap>,
+    #[serde(skip_serializing)]
     observers: RefCell<Vec<Weak<RefCell<dyn Observer>>>>,
 }
 
