@@ -163,6 +163,7 @@ impl Calendar for SouthKorea {
             // Special temporary holiday
             || (d == 17 && m == 8 && y == 2020)
             || (d == 2 && m == 10 && y == 2023)
+            || (d == 1 && m == 10 && y == 2024)
 
             // Harvest Moon Day
             || ((d == 27 || d == 28 || d == 29) && m == 9 && y == 2004)

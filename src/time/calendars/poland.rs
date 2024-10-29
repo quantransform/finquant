@@ -5,12 +5,19 @@ use crate::time::calendars::Calendar;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct Poland;
+#[derive(Deserialize, Serialize, Debug)]
+pub enum PolandMarket {
+    Settlement,
+    WSE,
+}
 
-#[typetag::serde]
-impl Calendar for Poland {
-    fn is_business_day(&self, date: NaiveDate) -> bool {
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct Poland {
+    pub market: Option<PolandMarket>,
+}
+
+impl Poland {
+    fn settlement_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, _w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
 
@@ -43,11 +50,30 @@ impl Calendar for Poland {
             true
         }
     }
+
+    fn wse_is_business_day(&self, date: NaiveDate) -> bool {
+        let (d, _w, m, _y, _dd) = self.naive_date_to_dkmy(date);
+        return if (d == 24 && m == 12) || (d == 31 && m == 12) {
+            false
+        } else {
+            self.settlement_is_business_day(date)
+        };
+    }
+}
+#[typetag::serde]
+impl Calendar for Poland {
+    fn is_business_day(&self, date: NaiveDate) -> bool {
+        match self.market {
+            Some(PolandMarket::Settlement) => self.settlement_is_business_day(date),
+            Some(PolandMarket::WSE) => self.wse_is_business_day(date),
+            None => self.settlement_is_business_day(date),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Poland;
+    use super::{Poland, PolandMarket};
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
 
@@ -87,7 +113,25 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
-            assert_eq!(Poland.is_business_day(target_date), expected);
+            assert_eq!(Poland::default().is_business_day(target_date), expected);
         }
+    }
+    #[test]
+    fn test_poland_diff_markets() {
+        let target_date = NaiveDate::from_ymd_opt(2024, 12, 24).unwrap();
+        assert_eq!(
+            Poland {
+                market: Some(PolandMarket::Settlement)
+            }
+            .is_business_day(target_date),
+            true
+        );
+        assert_eq!(
+            Poland {
+                market: Some(PolandMarket::WSE)
+            }
+            .is_business_day(target_date),
+            false
+        );
     }
 }

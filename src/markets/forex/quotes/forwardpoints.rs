@@ -1,20 +1,33 @@
-use chrono::NaiveDate;
-
 use crate::error::Result;
+use crate::patterns::observer::{Observable, Observer};
 use crate::time::calendars::Calendar;
 use crate::time::period::Period;
+use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
+use std::any::Any;
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct FXForwardQuote {
     pub tenor: Period,
     pub value: f64,
 }
 
+#[derive(Serialize, Debug)]
 pub struct FXForwardHelper {
     pub quotes: Vec<FXForwardQuote>,
+    #[serde(skip_serializing)]
+    observers: RefCell<Vec<Weak<RefCell<dyn Observer>>>>,
 }
 
 impl FXForwardHelper {
+    pub fn new(quotes: Vec<FXForwardQuote>) -> Self {
+        Self {
+            quotes,
+            observers: RefCell::new(Vec::new()),
+        }
+    }
     pub fn get_forward(
         &self,
         valuation_date: NaiveDate,
@@ -67,6 +80,28 @@ impl FXForwardHelper {
     }
 }
 
+impl Observable for FXForwardHelper {
+    fn attach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.borrow_mut().push(Rc::downgrade(&observer));
+    }
+
+    fn notify_observers(&self) -> Result<()> {
+        let observers = self
+            .observers
+            .borrow()
+            .iter()
+            .filter_map(|observer_weak| observer_weak.upgrade())
+            .collect::<Vec<_>>();
+        for observer_rc in observers {
+            observer_rc.borrow_mut().update(self)?;
+        }
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::{FXForwardHelper, FXForwardQuote};
@@ -240,62 +275,60 @@ mod tests {
             Box::new(UnitedKingdom::default()),
         ]);
 
-        let fx_forward_helper = FXForwardHelper {
-            quotes: vec![
-                FXForwardQuote {
-                    tenor: Period::SPOT,
-                    value: 0f64,
-                },
-                FXForwardQuote {
-                    tenor: Period::SN,
-                    value: 0.06,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(1),
-                    value: 0.39,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(2),
-                    value: 0.85,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(3),
-                    value: 1.24,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(1),
-                    value: 1.83,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(2),
-                    value: 3.40,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(3),
-                    value: 8.05,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(4),
-                    value: 9.94,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(5),
-                    value: 11.54,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(6),
-                    value: 13.12,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(9),
-                    value: 15.87,
-                },
-                FXForwardQuote {
-                    tenor: Period::Years(1),
-                    value: 16.18,
-                },
-            ],
-        };
+        let fx_forward_helper = FXForwardHelper::new(vec![
+            FXForwardQuote {
+                tenor: Period::SPOT,
+                value: 0f64,
+            },
+            FXForwardQuote {
+                tenor: Period::SN,
+                value: 0.06,
+            },
+            FXForwardQuote {
+                tenor: Period::Weeks(1),
+                value: 0.39,
+            },
+            FXForwardQuote {
+                tenor: Period::Weeks(2),
+                value: 0.85,
+            },
+            FXForwardQuote {
+                tenor: Period::Weeks(3),
+                value: 1.24,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(1),
+                value: 1.83,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(2),
+                value: 3.40,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(3),
+                value: 8.05,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(4),
+                value: 9.94,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(5),
+                value: 11.54,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(6),
+                value: 13.12,
+            },
+            FXForwardQuote {
+                tenor: Period::Months(9),
+                value: 15.87,
+            },
+            FXForwardQuote {
+                tenor: Period::Years(1),
+                value: 16.18,
+            },
+        ]);
 
         let first_target_date = NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let cal_output = f64::trunc(
