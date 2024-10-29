@@ -53,11 +53,11 @@ impl Poland {
 
     fn wse_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, _w, m, _y, _dd) = self.naive_date_to_dkmy(date);
-        return if (d == 24 && m == 12) || (d == 31 && m == 12) {
+        if (d == 24 || d == 31) && m == 12 {
             false
         } else {
             self.settlement_is_business_day(date)
-        };
+        }
     }
 }
 #[typetag::serde]
@@ -119,6 +119,7 @@ mod tests {
     #[test]
     fn test_poland_diff_markets() {
         let target_date = NaiveDate::from_ymd_opt(2024, 12, 24).unwrap();
+        let same_result_date = NaiveDate::from_ymd_opt(2024, 12, 25).unwrap();
         assert_eq!(
             Poland {
                 market: Some(PolandMarket::Settlement)
@@ -132,6 +133,16 @@ mod tests {
             }
             .is_business_day(target_date),
             false
+        );
+        assert_eq!(
+            Poland {
+                market: Some(PolandMarket::Settlement)
+            }
+            .is_business_day(same_result_date),
+            Poland {
+                market: Some(PolandMarket::WSE)
+            }
+            .is_business_day(same_result_date),
         );
     }
 }
