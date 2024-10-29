@@ -33,7 +33,7 @@
    - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
      - Forward
        - [x] forward points generator
-       - [x] pricing + greeks 
+       - [ ] pricing + greeks 
      - Option
        - [ ] implied vol generator
        - [ ] pricing + greeks
