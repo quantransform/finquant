@@ -33,14 +33,18 @@
    - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
      - Forward
        - [x] forward points generator
-       - [ ] discount + other pricing
+       - [x] pricing + greeks 
      - Option
+       - [ ] implied vol generator
+       - [ ] pricing + greeks
    - Simulator
+     - [ ] Monte Carlo
 4. Interest rate markets
    - Pricer
      - [ ] Swap
      - [ ] Cap/Floor
    - Simulator
+     - [ ] Monte Carlo
 
 
 [crates-badge]: https://img.shields.io/crates/v/finquant.svg
