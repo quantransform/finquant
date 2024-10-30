@@ -2,6 +2,7 @@ use crate::derivatives::basic::BasicInfo;
 use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
 use crate::error::{Error, Result};
 use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
+use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +16,11 @@ pub struct FXForward {
 }
 
 impl FXDerivatives for FXForward {
-    fn mtm(&self, fx_forward_helper: FXForwardHelper) -> Result<CurrencyValue> {
+    fn mtm(
+        &self,
+        fx_forward_helper: FXForwardHelper,
+        yield_term_structure: YieldTermStructure,
+    ) -> Result<CurrencyValue> {
         // TODO: add discount
         let calendar = self.asset.calendar();
         let forward_points = fx_forward_helper
@@ -28,7 +33,11 @@ impl FXDerivatives for FXForward {
                 ))
             })?;
         let outright_forward = fx_forward_helper.spot_ref + forward_points;
-        let mtm = if self.notional_currency == self.asset.frn_currency() {
+        let discount_factor = yield_term_structure.discount(
+            self.basic_info.expiry_date,
+            &InterpolationMethodEnum::PiecewiseLinearContinuous,
+        )?;
+        let payoff = if self.notional_currency == self.asset.frn_currency() {
             self.notional_amounts
                 * self.basic_info.direction as i8 as f64
                 * (outright_forward - self.strike)
@@ -39,7 +48,7 @@ impl FXDerivatives for FXForward {
         };
         Ok(CurrencyValue {
             currency: self.asset.dom_currency(),
-            value: mtm,
+            value: payoff * discount_factor,
         })
     }
 
