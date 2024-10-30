@@ -1,6 +1,6 @@
 [package]
 name = "finquant"
-version = "0.0.50"
+version = "0.0.51"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 edition = "2021"
 license = "MIT"
@@ -14,7 +14,7 @@ repository = "https://github.com/quantransform/finquant"
 [dependencies]
 chrono = { version = "^0.4.38", features = ["serde"] }
 float_eq = "^1.0.1"
-iso_currency = { version = "^0.4.4", features = ["with-serde"] }
+iso_currency = { version = "^0.5.0", features = ["with-serde"] }
 roots = "^0.0.8"
 serde = { version = "^1.0.198", features = ["derive"] }
 serde_json = "^1.0.116"
@@ -24,4 +24,4 @@ thiserror = "^1.0.58"
 typetag = "^0.2.16"
 
 [dev-dependencies]
-rstest = "^0.19.0"
+rstest = "^0.23.0"
