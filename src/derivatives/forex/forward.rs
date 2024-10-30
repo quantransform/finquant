@@ -1,5 +1,7 @@
 use crate::derivatives::basic::BasicInfo;
-use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
+use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
+use crate::error::{Error, Result};
+use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
@@ -13,12 +15,44 @@ pub struct FXForward {
 }
 
 impl FXDerivatives for FXForward {
-    fn delta(&self) -> f64 {
-        if self.notional_currency == self.asset.frn_currency() {
+    fn mtm(&self, fx_forward_helper: FXForwardHelper) -> Result<CurrencyValue> {
+        // TODO: add discount
+        let calendar = self.asset.calendar();
+        let forward_points = fx_forward_helper
+            .get_forward(self.basic_info.expiry_date, &calendar)
+            .unwrap()
+            .ok_or_else(|| {
+                Error::TradeExpired(format!(
+                    "Trade expired at {} before {}",
+                    self.basic_info.expiry_date, fx_forward_helper.valuation_date
+                ))
+            })?;
+        let outright_forward = fx_forward_helper.spot_ref + forward_points;
+        let mtm = if self.notional_currency == self.asset.frn_currency() {
+            self.notional_amounts
+                * self.basic_info.direction as i8 as f64
+                * (outright_forward - self.strike)
+        } else {
+            -self.notional_amounts / self.strike
+                * self.basic_info.direction as i8 as f64
+                * (outright_forward - self.strike)
+        };
+        Ok(CurrencyValue {
+            currency: self.asset.dom_currency(),
+            value: mtm,
+        })
+    }
+
+    fn delta(&self) -> Result<CurrencyValue> {
+        let delta = if self.notional_currency == self.asset.frn_currency() {
             self.notional_amounts * self.basic_info.direction as i8 as f64
         } else {
             -self.notional_amounts / self.strike * self.basic_info.direction as i8 as f64
-        }
+        };
+        Ok(CurrencyValue {
+            currency: self.asset.frn_currency(),
+            value: delta,
+        })
     }
 
     fn gamma(&self) -> f64 {
@@ -33,7 +67,8 @@ impl FXDerivatives for FXForward {
 mod tests {
     use super::FXForward;
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
-    use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
+    use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
+    use crate::error::Result;
     use chrono::NaiveDate;
     use iso_currency::Currency;
 
@@ -61,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fx_forward_delta() {
+    fn test_fx_forward_delta() -> Result<()> {
         let trade_date = NaiveDate::from_ymd_opt(2023, 10, 11).unwrap();
         let fx_forward = FXForward {
             basic_info: BasicInfo {
@@ -76,7 +111,13 @@ mod tests {
             notional_amounts: 123456.78,
             strike: 1.0657,
         };
-        assert_eq!(fx_forward.delta(), 123456.78);
+        assert_eq!(
+            fx_forward.delta()?,
+            CurrencyValue {
+                currency: Currency::from_code("EUR").unwrap(),
+                value: 123456.78
+            }
+        );
         assert_eq!(fx_forward.gamma(), 0f64);
         assert_eq!(fx_forward.vega(), 0f64);
 
@@ -93,7 +134,13 @@ mod tests {
             notional_amounts: 123456.78,
             strike: 1.0657,
         };
-        assert_eq!(fx_forward.delta(), -123456.78);
+        assert_eq!(
+            fx_forward.delta()?,
+            CurrencyValue {
+                currency: Currency::from_code("EUR").unwrap(),
+                value: -123456.78
+            }
+        );
 
         let fx_forward = FXForward {
             basic_info: BasicInfo {
@@ -108,7 +155,13 @@ mod tests {
             notional_amounts: 123456.78,
             strike: 1.0657,
         };
-        assert_eq!(fx_forward.delta(), -123456.78 / 1.0657);
+        assert_eq!(
+            fx_forward.delta()?,
+            CurrencyValue {
+                currency: Currency::from_code("EUR").unwrap(),
+                value: -123456.78 / 1.0657
+            }
+        );
 
         let fx_forward = FXForward {
             basic_info: BasicInfo {
@@ -123,6 +176,14 @@ mod tests {
             notional_amounts: 123456.78,
             strike: 1.0657,
         };
-        assert_eq!(fx_forward.delta(), 123456.78 / 1.0657);
+        assert_eq!(
+            fx_forward.delta()?,
+            CurrencyValue {
+                currency: Currency::from_code("EUR").unwrap(),
+                value: 123456.78 / 1.0657
+            }
+        );
+
+        Ok(())
     }
 }

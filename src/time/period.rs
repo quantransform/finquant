@@ -28,7 +28,7 @@ impl Period {
     pub fn settlement_date(
         &self,
         valuation_date: NaiveDate,
-        calendar: &impl Calendar,
+        calendar: &dyn Calendar,
     ) -> Result<NaiveDate> {
         // TODO: Change spot as T+2 to be linked to currency.
         let target_date = match self {

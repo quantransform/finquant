@@ -1,27 +1,44 @@
-use chrono::NaiveDate;
-
 use crate::error::Result;
+use crate::patterns::observer::{Observable, Observer};
 use crate::time::calendars::Calendar;
 use crate::time::period::Period;
+use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
+use std::any::Any;
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct FXForwardQuote {
     pub tenor: Period,
     pub value: f64,
 }
 
+#[derive(Serialize, Debug)]
 pub struct FXForwardHelper {
+    pub valuation_date: NaiveDate,
+    pub spot_ref: f64,
     pub quotes: Vec<FXForwardQuote>,
+    #[serde(skip_serializing)]
+    observers: RefCell<Vec<Weak<RefCell<dyn Observer>>>>,
 }
 
 impl FXForwardHelper {
+    pub fn new(valuation_date: NaiveDate, spot_ref: f64, quotes: Vec<FXForwardQuote>) -> Self {
+        Self {
+            valuation_date,
+            spot_ref,
+            quotes,
+            observers: RefCell::new(Vec::new()),
+        }
+    }
+
     pub fn get_forward(
         &self,
-        valuation_date: NaiveDate,
         target_date: NaiveDate,
-        calendar: &impl Calendar,
+        calendar: &dyn Calendar,
     ) -> Result<Option<f64>> {
-        if valuation_date >= target_date {
+        if self.valuation_date >= target_date {
             Ok(None)
         } else {
             let (mut before_quotes, mut after_quotes): (Vec<_>, Vec<_>) =
@@ -29,7 +46,7 @@ impl FXForwardHelper {
                     // TODO (DS): clean up these partition calls as we can't just use ? here
                     quote
                         .tenor
-                        .settlement_date(valuation_date, calendar)
+                        .settlement_date(self.valuation_date, calendar)
                         .unwrap()
                         < target_date
                 });
@@ -40,23 +57,23 @@ impl FXForwardHelper {
                 before_quotes.sort_by_key(|&fx_frd_quote| {
                     fx_frd_quote
                         .tenor
-                        .settlement_date(valuation_date, calendar)
+                        .settlement_date(self.valuation_date, calendar)
                         .unwrap()
                 });
                 after_quotes.sort_by_key(|&fx_frd_quote| {
                     fx_frd_quote
                         .tenor
-                        .settlement_date(valuation_date, calendar)
+                        .settlement_date(self.valuation_date, calendar)
                         .unwrap()
                 });
                 let before_quote = before_quotes.last().unwrap();
                 let after_quote = after_quotes.first().unwrap();
                 let start_date = before_quote
                     .tenor
-                    .settlement_date(valuation_date, calendar)?;
+                    .settlement_date(self.valuation_date, calendar)?;
                 let end_date = after_quote
                     .tenor
-                    .settlement_date(valuation_date, calendar)?;
+                    .settlement_date(self.valuation_date, calendar)?;
                 let total_day_count = (end_date - start_date).num_days() as f64;
                 let target_day_count = (target_date - start_date).num_days() as f64;
                 let forward_points =
@@ -67,6 +84,28 @@ impl FXForwardHelper {
     }
 }
 
+impl Observable for FXForwardHelper {
+    fn attach(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.borrow_mut().push(Rc::downgrade(&observer));
+    }
+
+    fn notify_observers(&self) -> Result<()> {
+        let observers = self
+            .observers
+            .borrow()
+            .iter()
+            .filter_map(|observer_weak| observer_weak.upgrade())
+            .collect::<Vec<_>>();
+        for observer_rc in observers {
+            observer_rc.borrow_mut().update(self)?;
+        }
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::{FXForwardHelper, FXForwardQuote};
@@ -239,9 +278,11 @@ mod tests {
             Box::new(UnitedStates::default()),
             Box::new(UnitedKingdom::default()),
         ]);
-
-        let fx_forward_helper = FXForwardHelper {
-            quotes: vec![
+        let spot_ref = 1.1f64;
+        let fx_forward_helper = FXForwardHelper::new(
+            valuation_date,
+            spot_ref,
+            vec![
                 FXForwardQuote {
                     tenor: Period::SPOT,
                     value: 0f64,
@@ -295,20 +336,19 @@ mod tests {
                     value: 16.18,
                 },
             ],
-        };
+        );
 
         let first_target_date = NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let cal_output = f64::trunc(
             fx_forward_helper
-                .get_forward(valuation_date, first_target_date, &calendar)?
+                .get_forward(first_target_date, &calendar)?
                 .unwrap()
                 * 100.0,
         ) / 100.0;
         assert_eq!(cal_output, 9.64);
 
         let second_target_date = NaiveDate::from_ymd_opt(2034, 2, 15).unwrap();
-        let cal_output =
-            fx_forward_helper.get_forward(valuation_date, second_target_date, &calendar)?;
+        let cal_output = fx_forward_helper.get_forward(second_target_date, &calendar)?;
         assert_eq!(cal_output, None);
 
         Ok(())
