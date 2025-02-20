@@ -91,7 +91,7 @@ pub trait FXDerivatives {
     fn mtm(
         &self,
         fx_forward_helper: FXForwardHelper,
-        yield_term_structure: YieldTermStructure,
+        yield_term_structure: &YieldTermStructure,
     ) -> Result<CurrencyValue>;
     fn delta(&self) -> Result<CurrencyValue>;
     fn gamma(&self) -> f64;
