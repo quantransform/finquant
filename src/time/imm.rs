@@ -169,7 +169,7 @@ impl IMM {
 
 #[cfg(test)]
 mod tests {
-    use super::{IMMMonth, IMM};
+    use super::{IMM, IMMMonth};
     use chrono::NaiveDate;
     use std::str::FromStr;
     use strum::IntoEnumIterator;

@@ -7,8 +7,8 @@ use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{
     InterestRateQuote, InterestRateQuoteEnum, StrippedCurve,
 };
-use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::imm::IMM;
 
 /// Interest rate futures.

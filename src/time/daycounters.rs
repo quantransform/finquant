@@ -28,8 +28,8 @@ pub trait DayCounters: Debug {
 #[cfg(test)]
 mod tests {
     use crate::error::Result;
-    use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use crate::time::daycounters::DayCounters;
+    use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use chrono::NaiveDate;
 
     #[test]
