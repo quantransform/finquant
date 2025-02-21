@@ -14,9 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly-2024
+      - uses: dtolnay/rust-toolchain@stable  # Ensures latest stable Rust is used
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Rustfmt
@@ -27,8 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly-2024
       - name: Build
         run: cargo build --verbose
       - name: Run tests
@@ -39,8 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly-2024
       - name: Install Tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Coverage Report
