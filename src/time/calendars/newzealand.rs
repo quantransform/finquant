@@ -81,7 +81,7 @@ impl NewZealand {
         }
         let (d, w, m, _, _) = self.naive_date_to_dkmy(date);
         // Anniversary Day, Monday nearest January 22nd
-        !((19..=25).contains(&d) && w == Weekday::Mon && m == 1) 
+        !((19..=25).contains(&d) && w == Weekday::Mon && m == 1)
     }
     fn auckland_is_business_day(&self, date: NaiveDate) -> bool {
         if !self.common_is_business_day(date) {
@@ -146,7 +146,13 @@ mod tests {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
             assert_eq!(NewZealand::default().is_business_day(target_date), expected);
-            assert_eq!(NewZealand{market: Some(NewZealandMarket::Wellington)}.is_business_day(target_date), expected);
+            assert_eq!(
+                NewZealand {
+                    market: Some(NewZealandMarket::Wellington)
+                }
+                .is_business_day(target_date),
+                expected
+            );
         }
     }
 }
