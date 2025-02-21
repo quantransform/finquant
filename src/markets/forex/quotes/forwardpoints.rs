@@ -108,8 +108,8 @@ impl Observable for FXForwardHelper {
 }
 #[cfg(test)]
 mod tests {
-    use super::{FXForwardHelper, FXForwardQuote};
     use crate::error::Result;
+    use crate::tests::common::{sample_fx_forward_helper, setup};
     use crate::time::calendars::JointCalendar;
     use crate::time::calendars::Target;
     use crate::time::calendars::UnitedKingdom;
@@ -273,70 +273,12 @@ mod tests {
 
     #[test]
     fn test_forward_points() -> Result<()> {
-        let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
+        setup();
+        let fx_forward_helper = sample_fx_forward_helper();
         let calendar = JointCalendar::new(vec![
             Box::new(UnitedStates::default()),
             Box::new(UnitedKingdom::default()),
         ]);
-        let spot_ref = 1.1f64;
-        let fx_forward_helper = FXForwardHelper::new(
-            valuation_date,
-            spot_ref,
-            vec![
-                FXForwardQuote {
-                    tenor: Period::SPOT,
-                    value: 0f64,
-                },
-                FXForwardQuote {
-                    tenor: Period::SN,
-                    value: 0.06,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(1),
-                    value: 0.39,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(2),
-                    value: 0.85,
-                },
-                FXForwardQuote {
-                    tenor: Period::Weeks(3),
-                    value: 1.24,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(1),
-                    value: 1.83,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(2),
-                    value: 3.40,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(3),
-                    value: 8.05,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(4),
-                    value: 9.94,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(5),
-                    value: 11.54,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(6),
-                    value: 13.12,
-                },
-                FXForwardQuote {
-                    tenor: Period::Months(9),
-                    value: 15.87,
-                },
-                FXForwardQuote {
-                    tenor: Period::Years(1),
-                    value: 16.18,
-                },
-            ],
-        );
 
         let first_target_date = NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let cal_output = f64::trunc(

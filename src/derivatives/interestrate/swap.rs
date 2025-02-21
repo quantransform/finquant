@@ -231,7 +231,7 @@ impl InterestRateSwap {
         &'a self,
         zero_rate: f64,
         stripped_curves: &'a mut Vec<StrippedCurve>,
-    ) -> Result<&mut Vec<StrippedCurve>> {
+    ) -> Result<&'a mut Vec<StrippedCurve>> {
         stripped_curves.last_mut().unwrap().zero_rate = zero_rate;
         Ok(stripped_curves)
     }

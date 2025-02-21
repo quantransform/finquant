@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
+use crate::markets::termstructures::yieldcurve::YieldTermStructure;
 use crate::time::calendars::{
     Calendar, Canada, Japan, JointCalendar, Target, UnitedKingdom, UnitedStates,
 };
@@ -87,7 +88,11 @@ pub struct CurrencyValue {
 }
 
 pub trait FXDerivatives {
-    fn mtm(&self, fx_forward_helper: FXForwardHelper) -> Result<CurrencyValue>;
+    fn mtm(
+        &self,
+        fx_forward_helper: FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<CurrencyValue>;
     fn delta(&self) -> Result<CurrencyValue>;
     fn gamma(&self) -> f64;
     fn vega(&self) -> f64;
