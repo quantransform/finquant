@@ -10,9 +10,9 @@ use crate::markets::termstructures::yieldcurve::oisratehelper::OISRate;
 use crate::markets::termstructures::yieldcurve::ratehelper::FuturesRate;
 use crate::patterns::observer::{Observable, Observer};
 use crate::time::calendars::Calendar;
-use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
-use crate::time::period::{Period, ONE_DAY};
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
+use crate::time::period::{ONE_DAY, Period};
 
 pub mod oisratehelper;
 pub mod ratehelper;

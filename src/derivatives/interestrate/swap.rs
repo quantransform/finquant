@@ -10,11 +10,11 @@ use crate::markets::termstructures::yieldcurve::{
 };
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::{Calendar, Target};
-use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
-use roots::{find_root_brent, SimpleConvergency};
+use roots::{SimpleConvergency, find_root_brent};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum InterestRateSwapLegType {

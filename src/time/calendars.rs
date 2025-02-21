@@ -154,7 +154,7 @@ pub use unitedkingdom::UnitedKingdom;
 pub mod unitedstates;
 pub use unitedstates::UnitedStates;
 pub mod weekendsonly;
-use crate::time::period::{Period, ONE_DAY};
+use crate::time::period::{ONE_DAY, Period};
 pub use weekendsonly::WeekendsOnly;
 
 #[typetag::serde(tag = "type")]

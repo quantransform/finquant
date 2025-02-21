@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::time::businessdayconvention::BusinessDayConvention;
 use crate::time::calendars::{Calendar, Target};
-use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::imm::IMM;
 use crate::time::period::Period;
 

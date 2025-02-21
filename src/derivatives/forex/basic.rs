@@ -4,9 +4,9 @@ use crate::markets::termstructures::yieldcurve::YieldTermStructure;
 use crate::time::calendars::{
     Calendar, Canada, Japan, JointCalendar, Target, UnitedKingdom, UnitedStates,
 };
+use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual360::Actual360;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
-use crate::time::daycounters::DayCounters;
 use chrono::NaiveTime;
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
@@ -102,8 +102,8 @@ pub trait FXDerivatives {
 mod tests {
     use super::FXUnderlying;
     use crate::error::Result;
-    use crate::time::daycounters::actual360::Actual360;
     use crate::time::daycounters::DayCounters;
+    use crate::time::daycounters::actual360::Actual360;
     use chrono::{NaiveDate, NaiveTime};
     use iso_currency::Currency;
 

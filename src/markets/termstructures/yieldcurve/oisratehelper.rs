@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
 use crate::markets::termstructures::yieldcurve::{InterestRateQuote, InterestRateQuoteEnum};
-use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::daycounters::DayCounters;
+use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::period::Period;
 
 #[derive(Deserialize, Serialize, Debug)]
