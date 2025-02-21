@@ -2,7 +2,7 @@
 name = "finquant"
 version = "0.0.53"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "Experimental Rust Quant Library"
 keywords = ["quant", "calendar", "market-risks", "rates", "derivatives",]
