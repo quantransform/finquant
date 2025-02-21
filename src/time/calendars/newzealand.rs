@@ -5,12 +5,18 @@ use crate::time::calendars::Calendar;
 use chrono::{NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
 
+#[derive(Deserialize, Serialize, Debug)]
+pub enum NewZealandMarket {
+    Wellington,
+    Auckland,
+}
 #[derive(Deserialize, Serialize, Default, Debug)]
-pub struct NewZealand;
+pub struct NewZealand {
+    pub market: Option<NewZealandMarket>,
+}
 
-#[typetag::serde]
-impl Calendar for NewZealand {
-    fn is_business_day(&self, date: NaiveDate) -> bool {
+impl NewZealand {
+    fn common_is_business_day(&self, date: NaiveDate) -> bool {
         let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
 
@@ -21,16 +27,14 @@ impl Calendar for NewZealand {
             // Day after New Year's Day (possibly moved to Mon or Weekday::Tue)
             || ((d == 2 || (d == 4 && (w == Weekday::Mon || w == Weekday::Tue))) &&
             m == 1)
-            // Anniversary Day, Weekday::Mon nearest 1 22nd
-            || ((19..=25).contains(&d) && w == Weekday::Mon && m == 1)
-            // Waitangi Day. 2 6th ("Weekday::Monised" since 2013)
+            // Waitangi Day. February 6th (possibly moved to Monday since 2013)
             || (d == 6 && m == 2)
             || ((d == 7 || d == 8) && w == Weekday::Mon && m == 2 && y > 2013)
             // Good Friday
             || (dd == em-3)
             // Easter Weekday::Mon
             || (dd == em)
-            // ANZAC Day. 4 25th ("Weekday::Monised" since 2013)
+            // ANZAC Day. April 25th (possibly moved to Monday since 2013)
             || (d == 25 && m == 4)
             || ((d == 26 || d == 27) && w == Weekday::Mon && m == 4 && y > 2013)
             // Queen's Birthday, first Weekday::Mon in 6
@@ -63,17 +67,45 @@ impl Calendar for NewZealand {
             || (d == 15 && m == 7 && (y == 2039 || y == 2050))
             || (d == 18 && m == 7 && y == 2036)
             || (d == 19 && m == 7 && (y == 2041 || y == 2047))
+            // Queen Elizabeth's funeral
+            || (d == 26 && m == 9 && y == 2022)
         {
             false
         } else {
             true
         }
     }
+    fn wellington_is_business_day(&self, date: NaiveDate) -> bool {
+        if !self.common_is_business_day(date) {
+            return false;
+        }
+        let (d, w, m, _, _) = self.naive_date_to_dkmy(date);
+        // Anniversary Day, Monday nearest January 22nd
+        !((19..=25).contains(&d) && w == Weekday::Mon && m == 1) 
+    }
+    fn auckland_is_business_day(&self, date: NaiveDate) -> bool {
+        if !self.common_is_business_day(date) {
+            return false;
+        }
+        let (d, w, m, _, _) = self.naive_date_to_dkmy(date);
+        // Anniversary Day, Monday nearest January 29nd
+        !(((d >= 26) && w == Weekday::Mon && m == 1) || ((d == 1) && w == Weekday::Mon && m == 2))
+    }
+}
+#[typetag::serde]
+impl Calendar for NewZealand {
+    fn is_business_day(&self, date: NaiveDate) -> bool {
+        match self.market {
+            Some(NewZealandMarket::Wellington) => self.wellington_is_business_day(date),
+            Some(NewZealandMarket::Auckland) => self.auckland_is_business_day(date),
+            None => self.wellington_is_business_day(date),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::NewZealand;
+    use super::{NewZealand, NewZealandMarket};
     use crate::time::calendars::Calendar;
     use chrono::{Duration, NaiveDate};
 
@@ -113,7 +145,8 @@ mod tests {
         for n in 0i32..365 {
             let target_date = first_date + Duration::try_days(n as i64).unwrap();
             let expected = expected_results_for_2023[n as usize];
-            assert_eq!(NewZealand.is_business_day(target_date), expected);
+            assert_eq!(NewZealand::default().is_business_day(target_date), expected);
+            assert_eq!(NewZealand{market: Some(NewZealandMarket::Wellington)}.is_business_day(target_date), expected);
         }
     }
 }
