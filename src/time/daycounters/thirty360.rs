@@ -30,25 +30,31 @@ impl Thirty360 {
     }
 
     fn us_day_count(&self, d1: NaiveDate, d2: NaiveDate) -> i64 {
-        let mut dd1 = d1.day() as i64;
-        let mut dd2 = d2.day() as i64;
-        let mm1 = d1.month() as i64;
-        let mm2 = d2.month() as i64;
-        let yy1 = d1.year() as i64;
-        let yy2 = d2.year() as i64;
-        if dd1 == 31 {
+        let (mut dd1, mut dd2) = (d1.day() as i64, d2.day() as i64);
+        let (mm1, mm2) = (d1.month() as i64, d2.month() as i64);
+        let (yy1, yy2) = (d1.year() as i64, d2.year() as i64);
+
+        // Apply 30/360 US day count convention
+        // Rule 1: If d1 is the last day of February, set dd1 = 30
+        // Rule 2: If d1 and d2 are both the last day of February, set dd2 = 30
+        if self.is_last_of_february(d1) {
             dd1 = 30;
+            if self.is_last_of_february(d2) {
+                dd2 = 30;
+            }
         }
+
+        // Rule 3: If d2 is 31 and d1 is 30 or 31, set dd2 = 30
         if dd2 == 31 && dd1 >= 30 {
             dd2 = 30;
         }
 
-        if self.is_last_of_february(d2) && self.is_last_of_february(d1) {
-            dd2 = 30;
-        }
-        if self.is_last_of_february(d1) {
+        // Rule 4: If d1 is 31, set dd1 = 30
+        if dd1 == 31 {
             dd1 = 30;
         }
+
+        // Final formula
         360 * (yy2 - yy1) + 30 * (mm2 - mm1) + (dd2 - dd1)
     }
 
@@ -194,7 +200,46 @@ mod tests {
     use crate::error::Result;
     use crate::time::daycounters::DayCounters;
 
-    // TODO: add USA test cases
+    #[rstest]
+    #[case("2006-08-20", "2007-02-20", 180)]
+    #[case("2007-02-20", "2007-08-20", 180)]
+    #[case("2007-08-20", "2008-02-20", 180)]
+    #[case("2008-02-20", "2008-08-20", 180)]
+    #[case("2008-08-20", "2009-02-20", 180)]
+    #[case("2009-02-20", "2009-08-20", 180)]
+    // end-February dates
+    #[case("2006-08-31", "2007-02-28", 178)]
+    #[case("2007-02-28", "2007-08-31", 180)]
+    #[case("2007-08-31", "2008-02-29", 179)]
+    #[case("2008-02-29", "2008-08-31", 180)]
+    #[case("2008-08-31", "2009-02-28", 178)]
+    #[case("2009-02-28", "2009-08-31", 180)]
+    // miscellaneous
+    #[case("2006-01-31", "2006-02-28", 28)]
+    #[case("2006-01-30", "2006-02-28", 28)]
+    #[case("2006-02-28", "2006-03-03", 3)]
+    #[case("2006-02-14", "2006-02-28", 14)]
+    #[case("2006-09-30", "2006-10-31", 30)]
+    #[case("2006-10-31", "2006-11-28", 28)]
+    #[case("2007-08-31", "2008-02-28", 178)]
+    #[case("2008-02-28", "2008-08-28", 180)]
+    #[case("2008-02-28", "2008-08-30", 182)]
+    #[case("2008-02-28", "2008-08-31", 183)]
+    #[case("2007-02-26", "2008-02-28", 362)]
+    #[case("2007-02-26", "2008-02-29", 363)]
+    #[case("2008-02-29", "2009-02-28", 360)]
+    #[case("2008-02-28", "2008-03-30", 32)]
+    #[case("2008-02-28", "2008-03-31", 33)]
+    fn test_usa_day_count(
+        #[case] start_date: NaiveDate,
+        #[case] end_date: NaiveDate,
+        #[case] expected_day_count: i64,
+    ) -> Result<()> {
+        let counter = Thirty360::new(Thirty360Market::USA);
+        let actual = counter.day_count(start_date, end_date)?;
+        assert_eq!(actual, expected_day_count);
+        Ok(())
+    }
 
     #[rstest]
     // simple cases
