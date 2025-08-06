@@ -26,4 +26,4 @@ thiserror = "2.0.12"
 typetag = "0.2.20"
 
 [dev-dependencies]
-rstest = "^0.24.0"
+rstest = "0.26.1"
