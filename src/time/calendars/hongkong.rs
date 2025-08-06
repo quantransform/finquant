@@ -1,6 +1,7 @@
-// Holidays in .
+// Holidays in Hong Kong.
 
 use crate::time::calendars::Calendar;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
@@ -14,362 +15,141 @@ impl Calendar for HongKong {
         let (d, w, m, y, dd) = self.naive_date_to_dkmy(date);
         let em = self.easter_monday(y);
 
-        if self.is_weekend(date)
-            // New Year's Day
-            || ((d == 1 || ((d == 2) && w == Weekday::Mon))
-            && m == 1)
-            // Good Friday
-            || (dd == em-3)
-            // Easter Weekday::Mon
-            || (dd == em)
-            // Labor Day
-            || ((d == 1 || ((d == 2) && w == Weekday::Mon)) && m == 5)
-            // SAR Establishment Day
-            || ((d == 1 || ((d == 2) && w == Weekday::Mon)) && m == 7)
-            // National Day
-            || ((d == 1 || ((d == 2) && w == Weekday::Mon))
-            && m == 10)
-            // Christmas Day
-            || (d == 25 && m == 12)
-            // Boxing Day
-            || (d == 26 && m == 12)
-        {
+        if self.is_weekend(date) {
             return false;
         }
 
-        if (y == 2004) & // Lunar New Year
-            (((d==22 || d==23 || d==24) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 26 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 22 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 29 && m == 9)
-                    // Chung Yeung
-                    || (d == 22 && m == 10))
-        {
+        if is_fixed_or_observed_holiday(d, m, w) {
             return false;
         }
 
-        if (y == 2005) & // Lunar New Year
-            (((d==9 || d==10 || d==11) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 16 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 11 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 19 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 11 && m == 10))
-        {
+        // Good Friday
+        // Easter Weekday::Mon
+        if (dd == em - 3) || (dd == em) {
             return false;
         }
 
-        if (y == 2006) & // Lunar New Year
-            (((28..=31).contains(&d) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 5 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 31 && m == 5)
-                    // Mid-autumn festival
-                    || (d == 7 && m == 10)
-                    // Chung Yeung festival
-                    || (d == 30 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2007) & // Lunar New Year
-            (((17..=20).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 24 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 19 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 26 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 19 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2008) & // Lunar New Year
-            (((7..=9).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 12 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 9 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 15 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 7 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2009) & // Lunar New Year
-            (((26..=28).contains(&d) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 2 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 28 && m == 5)
-                    // Mid-autumn festival
-                    || (d == 3 && m == 10)
-                    // Chung Yeung festival
-                    || (d == 26 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2010) & // Lunar New Year
-            (((d == 15 || d == 16) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 6 && m == 4)
-                    // Buddha's birthday
-                    || (d == 21 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 16 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 23 && m == 9))
-        {
-            return false;
-        }
-
-        if (y == 2011) & // Lunar New Year
-            (((d == 3 || d == 4) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 10 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 6 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 13 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 5 && m == 10)
-                    // Second day after Christmas
-                    || (d == 27 && m == 12))
-        {
-            return false;
-        }
-
-        if (y == 2012) & // Lunar New Year
-            (((23..=25).contains(&d) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 10 && m == 5)
-                    // Mid-autumn festival
-                    || (d == 1 && m == 10)
-                    // Chung Yeung festival
-                    || (d == 23 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2013) & // Lunar New Year
-            (((11..=13).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 17 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 12 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 20 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 14 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2014) & // Lunar New Year
-            (((d == 31 && m == 1) || (d <= 3 && m == 2))
-                    // Buddha's birthday
-                    || (d == 6 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 2 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 9 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 2 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2015) & // Lunar New Year
-            (!(m != 2 || d != 19 && d != 20)
-                    // The day following Easter Weekday::Mon
-                    || (d == 7 && m == 4)
-                    // Buddha's birthday
-                    || (d == 25 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 20 && m == 6)
-                    // The 70th anniversary day of the victory of the Chinese
-                    // people's war of resistance against Japanese aggression
-                    || (d == 3 && m == 9)
-                    // Mid-autumn festival
-                    || (d == 28 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 21 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2016) & // Lunar New Year
-            (((8..=10).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Tuen Ng festival
-                    || (d == 9 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 16 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 10 && m == 10)
-                    // Second day after Christmas
-                    || (d == 27 && m == 12))
-        {
-            return false;
-        }
-
-        if (y == 2017) & // Lunar New Year
-            (((d == 30 || d == 31) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 3 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 30 && m == 5)
-                    // Mid-autumn festival
-                    || (d == 5 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2018) & // Lunar New Year
-            (!(m != 2 || d != 16 && d != 19)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 22 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 18 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 25 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 17 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2019) & // Lunar New Year
-            (((5..=7).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Tuen Ng festival
-                    || (d == 7 && m == 6)
-                    // Chung Yeung festival
-                    || (d == 7 && m == 10))
-        {
-            return false;
-        }
-
-        if (y == 2020) & // Lunar New Year
-            (((d == 27 || d == 28) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 30 && m == 4)
-                    // Tuen Ng festival
-                    || (d == 25 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 2 && m == 10)
-                    // Chung Yeung festival
-                    || (d == 26 && m == 10))
-        {
-            return false;
-        }
-
-        // data from https://www.hkex.com.hk/-/media/hkex-market/services/circulars-and-notices/participant-and-members-circulars/sehk/2020/ce_sehk_ct_038_2020.pdf
-        if (y == 2021) & // Lunar New Year
-            (((d == 12 || d == 15) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 19 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 14 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 22 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 14 && m == 10))
-        {
-            return false;
-        }
-
-        // data from https://www.hkex.com.hk/-/media/HKEX-Market/Services/Circulars-and-Notices/Participant-and-Members-Circulars/SEHK/2021/ce_SEHK_CT_082_2021.pdf
-        if (y == 2022) & // Lunar New Year
-            (((1..=3).contains(&d) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 9 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 3 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 12 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 4 && m == 10))
-        {
-            return false;
-        }
-
-        // data from https://www.hkex.com.hk/-/media/HKEX-Market/Services/Circulars-and-Notices/Participant-and-Members-Circulars/SEHK/2022/ce_SEHK_CT_058_2022.pdf
-        if (y == 2023) & // Lunar New Year
-            (((23..=25).contains(&d) && m == 1)
-                    // Ching Ming Festival
-                    || (d == 5 && m == 4)
-                    // Buddha's birthday
-                    || (d == 26 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 22 && m == 6)
-                    // Chung Yeung festival
-                    || (d == 23 && m == 10))
-        {
-            return false;
-        }
-
-        // data from https://www.hkex.com.hk/-/media/HKEX-Market/Services/Circulars-and-Notices/Participant-and-Members-Circulars/SEHK/2023/ce_SEHK_CT_079_2023.pdf
-        if (y == 2024) & // Lunar New Year
-            (((d == 12 || d == 13) && m == 2)
-                    // Ching Ming Festival
-                    || (d == 4 && m == 4)
-                    // Buddha's birthday
-                    || (d == 15 && m == 5)
-                    // Tuen Ng festival
-                    || (d == 10 && m == 6)
-                    // Mid-autumn festival
-                    || (d == 18 && m == 9)
-                    // Chung Yeung festival
-                    || (d == 11 && m == 10))
-        {
-            return false;
+        if let Some(holidays) = SPECIAL_HOLIDAYS.get(&y) {
+            if holidays.contains(&(d, m)) {
+                return false;
+            }
         }
 
         true
     }
+}
+
+lazy_static::lazy_static! {
+    static ref SPECIAL_HOLIDAYS: HashMap<i32, HashSet<(u32, u32)>> = {
+        use std::iter::FromIterator;
+        let mut map = HashMap::new();
+
+        map.insert(2004, HashSet::from_iter([
+            (22, 1), (23, 1), (24, 1), (5, 4), (26, 5), (22, 6), (29, 9), (22, 10)
+        ]));
+
+        map.insert(2005, HashSet::from_iter([
+            (9, 2), (10, 2), (11, 2), (5, 4), (16, 5), (11, 6), (19, 9), (11, 10)
+        ]));
+
+        map.insert(2006, HashSet::from_iter([
+            (28, 1), (29, 1), (30, 1), (31, 1), (5, 4), (5, 5), (31, 5), (7, 10), (30, 10)
+        ]));
+
+        map.insert(2007, HashSet::from_iter([
+            (17, 2), (18, 2), (19, 2), (20, 2), (5, 4), (24, 5), (19, 6), (26, 9), (19, 10)
+        ]));
+
+        map.insert(2008, HashSet::from_iter([
+            (7, 2), (8, 2), (9, 2), (4, 4), (12, 5), (9, 6), (15, 9), (7, 10)
+        ]));
+
+        map.insert(2009, HashSet::from_iter([
+            (26, 1), (27, 1), (28, 1), (4, 4), (2, 5), (28, 5), (3, 10), (26, 10)
+        ]));
+
+        map.insert(2010, HashSet::from_iter([
+            (15, 2), (16, 2), (6, 4), (21, 5), (16, 6), (23, 9)
+        ]));
+
+        map.insert(2011, HashSet::from_iter([
+            (3, 2), (4, 2), (5, 4), (10, 5), (6, 6), (13, 9), (5, 10), (27, 12)
+        ]));
+
+        map.insert(2012, HashSet::from_iter([
+            (23, 1), (24, 1), (25, 1), (4, 4), (10, 5), (1, 10), (23, 10)
+        ]));
+
+        map.insert(2013, HashSet::from_iter([
+            (11, 2), (12, 2), (13, 2), (4, 4), (17, 5), (12, 6), (20, 9), (14, 10)
+        ]));
+
+        map.insert(2014, HashSet::from_iter([
+            (31, 1), (1, 2), (2, 2), (6, 5), (2, 6), (9, 9), (2, 10)
+        ]));
+
+        map.insert(2015, HashSet::from_iter([
+            (19, 2), (20, 2), (7, 4), (25, 5), (20, 6), (3, 9), (28, 9), (21, 10)
+        ]));
+
+        map.insert(2016, HashSet::from_iter([
+            (8, 2), (9, 2), (10, 2), (4, 4), (9, 6), (16, 9), (10, 10), (27, 12)
+        ]));
+
+        map.insert(2017, HashSet::from_iter([
+            (30, 1), (31, 1), (4, 4), (3, 5), (30, 5), (5, 10)
+        ]));
+
+        map.insert(2018, HashSet::from_iter([
+            (16, 2), (19, 2), (5, 4), (22, 5), (18, 6), (25, 9), (17, 10)
+        ]));
+
+        map.insert(2019, HashSet::from_iter([
+            (5, 2), (6, 2), (7, 2), (5, 4), (7, 6), (7, 10)
+        ]));
+
+        map.insert(2020, HashSet::from_iter([
+            (27, 1), (28, 1), (4, 4), (30, 4), (25, 6), (2, 10), (26, 10)
+        ]));
+
+        map.insert(2021, HashSet::from_iter([
+            (12, 2), (15, 2), (5, 4), (19, 5), (14, 6), (22, 9), (14, 10)
+        ]));
+
+        map.insert(2022, HashSet::from_iter([
+            (1, 2), (2, 2), (3, 2), (5, 4), (9, 5), (3, 6), (12, 9), (4, 10)
+        ]));
+
+        map.insert(2023, HashSet::from_iter([
+            (23, 1), (24, 1), (25, 1), (5, 4), (26, 5), (22, 6), (23, 10)
+        ]));
+
+        map.insert(2024, HashSet::from_iter([
+            (12, 2), (13, 2), (4, 4), (15, 5), (10, 6), (18, 9), (11, 10)
+        ]));
+
+        map.insert(2025, HashSet::from_iter([
+            (29, 1), (30, 1), (31, 1), (4, 4), (5, 5), (7, 10), (29, 10)
+        ]));
+
+        map
+    };
+}
+
+fn is_fixed_or_observed_holiday(d: u32, m: u32, w: Weekday) -> bool {
+    matches!(
+        (d, m, w),
+        // New Year's Day and observed
+        (1, 1, _) | (2, 1, Weekday::Mon)
+        // Labor Day and observed
+        | (1, 5, _) | (2, 5, Weekday::Mon)
+        // SAR Establishment Day and observed
+        | (1, 7, _) | (2, 7, Weekday::Mon)
+        // National Day and observed
+        | (1, 10, _) | (2, 10, Weekday::Mon)
+        // Christmas and Boxing Day
+        | (25, 12, _) | (26, 12, _)
+    )
 }
 
 #[cfg(test)]
