@@ -1,6 +1,6 @@
 [package]
 name = "finquant"
-version = "0.0.54"
+version = "0.0.55"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 license = "MIT OR Apache-2.0"
 description = "Experimental Rust Quant Library"
@@ -26,4 +26,6 @@ thiserror = "2.0.12"
 typetag = "0.2.20"
 
 [dev-dependencies]
+cargo-husky = "1.5.0"
 rstest = "0.26.1"
+
