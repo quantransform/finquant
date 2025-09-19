@@ -49,8 +49,7 @@ impl FXForwardHelper {
             .iter()
             .map(|q| {
                 Ok((
-                    q.tenor
-                        .settlement_date(self.valuation_date, calendar)?,
+                    q.tenor.settlement_date(self.valuation_date, calendar)?,
                     q.value,
                 ))
             })
