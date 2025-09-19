@@ -38,47 +38,54 @@ impl FXForwardHelper {
         target_date: NaiveDate,
         calendar: &dyn Calendar,
     ) -> Result<Option<f64>> {
+        // Out-of-range if the target is on/before valuation
         if self.valuation_date >= target_date {
-            Ok(None)
-        } else {
-            let (mut before_quotes, mut after_quotes): (Vec<_>, Vec<_>) =
-                self.quotes.clone().into_iter().partition(|&quote| {
-                    // TODO (DS): clean up these partition calls as we can't just use ? here
-                    quote
-                        .tenor
-                        .settlement_date(self.valuation_date, calendar)
-                        .unwrap()
-                        < target_date
-                });
+            return Ok(None);
+        }
 
-            if before_quotes.is_empty() || after_quotes.is_empty() {
-                Ok(None)
-            } else {
-                before_quotes.sort_by_key(|&fx_frd_quote| {
-                    fx_frd_quote
-                        .tenor
-                        .settlement_date(self.valuation_date, calendar)
-                        .unwrap()
-                });
-                after_quotes.sort_by_key(|&fx_frd_quote| {
-                    fx_frd_quote
-                        .tenor
-                        .settlement_date(self.valuation_date, calendar)
-                        .unwrap()
-                });
-                let before_quote = before_quotes.last().unwrap();
-                let after_quote = after_quotes.first().unwrap();
-                let start_date = before_quote
-                    .tenor
-                    .settlement_date(self.valuation_date, calendar)?;
-                let end_date = after_quote
-                    .tenor
-                    .settlement_date(self.valuation_date, calendar)?;
+        // Compute settlement dates up-front, propagating any calendar errors
+        let mut dated: Vec<(NaiveDate, f64)> = self
+            .quotes
+            .iter()
+            .map(|q| {
+                Ok((
+                    q.tenor
+                        .settlement_date(self.valuation_date, calendar)?,
+                    q.value,
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        // Need at least two points to interpolate
+        if dated.len() < 2 {
+            return Ok(None);
+        }
+
+        // Sort by settlement date once
+        dated.sort_unstable_by_key(|(d, _)| *d);
+
+        // Exact match or find bracketing dates
+        match dated.binary_search_by_key(&target_date, |(d, _)| *d) {
+            Ok(idx) => Ok(Some(dated[idx].1)),
+            Err(idx) => {
+                // If the target is outside the known range, return None
+                if idx == 0 || idx == dated.len() {
+                    return Ok(None);
+                }
+
+                let (start_date, start_val) = dated[idx - 1];
+                let (end_date, end_val) = dated[idx];
+
                 let total_day_count = (end_date - start_date).num_days() as f64;
+                if total_day_count <= 0.0 {
+                    // Degenerate case: identical settlement dates; use start value
+                    return Ok(Some(start_val));
+                }
+
                 let target_day_count = (target_date - start_date).num_days() as f64;
-                let forward_points =
-                    (after_quote.value - before_quote.value) / total_day_count * target_day_count;
-                Ok(Some(forward_points + before_quote.value))
+                let weight = target_day_count / total_day_count;
+                let interpolated = start_val + (end_val - start_val) * weight;
+                Ok(Some(interpolated))
             }
         }
     }
@@ -90,6 +97,13 @@ impl Observable for FXForwardHelper {
     }
 
     fn notify_observers(&self) -> Result<()> {
+        // First, prune any dead observers
+        {
+            let mut list = self.observers.borrow_mut();
+            list.retain(|w| w.upgrade().is_some());
+        }
+
+        // Then notify the currently alive observers
         let observers = self
             .observers
             .borrow()
