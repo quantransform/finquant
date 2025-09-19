@@ -123,6 +123,7 @@ impl Observable for FXForwardHelper {
 #[cfg(test)]
 mod tests {
     use crate::error::Result;
+    use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
     use crate::tests::common::{sample_fx_forward_helper, setup};
     use crate::time::calendars::JointCalendar;
     use crate::time::calendars::Target;
@@ -131,7 +132,6 @@ mod tests {
     use crate::time::period::Period;
     use chrono::NaiveDate;
     use std::f64;
-    use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
 
     #[test]
     fn test_settlement_date_target() -> Result<()> {
@@ -351,8 +351,12 @@ mod tests {
 
         // Use the first available quote for an exact match test
         let q = fx_forward_helper.quotes[0];
-        let exact_date = q.tenor.settlement_date(fx_forward_helper.valuation_date, &calendar)?;
-        let got = fx_forward_helper.get_forward(exact_date, &calendar)?.unwrap();
+        let exact_date = q
+            .tenor
+            .settlement_date(fx_forward_helper.valuation_date, &calendar)?;
+        let got = fx_forward_helper
+            .get_forward(exact_date, &calendar)?
+            .unwrap();
         assert_eq!(got, q.value);
 
         Ok(())
@@ -366,8 +370,14 @@ mod tests {
         let valuation_date = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
         // Create two quotes: 1W and 2W
         let quotes = vec![
-            FXForwardQuote { tenor: Period::Weeks(1), value: 10.0 },
-            FXForwardQuote { tenor: Period::Weeks(2), value: 20.0 },
+            FXForwardQuote {
+                tenor: Period::Weeks(1),
+                value: 10.0,
+            },
+            FXForwardQuote {
+                tenor: Period::Weeks(2),
+                value: 20.0,
+            },
         ];
         let helper = FXForwardHelper::new(valuation_date, 1.0, quotes);
         let calendar = Target;
@@ -406,8 +416,14 @@ mod tests {
 
         let valuation_date = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
         let quotes = vec![
-            FXForwardQuote { tenor: Period::Weeks(1), value: 10.0 },
-            FXForwardQuote { tenor: Period::Weeks(2), value: 20.0 },
+            FXForwardQuote {
+                tenor: Period::Weeks(1),
+                value: 10.0,
+            },
+            FXForwardQuote {
+                tenor: Period::Weeks(2),
+                value: 20.0,
+            },
         ];
         let mut helper = FXForwardHelper::new(valuation_date, 1.0, quotes);
 
