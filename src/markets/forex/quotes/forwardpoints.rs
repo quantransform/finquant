@@ -328,7 +328,7 @@ mod tests {
             None
         );
 
-        // Before valuation date -> None (if predecessor exists)
+        // Before valuation date -> None (if a predecessor exists)
         if let Some(before_valuation) = fx_forward_helper.valuation_date.pred_opt() {
             assert_eq!(
                 fx_forward_helper.get_forward(before_valuation, &calendar)?,
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_forward_out_of_range_before_first_settlement() -> Result<()> {
-        // Build a minimal helper where target is after valuation but before first settlement
+        // Build a minimal helper where the target is after valuation but before first settlement
         use chrono::Duration;
 
         let valuation_date = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
