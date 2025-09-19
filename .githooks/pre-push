@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Enforce Rust formatting before push
+if ! cargo fmt --all -- --check; then
+  echo "Formatting check failed. Run 'cargo fmt --all' to fix." >&2
+  exit 1
+fi
+
+# Optional: enforce clippy warnings as errors
+if ! cargo clippy -- -D warnings; then
+  echo "Clippy found warnings. Please fix before pushing." >&2
+  exit 1
+fi
+
+exit 0
