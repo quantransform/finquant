@@ -119,6 +119,7 @@ impl Observable for FXForwardHelper {
         self
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::error::Result;
@@ -130,6 +131,7 @@ mod tests {
     use crate::time::period::Period;
     use chrono::NaiveDate;
     use std::f64;
+    use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
 
     #[test]
     fn test_settlement_date_target() -> Result<()> {
@@ -305,6 +307,122 @@ mod tests {
         let second_target_date = NaiveDate::from_ymd_opt(2034, 2, 15).unwrap();
         let cal_output = fx_forward_helper.get_forward(second_target_date, &calendar)?;
         assert_eq!(cal_output, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_forward_none_on_or_before_valuation() -> Result<()> {
+        // Ensure get_forward returns None when target_date is on/before valuation_date
+        setup();
+        let fx_forward_helper = sample_fx_forward_helper();
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
+
+        // On valuation date -> None
+        let on_valuation = fx_forward_helper.valuation_date;
+        assert_eq!(
+            fx_forward_helper.get_forward(on_valuation, &calendar)?,
+            None
+        );
+
+        // Before valuation date -> None (if predecessor exists)
+        if let Some(before_valuation) = fx_forward_helper.valuation_date.pred_opt() {
+            assert_eq!(
+                fx_forward_helper.get_forward(before_valuation, &calendar)?,
+                None
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_forward_exact_match_returns_quote_value() -> Result<()> {
+        // If the target date equals a quote's settlement date, return that quote's value
+        setup();
+        let fx_forward_helper = sample_fx_forward_helper();
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
+
+        // Use the first available quote for an exact match test
+        let q = fx_forward_helper.quotes[0];
+        let exact_date = q.tenor.settlement_date(fx_forward_helper.valuation_date, &calendar)?;
+        let got = fx_forward_helper.get_forward(exact_date, &calendar)?.unwrap();
+        assert_eq!(got, q.value);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_forward_out_of_range_before_first_settlement() -> Result<()> {
+        // Build a minimal helper where target is after valuation but before first settlement
+        use chrono::Duration;
+
+        let valuation_date = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
+        // Create two quotes: 1W and 2W
+        let quotes = vec![
+            FXForwardQuote { tenor: Period::Weeks(1), value: 10.0 },
+            FXForwardQuote { tenor: Period::Weeks(2), value: 20.0 },
+        ];
+        let helper = FXForwardHelper::new(valuation_date, 1.0, quotes);
+        let calendar = Target;
+
+        // Choose a date strictly after valuation_date but before 1W settlement date
+        let first_settle = Period::Weeks(1).settlement_date(valuation_date, &calendar)?;
+        let target_date = valuation_date + Duration::days(1);
+        assert!(target_date > valuation_date && target_date < first_settle);
+
+        assert_eq!(helper.get_forward(target_date, &calendar)?, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_notify_observers_prune_and_notify() -> Result<()> {
+        // Create one dead observer (dropped before notification) and one live observer.
+        use crate::patterns::observer::{Observable, Observer};
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        #[derive(Debug)]
+        struct TestObserver {
+            updates: usize,
+        }
+
+        impl Observer for TestObserver {
+            fn update(&mut self, _observable: &dyn Observable) -> Result<()> {
+                self.updates += 1;
+                Ok(())
+            }
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+
+        let valuation_date = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
+        let quotes = vec![
+            FXForwardQuote { tenor: Period::Weeks(1), value: 10.0 },
+            FXForwardQuote { tenor: Period::Weeks(2), value: 20.0 },
+        ];
+        let mut helper = FXForwardHelper::new(valuation_date, 1.0, quotes);
+
+        // Attach a dead observer (drop the last strong reference)
+        let dead = Rc::new(RefCell::new(TestObserver { updates: 0 }));
+        helper.attach(dead.clone());
+        drop(dead);
+
+        // Attach a live observer
+        let alive = Rc::new(RefCell::new(TestObserver { updates: 0 }));
+        helper.attach(alive.clone());
+
+        // Notify should prune the dead one and notify the live one once
+        helper.notify_observers()?;
+        assert_eq!(alive.borrow().updates, 1);
 
         Ok(())
     }
