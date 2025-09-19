@@ -76,7 +76,7 @@ impl FXForwardHelper {
                 let (end_date, end_val) = dated[idx];
 
                 let total_day_count = (end_date - start_date).num_days() as f64;
-                if total_day_count == 0.0 {
+                if total_day_count.abs() < f64::EPSILON {
                     // Degenerate case: identical settlement dates; use start value
                     return Ok(Some(start_val));
                 }
