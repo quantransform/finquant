@@ -102,7 +102,7 @@ impl InterestRateSwapLeg {
         )
     }
 
-    pub fn is_fixe_leg(&self) -> bool {
+    pub fn is_fixed_leg(&self) -> bool {
         match self.swap_type {
             InterestRateSwapLegType::Fixed { coupon: _ } => true,
             InterestRateSwapLegType::Float { spread: _ } => false,
