@@ -29,10 +29,10 @@ impl Calendar for HongKong {
             return false;
         }
 
-        if let Some(holidays) = SPECIAL_HOLIDAYS.get(&y) {
-            if holidays.contains(&(d, m)) {
-                return false;
-            }
+        if let Some(holidays) = SPECIAL_HOLIDAYS.get(&y)
+            && holidays.contains(&(d, m))
+        {
+            return false;
         }
 
         true

@@ -8,7 +8,7 @@ keywords = ["quant", "calendar", "market-risks", "rates", "derivatives",]
 readme = "README.md"
 repository = "https://github.com/quantransform/finquant"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.90"
 
 [features]
 
