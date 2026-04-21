@@ -392,6 +392,49 @@ impl Calendar for Taiwan {
         {
             return false;
         }
+
+        if (y == 2025)
+            && (
+                // adjusted holiday
+                ((d == 23 || d == 24) && m == 1)
+                // Lunar New Year
+                || ((27..=31).contains(&d) && m == 1)
+                // adjusted holiday
+                || (d == 3 && m == 4)
+                // Children's Day and Tomb-sweeping Day
+                || (d == 4 && m == 4)
+                // adjusted holiday (Dragon Boat Festival falls on Saturday)
+                || (d == 30 && m == 5)
+                // Mid-Autumn Festival
+                || (d == 6 && m == 10)
+            )
+        {
+            return false;
+        }
+
+        if (y == 2026)
+            && (
+                // adjusted holiday
+                ((d == 12 || d == 13) && m == 2)
+                // Lunar New Year
+                || ((16..=20).contains(&d) && m == 2)
+                // adjusted holiday (Peace Memorial Day falls on Saturday)
+                || (d == 27 && m == 2)
+                // adjusted holiday
+                || (d == 3 && m == 4)
+                // adjusted holiday (Tomb-sweeping Day falls on Sunday)
+                || (d == 6 && m == 4)
+                // Dragon Boat Festival
+                || (d == 19 && m == 6)
+                // Mid-Autumn Festival
+                || (d == 25 && m == 9)
+                // adjusted holiday (National Day falls on Saturday)
+                || (d == 9 && m == 10)
+            )
+        {
+            return false;
+        }
+
         true
     }
 }
@@ -453,5 +496,57 @@ mod tests {
             Taiwan.is_business_day(NaiveDate::from_ymd_opt(2024, 2, 15).unwrap()),
             true
         );
+
+        // 2025 spot checks
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 1, 24).unwrap()),
+            false
+        ); // adjusted holiday (Friday before CNY)
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 1, 29).unwrap()),
+            false
+        ); // Lunar New Year day 3
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 4, 3).unwrap()),
+            false
+        ); // adjusted holiday
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 4, 4).unwrap()),
+            false
+        ); // Children's Day and Tomb-sweeping Day
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 5, 30).unwrap()),
+            false
+        ); // adjusted holiday (Dragon Boat Festival falls on Saturday)
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2025, 10, 6).unwrap()),
+            false
+        ); // Mid-Autumn Festival
+
+        // 2026 spot checks
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 2, 17).unwrap()),
+            false
+        ); // Lunar New Year day 2
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 2, 27).unwrap()),
+            false
+        ); // adjusted holiday (Peace Memorial Day falls on Saturday)
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 4, 6).unwrap()),
+            false
+        ); // adjusted holiday (Tomb-sweeping Day falls on Sunday)
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 6, 19).unwrap()),
+            false
+        ); // Dragon Boat Festival
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 9, 25).unwrap()),
+            false
+        ); // Mid-Autumn Festival
+        assert_eq!(
+            Taiwan.is_business_day(NaiveDate::from_ymd_opt(2026, 10, 9).unwrap()),
+            false
+        ); // adjusted holiday (National Day falls on Saturday)
     }
 }
