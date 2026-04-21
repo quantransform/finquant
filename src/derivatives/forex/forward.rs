@@ -138,7 +138,7 @@ mod tests {
         let delivery_date = expiry_date;
         let strike = 1.0657;
         let notional_amounts = 123456.78;
-        // Delta-focused checks.
+        // Delta-focused checks. Gamma and Vega are zero for vanilla forwards, so we don't assert them here.
         let test_cases = vec![
             (Direction::Buy, "EUR", notional_amounts, 0f64, 0f64),
             (Direction::Sell, "EUR", -notional_amounts, 0f64, 0f64),
@@ -184,7 +184,7 @@ mod tests {
         Ok(())
     }
 
-    /// Bloomberg OVML reference trade (screenshot, 21-Apr-2026 pricing):
+    /// Reference trade (screenshot, 21-Apr-2026 pricing):
     ///   Asset:          EURUSD
     ///   Direction:      Client buys EUR
     ///   Spot (mid):     1.1736
@@ -193,23 +193,23 @@ mod tests {
     ///   Strike:         1.1500
     ///   Notional:       EUR 1,000,000
     ///   Delivery:       23-Jul-2026  (93 days)
-    ///   USD SOFR 3M DF: 0.990614     (ICVS Curve 490, Mid)
+    ///   USD SOFR 3M DF: 0.990614     (Mid)
     ///   USD SOFR zero:  3.70127 %    (Act/365)
-    ///   Bloomberg PV:   EUR 23,946.11  (≈ USD 28,103.33 at spot)
+    ///   PV:   EUR 23,946.11  (≈ USD 28,103.33 at spot)
     ///
     /// Our price (single USD curve, covered-parity implicit in points):
     ///   PV_USD = (1.1736 + 48.12/10000 - 1.15) × 1,000,000 × 0.990614
     ///          = 0.028412 × 1,000,000 × 0.990614
     ///          ≈ 28,145.72 USD
     ///
-    /// The ~42 USD gap vs Bloomberg (~0.15 %) comes from side-of-market /
+    /// The ~42 USD gap vs Expected (~0.15 %) comes from side-of-market /
     /// rounding of the displayed mid spot and forward points.
     #[test]
-    fn test_fx_forward_eurusd_bloomberg_ovml() -> Result<()> {
+    fn test_fx_forward_eurusd_pricing() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let delivery_date = NaiveDate::from_ymd_opt(2026, 7, 23).unwrap();
 
-        // USD SOFR stripped curve — two pillars from ICVS around the 3M tenor.
+        // USD SOFR stripped curve — two pillars from around the 3M tenor.
         // Bracketing pillars are required because step_function_forward_zero_rate
         // interpolates with `target_date = date + 1D`.
         let stripped_curves = vec![
@@ -240,7 +240,7 @@ mod tests {
             stripped_curves,
         );
 
-        // FX forward points (BGN mid). Units are raw pips; the pricer applies
+        // FX forward points (mid). Units are raw pips; the pricer applies
         // the /10000 divisor via FXUnderlying::forward_points_converter().
         let fx_forward_helper = FXForwardHelper::new(
             valuation_date,
@@ -277,18 +277,18 @@ mod tests {
 
         let mtm = fx_forward.mtm(fx_forward_helper, &yts)?;
         assert_eq!(mtm.currency, Currency::from_code("USD").unwrap());
-        // Tight tolerance against our own computation; loose tolerance vs. Bloomberg.
+        // Tight tolerance against our own computation; loose tolerance vs. Expected.
         assert!(
             (mtm.value - 28_145.72).abs() < 0.5,
             "PV_USD {} drifted > 0.5 from internal expectation 28,145.72",
             mtm.value,
         );
-        let bloomberg_pv_usd = 23_946.11 * 1.1736; // EUR → USD at displayed spot
+        let expected_pv_usd = 23_946.11 * 1.1736; // EUR → USD at displayed spot
         assert!(
-            (mtm.value - bloomberg_pv_usd).abs() / bloomberg_pv_usd < 0.005,
-            "PV_USD {} diverges > 0.5% from Bloomberg OVML {}",
+            (mtm.value - expected_pv_usd).abs() / expected_pv_usd < 0.005,
+            "PV_USD {} diverges > 0.5% from Expected {}",
             mtm.value,
-            bloomberg_pv_usd,
+            expected_pv_usd,
         );
         Ok(())
     }
