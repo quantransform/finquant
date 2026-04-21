@@ -18,10 +18,12 @@ pub mod oisratehelper;
 pub mod ratehelper;
 
 /// Supported interpolation methods.
+///
+/// Only `StepFunctionForward` has a dedicated implementation today;
+/// `PiecewiseLinearContinuous` currently aliases to it (kept as a named
+/// alternative for call sites that want to signal intent).
 #[derive(Debug)]
 pub enum InterpolationMethodEnum {
-    PiecewiseLinearSimple,
-    PiecewiseQuadratic,
     StepFunctionForward,
     PiecewiseLinearContinuous,
 }
@@ -73,7 +75,7 @@ pub trait InterestRateQuote {
     }
 }
 
-/// Stripped curve - this matches Bloomberg ICVS stripped curve page.
+/// Stripped curve 
 #[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Debug)]
 pub struct StrippedCurve {
     pub first_settle_date: NaiveDate,
