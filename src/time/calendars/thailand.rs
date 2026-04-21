@@ -377,7 +377,7 @@ impl Calendar for Thailand {
                 || (d == 7 && m == 4)     // Substitution for Chakri Memorial Day (Sunday 6th April 2025)
                 || (d == 5 && m == 5)       // Substitution for Coronation Day (Sunday 4th May 2025)
                 || (d == 12 && m == 5)      // Wisakha Bucha Day
-                || (d == 10 && m == 7)     // Substitution for Asarnha Bucha Day (Tuesday 20th July 2025)
+                || (d == 10 && m == 7)     // Asarnha Bucha Day (Thursday 10th July 2025)
                 || (d == 23 && m == 10)
                 // Chulalongkorn Day
             )

@@ -248,8 +248,10 @@ impl UnitedStates {
 
         // Special closings
         if
-        // President Carter's Funeral &President Bush's Funeral
-        (y == 2018 || y == 2025) && d==5 && m == 12
+        // President Bush's Funeral
+        (y == 2018 && d == 5 && m == 12)
+                // President Carter's national day of mourning
+                || (y == 2025 && d == 9 && m == 1)
                 // Hurricane Sandy
                 || (y == 2012 && m == 10 && d == 30)
                 // President Reagan's funeral

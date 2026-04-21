@@ -1,6 +1,6 @@
 [package]
 name = "finquant"
-version = "0.0.55"
+version = "0.0.56"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 license = "MIT OR Apache-2.0"
 description = "Experimental Rust Quant Library"
@@ -8,7 +8,7 @@ keywords = ["quant", "calendar", "market-risks", "rates", "derivatives",]
 readme = "README.md"
 repository = "https://github.com/quantransform/finquant"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 
 [features]
 
