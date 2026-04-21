@@ -15,7 +15,7 @@
 //! This module does not handle business-time adjustments, premium-included
 //! delta conventions, or smile construction — those belong elsewhere.
 
-use crate::derivatives::basic::{BasicInfo, Direction};
+use crate::derivatives::basic::BasicInfo;
 use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
 use crate::error::{Error, Result};
 use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
@@ -120,8 +120,8 @@ impl FXVanillaOption {
                     self.basic_info.expiry_date, fx_forward_helper.valuation_date
                 ))
             })?;
-        let forward = fx_forward_helper.spot_ref
-            + forward_points / self.asset.forward_points_converter();
+        let forward =
+            fx_forward_helper.spot_ref + forward_points / self.asset.forward_points_converter();
         let year_fraction = Actual365Fixed::default().year_fraction(
             fx_forward_helper.valuation_date,
             self.basic_info.expiry_date,
@@ -162,8 +162,13 @@ impl FXDerivatives for FXVanillaOption {
         // `black_scholes` yields the domestic (quote) premium per unit of
         // base (foreign) notional. 1 EUR of notional costs `premium_dom` USD.
         let variance = ctx.sqrt_v * ctx.sqrt_v;
-        let premium_dom_per_unit =
-            black_scholes(ctx.forward, ctx.strike, variance, ctx.discount, self.option_type);
+        let premium_dom_per_unit = black_scholes(
+            ctx.forward,
+            ctx.strike,
+            variance,
+            ctx.discount,
+            self.option_type,
+        );
 
         // Buyer pays premium → negative PV to the buyer's book.
         let sign = -self.direction_sign();
@@ -279,8 +284,20 @@ mod tests {
     #[test]
     fn put_call_parity_holds() {
         let df = (-0.03_f64).exp();
-        let call = black_scholes(1.2376, 1.2995, 0.07243f64.powi(2) * 5.0, df, OptionType::Call);
-        let put = black_scholes(1.2376, 1.2995, 0.07243f64.powi(2) * 5.0, df, OptionType::Put);
+        let call = black_scholes(
+            1.2376,
+            1.2995,
+            0.07243f64.powi(2) * 5.0,
+            df,
+            OptionType::Call,
+        );
+        let put = black_scholes(
+            1.2376,
+            1.2995,
+            0.07243f64.powi(2) * 5.0,
+            df,
+            OptionType::Put,
+        );
         let parity = df * (1.2376 - 1.2995);
         assert!(
             (call - put - parity).abs() < 1e-10,
@@ -584,15 +601,25 @@ mod tests {
         let d_bc = buy_call.delta(&fxh, &yts)?.value;
         let g_bc = buy_call.gamma(&fxh, &yts)?;
         let v_bc = buy_call.vega(&fxh, &yts)?;
-        assert!(d_bc > 0.0, "buy-call delta should be positive, got {}", d_bc);
+        assert!(
+            d_bc > 0.0,
+            "buy-call delta should be positive, got {}",
+            d_bc
+        );
         assert!(g_bc > 0.0, "long gamma should be positive, got {}", g_bc);
         assert!(v_bc > 0.0, "long vega should be positive, got {}", v_bc);
 
         // Short flips sign on delta/gamma/vega.
         let d_sc = sell_call.delta(&fxh, &yts)?.value;
         let g_sc = sell_call.gamma(&fxh, &yts)?;
-        assert!((d_bc + d_sc).abs() < 1e-9, "buy+sell call delta must cancel");
-        assert!((g_bc + g_sc).abs() < 1e-9, "buy+sell call gamma must cancel");
+        assert!(
+            (d_bc + d_sc).abs() < 1e-9,
+            "buy+sell call delta must cancel"
+        );
+        assert!(
+            (g_bc + g_sc).abs() < 1e-9,
+            "buy+sell call gamma must cancel"
+        );
 
         // Put-call parity on forward delta: Δ_call − Δ_put = notional · direction
         // (a.k.a. a long call + short put = a long forward on the base currency).

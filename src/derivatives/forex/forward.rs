@@ -156,8 +156,20 @@ mod tests {
         let test_cases = vec![
             (Direction::Buy, "EUR", notional_amounts, 0f64, 0f64),
             (Direction::Sell, "EUR", -notional_amounts, 0f64, 0f64),
-            (Direction::Buy, "USD", -notional_amounts / strike, 0f64, 0f64),
-            (Direction::Sell, "USD", notional_amounts / strike, 0f64, 0f64),
+            (
+                Direction::Buy,
+                "USD",
+                -notional_amounts / strike,
+                0f64,
+                0f64,
+            ),
+            (
+                Direction::Sell,
+                "USD",
+                notional_amounts / strike,
+                0f64,
+                0f64,
+            ),
         ];
 
         if let Some(yts_observer) = observer

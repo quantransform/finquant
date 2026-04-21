@@ -289,8 +289,7 @@ impl InterestRateSwap {
                 Direction::Sell => -1f64,
             };
             for period in &schedule {
-                let cashflow =
-                    self.calculate_period_cashflow(period, leg, yield_term_structure)?;
+                let cashflow = self.calculate_period_cashflow(period, leg, yield_term_structure)?;
                 total_npv += cashflow.present_value.unwrap();
             }
             // Bond-style valuation: return of notional on the final pay date.
@@ -949,11 +948,36 @@ mod tests {
         // Expected Leg 1 (Receive Fixed) cashflow schedule.
         let fixed_cashflows: &[(NaiveDate, i64, f64, f64)] = &[
             // (pay_date,                               accr_days, bb_df,     bb_pv)
-            (NaiveDate::from_ymd_opt(2027, 4, 27).unwrap(), 365, 0.963579, 360_303.69),
-            (NaiveDate::from_ymd_opt(2028, 4, 26).unwrap(), 367, 0.930398, 349_802.84),
-            (NaiveDate::from_ymd_opt(2029, 4, 25).unwrap(), 364, 0.898729, 335_134.09),
-            (NaiveDate::from_ymd_opt(2030, 4, 25).unwrap(), 365, 0.867044, 324_207.14),
-            (NaiveDate::from_ymd_opt(2031, 4, 25).unwrap(), 365, 0.835286, 8_665_192.90),
+            (
+                NaiveDate::from_ymd_opt(2027, 4, 27).unwrap(),
+                365,
+                0.963579,
+                360_303.69,
+            ),
+            (
+                NaiveDate::from_ymd_opt(2028, 4, 26).unwrap(),
+                367,
+                0.930398,
+                349_802.84,
+            ),
+            (
+                NaiveDate::from_ymd_opt(2029, 4, 25).unwrap(),
+                364,
+                0.898729,
+                335_134.09,
+            ),
+            (
+                NaiveDate::from_ymd_opt(2030, 4, 25).unwrap(),
+                365,
+                0.867044,
+                324_207.14,
+            ),
+            (
+                NaiveDate::from_ymd_opt(2031, 4, 25).unwrap(),
+                365,
+                0.835286,
+                8_665_192.90,
+            ),
         ];
 
         // 1) Curve check: every pay-date DF from our bootstrapped curve should
@@ -962,8 +986,7 @@ mod tests {
         //    (b) step-forward interpolation between sparsely spaced pillars
         //    (no 3Y quote bridges 2Y↔4Y), (c) OIS T+2 settle offset.
         for &(pay_date, _, bb_df, _) in fixed_cashflows {
-            let our_df =
-                yts.discount(pay_date, &InterpolationMethodEnum::StepFunctionForward)?;
+            let our_df = yts.discount(pay_date, &InterpolationMethodEnum::StepFunctionForward)?;
             let diff = (our_df - bb_df).abs();
             assert!(
                 diff < 2.0e-3,
@@ -980,8 +1003,7 @@ mod tests {
         let coupon = 0.036880f64;
         let mut leg1_pv = 0.0f64;
         for (i, &(pay_date, accr_days, _, _)) in fixed_cashflows.iter().enumerate() {
-            let df =
-                yts.discount(pay_date, &InterpolationMethodEnum::StepFunctionForward)?;
+            let df = yts.discount(pay_date, &InterpolationMethodEnum::StepFunctionForward)?;
             let coupon_cf = notional * coupon * (accr_days as f64) / 360.0;
             let principal_cf = if i == fixed_cashflows.len() - 1 {
                 notional

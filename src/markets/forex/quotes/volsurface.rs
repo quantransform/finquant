@@ -109,16 +109,24 @@ impl SmileSection {
         let (a, b, c) =
             fit_quadratic_three_points((xs[0], vols[0]), (xs[2], vols[2]), (xs[4], vols[4]));
 
-        // 4) Residuals at the remaining two pillars (25Δ put / 25Δ call) —
-        //    these become the knots of the piecewise-linear A(·) function.
+        // 4) Knots for the piecewise-linear residual A(·). Per BBG doc §3.2,
+        //    A(·) must be zero at every anchor (so the quadratic reprices the
+        //    anchor vols exactly) and equal to the fitting residual at every
+        //    non-anchor pillar. Include knots at all five quoted strikes so the
+        //    ATM and 10Δ anchors stay exactly on their quoted vols.
         let a_knots: Vec<(f64, f64)> = {
-            let mut knots = Vec::with_capacity(2);
-            for idx in [1usize, 3usize] {
-                let quad = a * xs[idx] * xs[idx] + b * xs[idx] + c;
-                let residual = vols[idx] - quad;
-                let log_m = (strikes[idx] / f).ln();
-                knots.push((log_m, residual));
-            }
+            let mut knots: Vec<(f64, f64)> = (0..5)
+                .map(|idx| {
+                    let residual = if idx == 0 || idx == 2 || idx == 4 {
+                        0.0
+                    } else {
+                        let quad = a * xs[idx] * xs[idx] + b * xs[idx] + c;
+                        vols[idx] - quad
+                    };
+                    let log_m = (strikes[idx] / f).ln();
+                    (log_m, residual)
+                })
+                .collect();
             knots.sort_by(|p, q| p.0.partial_cmp(&q.0).unwrap());
             knots
         };
@@ -222,8 +230,8 @@ impl FXVolSurface {
                     let sigma_hi = hi.volatility(strike);
                     let var_lo = sigma_lo * sigma_lo * lo.year_fraction;
                     let var_hi = sigma_hi * sigma_hi * hi.year_fraction;
-                    let weight = (target_yf - lo.year_fraction)
-                        / (hi.year_fraction - lo.year_fraction);
+                    let weight =
+                        (target_yf - lo.year_fraction) / (hi.year_fraction - lo.year_fraction);
                     let var_target = var_lo + weight * (var_hi - var_lo);
                     Ok((var_target / target_yf).sqrt())
                 }
@@ -257,11 +265,7 @@ fn strike_from_put_delta(delta: f64, sigma: f64, forward: f64, sqrt_t: f64) -> f
 
 /// Fit σ = a·x² + b·x + c through three `(x, σ)` points. Solves a 3×3 linear
 /// system via Lagrange-equivalent formulas.
-fn fit_quadratic_three_points(
-    p0: (f64, f64),
-    p1: (f64, f64),
-    p2: (f64, f64),
-) -> (f64, f64, f64) {
+fn fit_quadratic_three_points(p0: (f64, f64), p1: (f64, f64), p2: (f64, f64)) -> (f64, f64, f64) {
     let (x0, y0) = p0;
     let (x1, y1) = p1;
     let (x2, y2) = p2;
@@ -394,10 +398,7 @@ mod tests {
         };
         let surface = FXVolSurface::new(
             valuation_date,
-            vec![
-                mk_pillar(t1, 0.06, 1.19),
-                mk_pillar(t2, 0.08, 1.2376),
-            ],
+            vec![mk_pillar(t1, 0.06, 1.19), mk_pillar(t2, 0.08, 1.2376)],
         )?;
 
         // Query between the two pillars — at t = midpoint ~ 3Y. Strike at ATM

@@ -75,7 +75,7 @@ pub trait InterestRateQuote {
     }
 }
 
-/// Stripped curve 
+/// Stripped curve
 #[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Debug)]
 pub struct StrippedCurve {
     pub first_settle_date: NaiveDate,
