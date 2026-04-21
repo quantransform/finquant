@@ -896,7 +896,7 @@ mod tests {
     ///     4Y       3.57510        OIS swap (annual, no 3Y quote)
     ///     5Y       3.60743        OIS swap (annual)
     ///     6Y       3.65400        OIS swap (annual, brackets last pay date)
-    fn bloomberg_usd_sofr_market_data(valuation_date: NaiveDate) -> YieldTermMarketData {
+    fn usd_sofr_market_data(valuation_date: NaiveDate) -> YieldTermMarketData {
         let ois_quotes = vec![
             usd_sofr_ois(Period::Weeks(1), 0.0364150),
             usd_sofr_ois(Period::Months(1), 0.0365110),
@@ -913,7 +913,7 @@ mod tests {
         YieldTermMarketData::new(valuation_date, ois_quotes, vec![], swap_quotes)
     }
 
-    /// Bloomberg SWPM reference: USD 5Y Fixed vs SOFR swap (screenshots, 04/21/2026 curve date).
+    /// SWPM reference: USD 5Y Fixed vs SOFR swap (screenshots, 04/21/2026 curve date).
     ///
     /// Deal:
     ///   Leg 1 Receive Fixed: USD 10MM, Coupon 3.68800 %, ACT/360 Money Mkt, Annual
@@ -922,7 +922,7 @@ mod tests {
     ///   Maturity:            04/23/2031 (5Y)
     ///   Valuation:           04/23/2026  (Curve Date 04/21/2026, CSA USD, OIS DC Stripping)
     ///
-    /// Bloomberg cashflows (Leg 1 Receive Fixed):
+    /// Expected cashflows (Leg 1 Receive Fixed):
     ///   pay_date    accr_days  payment        discount   pv
     ///   04/27/2027  365        373,922.22     0.963579   360,303.69
     ///   04/26/2028  367        375,971.11     0.930398   349,802.84
@@ -931,12 +931,12 @@ mod tests {
     ///   04/25/2031  365        10,373,922.22  0.835286   8,665,192.90   (with principal)
     ///   Leg 1 NPV:  10,034,640.66
     ///
-    /// Validates that our bootstrap produces DFs close to Bloomberg at each pay date,
+    /// Validates that our bootstrap produces DFs close to expected values at each pay date,
     /// then prices the fixed leg manually.
     #[test]
-    fn test_usd_sofr_curve_and_fixed_leg_bloomberg_swpm() -> Result<()> {
+    fn test_usd_sofr_curve_and_fixed_leg_expected_swpm() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
-        let market_data = bloomberg_usd_sofr_market_data(valuation_date);
+        let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
 
         let yts = YieldTermStructure::new(
@@ -946,7 +946,7 @@ mod tests {
             stripped_curves,
         );
 
-        // Bloomberg Leg 1 (Receive Fixed) cashflow schedule.
+        // Expected Leg 1 (Receive Fixed) cashflow schedule.
         let fixed_cashflows: &[(NaiveDate, i64, f64, f64)] = &[
             // (pay_date,                               accr_days, bb_df,     bb_pv)
             (NaiveDate::from_ymd_opt(2027, 4, 27).unwrap(), 365, 0.963579, 360_303.69),
@@ -957,7 +957,7 @@ mod tests {
         ];
 
         // 1) Curve check: every pay-date DF from our bootstrapped curve should
-        //    be within 2e-3 of Bloomberg's ICVS value. Sources of residual error
+        //    be within 2e-3 of expected values. Sources of residual error
         //    include: (a) different roll conventions on calibration swaps,
         //    (b) step-forward interpolation between sparsely spaced pillars
         //    (no 3Y quote bridges 2Y↔4Y), (c) OIS T+2 settle offset.
@@ -967,7 +967,7 @@ mod tests {
             let diff = (our_df - bb_df).abs();
             assert!(
                 diff < 2.0e-3,
-                "DF at {} drifted {:.6} vs Bloomberg {:.6} (|Δ|={:.6})",
+                "DF at {} drifted {:.6} vs Expected {:.6} (|Δ|={:.6})",
                 pay_date,
                 our_df,
                 bb_df,
@@ -991,23 +991,23 @@ mod tests {
             leg1_pv += (coupon_cf + principal_cf) * df;
         }
 
-        // Bloomberg Leg 1 NPV: 10,034,640.66.
-        let bb_leg1_pv = 10_034_640.66f64;
-        let abs_err = (leg1_pv - bb_leg1_pv).abs();
+        // Expected Leg 1 NPV: 10,034,640.66.
+        let expected_leg1_pv = 10_034_640.66f64;
+        let abs_err = (leg1_pv - expected_leg1_pv).abs();
         assert!(
             abs_err < 25_000.0,
-            "Fixed-leg PV {:.2} off by {:.2} from Bloomberg {:.2}",
+            "Fixed-leg PV {:.2} off by {:.2} from Expected {:.2}",
             leg1_pv,
             abs_err,
-            bb_leg1_pv,
+            expected_leg1_pv,
         );
 
         Ok(())
     }
 
-    /// Helper: returns Bloomberg's 5Y SOFR swap schedule (accrual dates + pay dates).
+    /// Helper: returns expected 5Y SOFR swap schedule (accrual dates + pay dates).
     /// Notional is 10MM USD, non-amortising.
-    fn bloomberg_5y_sofr_schedule() -> Vec<InterestRateSchedulePeriod> {
+    fn expected_5y_sofr_schedule() -> Vec<InterestRateSchedulePeriod> {
         let notional = 10_000_000.0;
         let d = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).unwrap();
         vec![
@@ -1054,16 +1054,16 @@ mod tests {
         ]
     }
 
-    /// Bloomberg SWPM: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
+    /// Expected SWPM: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
     /// Curve date 04/21/2026, valuation 04/23/2026 (effective). Net NPV: $36,739.97.
     ///
     /// Drives the swap through `InterestRateSwap::npv`, with the discount curve
-    /// produced by `bloomberg_usd_sofr_market_data().get_stripped_curve()` —
+    /// produced by `expected_usd_sofr_market_data().get_stripped_curve()` —
     /// i.e. finquant does the bootstrap end-to-end from raw market quotes.
     #[test]
-    fn test_usd_sofr_5y_swap_npv_bloomberg_swpm() -> Result<()> {
+    fn test_usd_sofr_5y_swap_npv_expected_swpm() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
-        let market_data = bloomberg_usd_sofr_market_data(valuation_date);
+        let market_data = expected_usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
 
         let yts = &mut YieldTermStructure::new(
@@ -1073,7 +1073,7 @@ mod tests {
             stripped_curves,
         );
 
-        let schedule = bloomberg_5y_sofr_schedule();
+        let schedule = expected_5y_sofr_schedule();
 
         // Fixed leg: Receive 3.688 %, USD 10MM, ACT/360 Annual.
         let fixed_leg = InterestRateSwapLeg::new(
@@ -1118,18 +1118,18 @@ mod tests {
         let swap = InterestRateSwap::new(vec![fixed_leg, float_leg]);
         let net_npv = swap.npv(valuation_date, yts)?;
 
-        // Bloomberg net NPV: 36,739.97. Sources of slack: (1) no 3Y calibration
+        // Expected net NPV: 36,739.97. Sources of slack: (1) no 3Y calibration
         // quote between 2Y and 4Y, so the 3Y cashflow's DF comes from
         // step-forward interpolation; (2) minor roll-convention differences
-        // between our calibration swap schedule and Bloomberg's.
-        let bb_net_npv = 36_739.97f64;
-        let abs_err = (net_npv - bb_net_npv).abs();
+        // between our calibration swap schedule and Expected's.
+        let expected_net_npv = 36_739.97f64;
+        let abs_err = (net_npv - expected_net_npv).abs();
         assert!(
             abs_err < 8_000.0,
-            "Net NPV {:.2} off by {:.2} from Bloomberg {:.2}",
+            "Net NPV {:.2} off by {:.2} from Expected {:.2}",
             net_npv,
             abs_err,
-            bb_net_npv,
+            expected_net_npv,
         );
 
         Ok(())
