@@ -87,15 +87,31 @@ pub struct CurrencyValue {
     pub value: f64,
 }
 
+/// Market-aware trait for FX derivatives. Every risk measure takes the same
+/// `(fx_forward_helper, yield_term_structure)` pair so that non-linear
+/// instruments (options) can compute analytic Black-Scholes Greeks while
+/// linear instruments (forwards) simply ignore the inputs.
 pub trait FXDerivatives {
     fn mtm(
         &self,
-        fx_forward_helper: FXForwardHelper,
+        fx_forward_helper: &FXForwardHelper,
         yield_term_structure: &YieldTermStructure,
     ) -> Result<CurrencyValue>;
-    fn delta(&self) -> Result<CurrencyValue>;
-    fn gamma(&self) -> f64;
-    fn vega(&self) -> f64;
+    fn delta(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<CurrencyValue>;
+    fn gamma(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64>;
+    fn vega(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64>;
 }
 
 #[cfg(test)]
