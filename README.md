@@ -26,7 +26,7 @@
    - [x] Schedule generator
 2. Markets / Quotes
    - [x] Forex - forward points
-   - [ ] Forex - volatility 
+   - [x] Forex - volatility 
    - [x] Interest Rate - curves (cash rates, futures, swaps)
    - [ ] Interest Rate - volatility 
 3. Forex markets
@@ -35,8 +35,8 @@
        - [x] forward points generator
        - [x] pricing + greeks 
      - Option
-       - [ ] implied vol generator
-       - [ ] pricing + greeks
+       - [x] implied vol generator
+       - [x] pricing + greeks
    - Simulator
      - [ ] Monte Carlo
 4. Interest rate markets
