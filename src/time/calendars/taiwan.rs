@@ -395,10 +395,8 @@ impl Calendar for Taiwan {
 
         if (y == 2025)
             && (
-                // adjusted holiday
-                ((d == 23 || d == 24) && m == 1)
-                // Lunar New Year
-                || ((27..=31).contains(&d) && m == 1)
+                // adjusted holiday + Lunar New Year
+                ((d == 23 || d == 24 || (27..=31).contains(&d)) && m == 1)
                 // adjusted holiday
                 || (d == 3 && m == 4)
                 // Children's Day and Tomb-sweeping Day
@@ -414,12 +412,8 @@ impl Calendar for Taiwan {
 
         if (y == 2026)
             && (
-                // adjusted holiday
-                ((d == 12 || d == 13) && m == 2)
-                // Lunar New Year
-                || ((16..=20).contains(&d) && m == 2)
-                // adjusted holiday (Peace Memorial Day falls on Saturday)
-                || (d == 27 && m == 2)
+                // adjusted holiday + Lunar New Year + Peace Memorial Day (Saturday)
+                ((d == 12 || d == 13 || (16..=20).contains(&d) || d == 27) && m == 2)
                 // adjusted holiday
                 || (d == 3 && m == 4)
                 // adjusted holiday (Tomb-sweeping Day falls on Sunday)
