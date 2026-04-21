@@ -1058,12 +1058,12 @@ mod tests {
     /// Curve date 04/21/2026, valuation 04/23/2026 (effective). Net NPV: $36,739.97.
     ///
     /// Drives the swap through `InterestRateSwap::npv`, with the discount curve
-    /// produced by `expected_usd_sofr_market_data().get_stripped_curve()` —
+    /// produced by `usd_sofr_market_data().get_stripped_curve()` —
     /// i.e. finquant does the bootstrap end-to-end from raw market quotes.
     #[test]
     fn test_usd_sofr_5y_swap_npv_expected_swpm() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
-        let market_data = expected_usd_sofr_market_data(valuation_date);
+        let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
 
         let yts = &mut YieldTermStructure::new(
