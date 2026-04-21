@@ -253,7 +253,7 @@ mod tests {
     use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
     use crate::error::Result;
     use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
-    use crate::markets::forex::quotes::volsurface::{FXDeltaVolPillar, FXVolSurface};
+    use crate::markets::forex::quotes::volsurface::{FXDeltaVolPillar, FXVolQuote, FXVolSurface};
     use crate::markets::termstructures::yieldcurve::{
         InterestRateQuoteEnum, StrippedCurve, YieldTermStructure,
     };
@@ -311,7 +311,7 @@ mod tests {
     ///
     /// Deal:
     ///   Spot:               1.1736
-    ///   3M→5Y fwd points:   639.99... (5Y BGN mid), forward = 1.2376
+    ///   3M→5Y fwd points:   639.99... (5Y mid), forward = 1.2376
     ///   Strike:             1.2995 (5.00 % OTMF)
     ///   Expiry / delivery:  04/21/2031 / 04/23/2031
     ///   Notional:           EUR 1,000,000 (Client buys EUR Call)
@@ -483,11 +483,25 @@ mod tests {
             vec![FXDeltaVolPillar {
                 expiry: expiry_date,
                 forward: 1.2376,
-                atm: 0.0769,
-                put_10d: 0.089125,
-                put_25d: 0.07989,
-                call_25d: 0.081865,
-                call_10d: 0.093325,
+                quotes: vec![
+                    FXVolQuote::Atm(0.0769),
+                    FXVolQuote::Put {
+                        delta: 0.10,
+                        vol: 0.089125,
+                    },
+                    FXVolQuote::Put {
+                        delta: 0.25,
+                        vol: 0.07989,
+                    },
+                    FXVolQuote::Call {
+                        delta: 0.25,
+                        vol: 0.081865,
+                    },
+                    FXVolQuote::Call {
+                        delta: 0.10,
+                        vol: 0.093325,
+                    },
+                ],
             }],
         )?;
 

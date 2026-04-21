@@ -220,7 +220,7 @@ mod tests {
     ///   Asset:          EURUSD
     ///   Direction:      Client buys EUR
     ///   Spot (mid):     1.1736
-    ///   3M points (mid):48.12  (BGN FRD)
+    ///   3M points (mid):48.12  (FRD)
     ///   Forward (mid):  1.1784
     ///   Strike:         1.1500
     ///   Notional:       EUR 1,000,000
