@@ -205,6 +205,24 @@ impl Calendar for Singapore {
             return false;
         }
 
+        // https://www.sgx.com/derivatives/trading-calendar (2025)
+        if (y == 2025)
+            & (
+                // Chinese New Year (Year of the Snake): Jan 29-30
+                ((d == 29 || d == 30) && m == 1)
+                // Hari Raya Puasa (Eid al-Fitr)
+                || (d == 31 && m == 3)
+                // Vesak Day
+                || (d == 12 && m == 5)
+                // Hari Raya Haji (Eid al-Adha)
+                || (d == 6 && m == 6)
+                // Deepavali
+                || (d == 20 && m == 10)
+            )
+        {
+            return false;
+        }
+
         true
     }
 }
