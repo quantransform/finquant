@@ -4,7 +4,7 @@
 //! The underlying implementation comes from `statrs`; wrapping it here keeps
 //! the call sites terse and centralises precision choices in one place.
 
-use statrs::distribution::{ContinuousCDF, Normal};
+use statrs::distribution::{Continuous, ContinuousCDF, Normal};
 
 fn standard() -> Normal {
     // statrs::distribution::Normal::new(0, 1) cannot fail — the args are fixed.
@@ -14,6 +14,11 @@ fn standard() -> Normal {
 /// Standard-normal CDF, Φ(x).
 pub fn cdf(x: f64) -> f64 {
     standard().cdf(x)
+}
+
+/// Standard-normal PDF, φ(x) = exp(-x²/2) / √(2π).
+pub fn pdf(x: f64) -> f64 {
+    standard().pdf(x)
 }
 
 /// Standard-normal inverse CDF, Φ⁻¹(p). Panics if `p` is not in (0, 1).

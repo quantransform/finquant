@@ -20,7 +20,7 @@ use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlyin
 use crate::error::{Error, Result};
 use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
 use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
-use crate::math::normal::cdf;
+use crate::math::normal::{cdf, pdf};
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use iso_currency::Currency;
@@ -92,14 +92,25 @@ pub struct FXVanillaOption {
     pub volatility: f64,
 }
 
+/// Intermediate quantities needed by all Black-Scholes formulas at a single
+/// evaluation. Extracted once per pricing request so the Greek functions don't
+/// each re-hit the curve and forward-point helper.
+struct BsContext {
+    forward: f64,
+    spot: f64,
+    strike: f64,
+    year_fraction: f64,
+    discount: f64,
+    sqrt_v: f64,
+    d1: f64,
+}
+
 impl FXVanillaOption {
-    /// Premium in the notional currency. Sign is adjusted for Buy / Sell —
-    /// a buyer sees a negative PV (they owe premium), a seller positive.
-    pub fn mtm(
+    fn bs_context(
         &self,
         fx_forward_helper: &FXForwardHelper,
         yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue> {
+    ) -> Result<BsContext> {
         let calendar = self.asset.calendar();
         let forward_points = fx_forward_helper
             .get_forward(self.basic_info.expiry_date, &calendar)?
@@ -111,36 +122,58 @@ impl FXVanillaOption {
             })?;
         let forward = fx_forward_helper.spot_ref
             + forward_points / self.asset.forward_points_converter();
-
         let year_fraction = Actual365Fixed::default().year_fraction(
             fx_forward_helper.valuation_date,
             self.basic_info.expiry_date,
         )?;
         let variance = self.volatility * self.volatility * year_fraction;
-
+        let sqrt_v = variance.sqrt();
+        let d1 = ((forward / self.strike).ln() + 0.5 * variance) / sqrt_v;
         let discount = yield_term_structure.discount(
             self.basic_info.expiry_date,
             &InterpolationMethodEnum::StepFunctionForward,
         )?;
+        Ok(BsContext {
+            forward,
+            spot: fx_forward_helper.spot_ref,
+            strike: self.strike,
+            year_fraction,
+            discount,
+            sqrt_v,
+            d1,
+        })
+    }
+
+    fn direction_sign(&self) -> f64 {
+        self.basic_info.direction as i8 as f64
+    }
+}
+
+impl FXDerivatives for FXVanillaOption {
+    /// Premium in the notional currency. Sign is adjusted for Buy / Sell —
+    /// a buyer sees a negative PV (they owe premium), a seller positive.
+    fn mtm(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<CurrencyValue> {
+        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
 
         // `black_scholes` yields the domestic (quote) premium per unit of
         // base (foreign) notional. 1 EUR of notional costs `premium_dom` USD.
+        let variance = ctx.sqrt_v * ctx.sqrt_v;
         let premium_dom_per_unit =
-            black_scholes(forward, self.strike, variance, discount, self.option_type);
+            black_scholes(ctx.forward, ctx.strike, variance, ctx.discount, self.option_type);
 
-        let sign = match self.basic_info.direction {
-            Direction::Buy => -1.0,
-            Direction::Sell => 1.0,
-        };
+        // Buyer pays premium → negative PV to the buyer's book.
+        let sign = -self.direction_sign();
 
         let premium = if self.notional_currency == self.asset.frn_currency() {
-            // Notional is in base (EUR); convert premium to base by dividing by
-            // spot — that's convention for EUR-denominated premium.
-            sign * self.notional_amounts * premium_dom_per_unit / fx_forward_helper.spot_ref
+            // Notional is in base (EUR); convert USD premium to EUR via spot.
+            sign * self.notional_amounts * premium_dom_per_unit / ctx.spot
         } else {
-            // Notional is already in domestic (USD). Convert from per-unit-base
-            // premium to per-unit-notional by dividing by strike.
-            sign * self.notional_amounts * premium_dom_per_unit / self.strike
+            // Notional is in domestic (USD).
+            sign * self.notional_amounts * premium_dom_per_unit / ctx.strike
         };
 
         Ok(CurrencyValue {
@@ -148,13 +181,71 @@ impl FXVanillaOption {
             value: premium,
         })
     }
+
+    /// Forward delta scaled by notional and direction, in the foreign
+    /// (base) currency. For a call: `Δ_fwd = N(d₁)`; for a put:
+    /// `Δ_fwd = N(d₁) − 1`. Multiply by signed notional to get the effective
+    /// base-currency exposure.
+    fn delta(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<CurrencyValue> {
+        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+        let omega = self.option_type.omega();
+        let fwd_delta_per_unit = omega * cdf(omega * ctx.d1);
+        let delta = self.notional_amounts * self.direction_sign() * fwd_delta_per_unit;
+        Ok(CurrencyValue {
+            currency: self.asset.frn_currency(),
+            value: delta,
+        })
+    }
+
+    /// Black-Scholes gamma per 1 unit of spot, scaled by notional:
+    /// `Γ = DF_d · φ(d₁) / (F · σ · √T) × notional × direction_sign`.
+    fn gamma(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64> {
+        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+        if ctx.sqrt_v <= 0.0 {
+            return Ok(0.0);
+        }
+        let gamma_per_unit = ctx.discount * pdf(ctx.d1) / (ctx.forward * ctx.sqrt_v);
+        Ok(self.notional_amounts * self.direction_sign() * gamma_per_unit)
+    }
+
+    /// Black-Scholes vega per **1 % change** in volatility, converted to the
+    /// foreign (base) currency when the notional is in base, or to domestic
+    /// otherwise. Formula (per unit base, in domestic currency, per 1 unit σ):
+    /// `V_σ = DF_d · F · φ(d₁) · √T`. Divide by 100 for 1 % convention, and
+    /// by spot when the notional is in base so the quote is base-currency.
+    fn vega(
+        &self,
+        fx_forward_helper: &FXForwardHelper,
+        yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64> {
+        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+        if ctx.year_fraction <= 0.0 {
+            return Ok(0.0);
+        }
+        let vega_per_unit_base_dom =
+            ctx.discount * ctx.forward * pdf(ctx.d1) * ctx.year_fraction.sqrt();
+        let scale = if self.notional_currency == self.asset.frn_currency() {
+            self.notional_amounts / ctx.spot
+        } else {
+            self.notional_amounts / ctx.strike
+        };
+        Ok(self.direction_sign() * scale * vega_per_unit_base_dom / 100.0)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{FXVanillaOption, OptionType, black_scholes};
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
-    use crate::derivatives::forex::basic::FXUnderlying;
+    use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
     use crate::error::Result;
     use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
     use crate::markets::forex::quotes::volsurface::{FXDeltaVolPillar, FXVolSurface};
@@ -412,6 +503,123 @@ mod tests {
             sigma * 100.0,
             abs_err,
             bb_premium_eur,
+        );
+        Ok(())
+    }
+
+    /// Greeks sanity: verify signs, put-call parity for delta, and
+    /// matching magnitudes between call/put gamma and vega. Uses the same
+    /// 5Y market snapshot as the premium tests.
+    #[test]
+    fn greeks_sign_and_parity() -> Result<()> {
+        let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
+        let expiry_date = NaiveDate::from_ymd_opt(2031, 4, 23).unwrap();
+
+        let stripped_curves = vec![
+            StrippedCurve {
+                first_settle_date: valuation_date,
+                date: expiry_date,
+                market_rate: 0.03884,
+                zero_rate: 0.03891_353,
+                discount: 0.823_466,
+                source: InterestRateQuoteEnum::Swap,
+                hidden_pillar: false,
+            },
+            StrippedCurve {
+                first_settle_date: valuation_date,
+                date: NaiveDate::from_ymd_opt(2032, 4, 23).unwrap(),
+                market_rate: 0.03884,
+                zero_rate: 0.03891_353,
+                discount: 0.791_650,
+                source: InterestRateQuoteEnum::Swap,
+                hidden_pillar: false,
+            },
+        ];
+        let yts = YieldTermStructure::new(
+            Box::new(UnitedStates::default()),
+            Box::new(Actual365Fixed::default()),
+            valuation_date,
+            stripped_curves,
+        );
+        let fxh = FXForwardHelper::new(
+            valuation_date,
+            1.1736,
+            vec![
+                FXForwardQuote {
+                    tenor: Period::SPOT,
+                    value: 0.0,
+                },
+                FXForwardQuote {
+                    tenor: Period::Years(5),
+                    value: 639.20,
+                },
+                FXForwardQuote {
+                    tenor: Period::Years(6),
+                    value: 755.50,
+                },
+            ],
+        );
+
+        let make = |ot: OptionType, direction: Direction| FXVanillaOption {
+            basic_info: BasicInfo {
+                trade_date: valuation_date,
+                style: Style::FXCall,
+                direction,
+                expiry_date,
+                delivery_date: expiry_date,
+            },
+            asset: FXUnderlying::EURUSD,
+            option_type: ot,
+            notional_currency: Currency::from_code("EUR").unwrap(),
+            notional_amounts: 1_000_000.0,
+            strike: 1.2995,
+            volatility: 0.07748,
+        };
+
+        let buy_call = make(OptionType::Call, Direction::Buy);
+        let sell_call = make(OptionType::Call, Direction::Sell);
+        let buy_put = make(OptionType::Put, Direction::Buy);
+
+        // Signs.
+        let d_bc = buy_call.delta(&fxh, &yts)?.value;
+        let g_bc = buy_call.gamma(&fxh, &yts)?;
+        let v_bc = buy_call.vega(&fxh, &yts)?;
+        assert!(d_bc > 0.0, "buy-call delta should be positive, got {}", d_bc);
+        assert!(g_bc > 0.0, "long gamma should be positive, got {}", g_bc);
+        assert!(v_bc > 0.0, "long vega should be positive, got {}", v_bc);
+
+        // Short flips sign on delta/gamma/vega.
+        let d_sc = sell_call.delta(&fxh, &yts)?.value;
+        let g_sc = sell_call.gamma(&fxh, &yts)?;
+        assert!((d_bc + d_sc).abs() < 1e-9, "buy+sell call delta must cancel");
+        assert!((g_bc + g_sc).abs() < 1e-9, "buy+sell call gamma must cancel");
+
+        // Put-call parity on forward delta: Δ_call − Δ_put = notional · direction
+        // (a.k.a. a long call + short put = a long forward on the base currency).
+        let d_bp = buy_put.delta(&fxh, &yts)?.value;
+        let parity = d_bc - d_bp;
+        let expected_parity = 1_000_000.0; // notional × +1 direction
+        assert!(
+            (parity - expected_parity).abs() < 1e-6,
+            "Δ_call − Δ_put = {} (expected {})",
+            parity,
+            expected_parity,
+        );
+
+        // Gamma and vega are identical for call and put at same strike/notional.
+        let g_bp = buy_put.gamma(&fxh, &yts)?;
+        let v_bp = buy_put.vega(&fxh, &yts)?;
+        assert!(
+            (g_bc - g_bp).abs() / g_bc.abs() < 1e-9,
+            "call/put gamma mismatch: {} vs {}",
+            g_bc,
+            g_bp,
+        );
+        assert!(
+            (v_bc - v_bp).abs() / v_bc.abs() < 1e-9,
+            "call/put vega mismatch: {} vs {}",
+            v_bc,
+            v_bp,
         );
         Ok(())
     }

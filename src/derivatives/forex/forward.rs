@@ -18,13 +18,12 @@ pub struct FXForward {
 impl FXDerivatives for FXForward {
     fn mtm(
         &self,
-        fx_forward_helper: FXForwardHelper,
+        fx_forward_helper: &FXForwardHelper,
         yield_term_structure: &YieldTermStructure,
     ) -> Result<CurrencyValue> {
         let calendar = self.asset.calendar();
         let forward_points = fx_forward_helper
-            .get_forward(self.basic_info.expiry_date, &calendar)
-            .unwrap()
+            .get_forward(self.basic_info.expiry_date, &calendar)?
             .ok_or_else(|| {
                 Error::TradeExpired(format!(
                     "Trade expired at {} before {}",
@@ -54,7 +53,13 @@ impl FXDerivatives for FXForward {
         })
     }
 
-    fn delta(&self) -> Result<CurrencyValue> {
+    /// FX forward has a linear payoff, so delta is just the signed notional —
+    /// independent of market data.
+    fn delta(
+        &self,
+        _fx_forward_helper: &FXForwardHelper,
+        _yield_term_structure: &YieldTermStructure,
+    ) -> Result<CurrencyValue> {
         let delta = if self.notional_currency == self.asset.frn_currency() {
             self.notional_amounts * self.basic_info.direction as i8 as f64
         } else {
@@ -66,11 +71,20 @@ impl FXDerivatives for FXForward {
         })
     }
 
-    fn gamma(&self) -> f64 {
-        0f64
+    fn gamma(
+        &self,
+        _fx_forward_helper: &FXForwardHelper,
+        _yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64> {
+        Ok(0f64)
     }
-    fn vega(&self) -> f64 {
-        0f64
+
+    fn vega(
+        &self,
+        _fx_forward_helper: &FXForwardHelper,
+        _yield_term_structure: &YieldTermStructure,
+    ) -> Result<f64> {
+        Ok(0f64)
     }
 }
 
@@ -168,17 +182,23 @@ mod tests {
                     strike,
                 };
                 let fx_forward_helper = sample_fx_forward_helper();
-                let mtm = fx_forward.mtm(fx_forward_helper, yts_observer)?;
+                let mtm = fx_forward.mtm(&fx_forward_helper, yts_observer)?;
                 assert_eq!(mtm.currency, Currency::from_code("USD").unwrap());
                 assert_eq!(
-                    fx_forward.delta()?,
+                    fx_forward.delta(&fx_forward_helper, yts_observer)?,
                     CurrencyValue {
                         currency: Currency::from_code("EUR").unwrap(),
                         value: expected_delta,
                     }
                 );
-                assert_eq!(fx_forward.gamma(), expected_gamma);
-                assert_eq!(fx_forward.vega(), expected_vega)
+                assert_eq!(
+                    fx_forward.gamma(&fx_forward_helper, yts_observer)?,
+                    expected_gamma
+                );
+                assert_eq!(
+                    fx_forward.vega(&fx_forward_helper, yts_observer)?,
+                    expected_vega
+                )
             }
         }
         Ok(())
@@ -275,7 +295,7 @@ mod tests {
             strike: 1.15,
         };
 
-        let mtm = fx_forward.mtm(fx_forward_helper, &yts)?;
+        let mtm = fx_forward.mtm(&fx_forward_helper, &yts)?;
         assert_eq!(mtm.currency, Currency::from_code("USD").unwrap());
         // Tight tolerance against our own computation; loose tolerance vs. Expected.
         assert!(
