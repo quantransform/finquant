@@ -3,6 +3,7 @@ pub mod derivatives;
 pub mod error;
 pub mod markets;
 pub mod math;
+pub mod models;
 pub mod patterns;
 #[cfg(test)]
 pub mod tests;
