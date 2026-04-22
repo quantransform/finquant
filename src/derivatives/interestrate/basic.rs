@@ -60,13 +60,39 @@ pub fn caplet_total_variance(
     }
 }
 
-/// Market-aware trait for IR-option pricing, with IR-native Greeks computed
-/// by bump-and-reprice on the yield curve (parallel zero-rate shift) and
-/// on the vol surface (parallel σ shift). All bumped quantities are returned
-/// **per 1 basis point**, matching vendor-screen conventions.
+/// How a rate bump is applied when computing IR Greeks. Mirrors the set of
+/// options exposed on vendor curve-risk screens. Currently only
+/// [`RateShiftMode::Zeros`] is implemented — the other modes are reserved
+/// so callers can pass them forward without API churn when support lands.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Deserialize, Serialize)]
+pub enum RateShiftMode {
+    /// Parallel shift of every zero rate on the stripped curve. Computed
+    /// analytically — no re-bootstrap required.
+    #[default]
+    Zeros,
+    /// Bump every input quote and re-bootstrap. Not yet implemented.
+    Instruments,
+    /// Bump instantaneous forwards and reconstruct the curve. Not yet
+    /// implemented.
+    Forwards,
+    /// Bump par-swap quotes and re-bootstrap. Not yet implemented.
+    Swaps,
+}
+
+/// Conventional default bump size for rate Greeks. Matches the 10bp default
+/// on vendor curve-risk screens; DV01 overrides this to 1bp by definition.
+pub const DEFAULT_RATE_SHIFT_BP: f64 = 10.0;
+
+/// Conventional default bump size for vega. 1bp is the common quoting
+/// convention for normal-vol Greeks.
+pub const DEFAULT_VOL_SHIFT_BP: f64 = 1.0;
+
+/// Market-aware trait for IR-option pricing with bump-and-reprice Greeks.
+/// All bumped quantities are returned **in the deal currency's natural P&L
+/// unit** — Greek values scale with the size of the bump supplied.
 ///
-/// The vol surface is held fixed through DV01 and gamma (sticky-vol
-/// convention), so DV01 is cleanly separated from vega.
+/// The vol surface is held fixed through `dv01` and `gamma` (sticky-vol
+/// convention), cleanly separating curve risk from vol risk.
 pub trait IRDerivatives {
     /// Present value in the deal currency.
     fn mtm(
@@ -76,31 +102,40 @@ pub trait IRDerivatives {
     ) -> Result<CurrencyValue>;
 
     /// DV01 = PV(y + 1bp) − PV(y), using a parallel zero-rate shift across
-    /// every pillar. Sign follows the PV change under a rate *rise*.
+    /// every pillar. Per 1bp by definition — the conventional name encodes
+    /// the bump size. Use [`IRDerivatives::gamma`] (not `dv01`) for
+    /// configurable shifts. Sign follows the PV change under a rate *rise*.
     fn dv01(
         &self,
         yield_term_structure: &YieldTermStructure,
         ir_vol_surface: &IRNormalVolSurface,
     ) -> Result<f64>;
 
-    /// Gamma per 1bp: PV(y+1bp) + PV(y−1bp) − 2·PV(y) — the standard central
-    /// second-difference under a parallel rate bump.
-    fn gamma_1bp(
+    /// Second-order rate sensitivity as a central difference:
+    /// `PV(y + δ) + PV(y − δ) − 2·PV(y)` where `δ = rate_shift_bp` basis
+    /// points. Scales with δ² for small δ. Vendor convention is
+    /// [`DEFAULT_RATE_SHIFT_BP`] (10bp); pass `1.0` for the per-1bp number.
+    fn gamma(
         &self,
         yield_term_structure: &YieldTermStructure,
         ir_vol_surface: &IRNormalVolSurface,
+        rate_shift_bp: f64,
+        mode: RateShiftMode,
     ) -> Result<f64>;
 
-    /// Vega per 1bp of normal vol: PV(σ + 1bp) − PV(σ). The curve is held
-    /// fixed during this bump.
-    fn vega_1bp(
+    /// Vol sensitivity: `PV(σ + δ) − PV(σ)` where `δ = vol_shift_bp` basis
+    /// points of normal vol. Curve held fixed. Pass
+    /// [`DEFAULT_VOL_SHIFT_BP`] (1bp) for the conventional per-1bp number.
+    fn vega(
         &self,
         yield_term_structure: &YieldTermStructure,
         ir_vol_surface: &IRNormalVolSurface,
+        vol_shift_bp: f64,
     ) -> Result<f64>;
 
     /// Modified duration = −DV01 · 1e4 / PV. Returns `0.0` if PV is
-    /// effectively zero.
+    /// effectively zero. Always derived from the per-1bp DV01 regardless of
+    /// the bump sizes chosen for gamma or vega.
     fn modified_duration(
         &self,
         yield_term_structure: &YieldTermStructure,

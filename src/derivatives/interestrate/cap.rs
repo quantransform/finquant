@@ -19,9 +19,10 @@
 use crate::derivatives::basic::BasicInfo;
 use crate::derivatives::forex::basic::CurrencyValue;
 use crate::derivatives::interestrate::basic::{
-    CapFloorKind, CapStyle, IRDerivatives, caplet_total_variance,
+    CapFloorKind, CapStyle, IRDerivatives, RateShiftMode, caplet_total_variance,
 };
 use crate::derivatives::interestrate::swap::InterestRateSchedulePeriod;
+use crate::error::Error;
 use crate::error::Result;
 use crate::markets::interestrate::volsurface::IRNormalVolSurface;
 use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
@@ -126,33 +127,57 @@ impl IRDerivatives for CapFloor {
         })
     }
 
-    /// DV01 = PV(y + 1bp) − PV(y). Parallel shift across all pillars, vol
-    /// held fixed (sticky-vol). Long-cap DV01 is positive: higher rates lift
-    /// the call payoff even though the discount term pulls the other way.
+    /// DV01 = PV(y + 1bp) − PV(y). Parallel zero-rate shift across all
+    /// pillars, vol held fixed (sticky-vol). Long-cap DV01 is positive:
+    /// higher rates lift the call payoff even though the discount term pulls
+    /// the other way.
     fn dv01(&self, yts: &YieldTermStructure, vs: &IRNormalVolSurface) -> Result<f64> {
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
         let up = self.pv_under_shift(yts, vs, 1.0, 0.0)?;
         Ok(up - base)
     }
 
-    /// Central second difference, PV(y+1bp) + PV(y−1bp) − 2·PV(y).
-    fn gamma_1bp(&self, yts: &YieldTermStructure, vs: &IRNormalVolSurface) -> Result<f64> {
+    /// Central second difference with bump `δ = rate_shift_bp` basis points:
+    /// `PV(y + δ) + PV(y − δ) − 2·PV(y)`. Scales with δ² for small δ.
+    fn gamma(
+        &self,
+        yts: &YieldTermStructure,
+        vs: &IRNormalVolSurface,
+        rate_shift_bp: f64,
+        mode: RateShiftMode,
+    ) -> Result<f64> {
+        ensure_supported_mode(mode)?;
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
-        let up = self.pv_under_shift(yts, vs, 1.0, 0.0)?;
-        let down = self.pv_under_shift(yts, vs, -1.0, 0.0)?;
+        let up = self.pv_under_shift(yts, vs, rate_shift_bp, 0.0)?;
+        let down = self.pv_under_shift(yts, vs, -rate_shift_bp, 0.0)?;
         Ok(up + down - 2.0 * base)
     }
 
-    /// Vega per 1bp of normal vol — PV(σ + 1bp) − PV(σ), with the curve held
-    /// fixed. Consistent with vendor-screen Vega(1bp) columns.
+    /// Vega: `PV(σ + δ) − PV(σ)` with `δ = vol_shift_bp` basis points of
+    /// normal vol. Curve held fixed.
     ///
-    /// The closed-form alternative `Σ τ · DF · (∂C/∂V) · (2σ · T_var) · 1e−4`
+    /// The closed-form alternative `Σ τ · DF · (∂C/∂V) · (2σ · T_var) · δ·1e−4`
     /// agrees to O(1e-8) for typical vols; the finite-difference form is kept
     /// for symmetry with DV01 and to stay honest about sticky-vol.
-    fn vega_1bp(&self, yts: &YieldTermStructure, vs: &IRNormalVolSurface) -> Result<f64> {
+    fn vega(
+        &self,
+        yts: &YieldTermStructure,
+        vs: &IRNormalVolSurface,
+        vol_shift_bp: f64,
+    ) -> Result<f64> {
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
-        let up = self.pv_under_shift(yts, vs, 0.0, 1.0)?;
+        let up = self.pv_under_shift(yts, vs, 0.0, vol_shift_bp)?;
         Ok(up - base)
+    }
+}
+
+fn ensure_supported_mode(mode: RateShiftMode) -> Result<()> {
+    match mode {
+        RateShiftMode::Zeros => Ok(()),
+        other => Err(Error::InvalidData(format!(
+            "rate shift mode {:?} is not yet implemented; only Zeros is supported",
+            other
+        ))),
     }
 }
 
@@ -210,6 +235,9 @@ fn analytic_vega_1bp(
 mod tests {
     use super::{CapFloor, CapFloorKind, CapStyle, IRDerivatives};
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
+    use crate::derivatives::interestrate::basic::{
+        DEFAULT_RATE_SHIFT_BP, DEFAULT_VOL_SHIFT_BP, RateShiftMode,
+    };
     use crate::derivatives::interestrate::swap::InterestRateSchedulePeriod;
     use crate::error::Result;
     use crate::markets::interestrate::volsurface::{
@@ -318,8 +346,8 @@ mod tests {
 
         // Vega(1bp) ≈ $2,656 on the vendor screen. Check within ~10% — the curve
         // is a coarsely-digitised version of the vendor's so there's some
-        // tolerance.
-        let vega = cap.vega_1bp(&yts, &vs)?;
+        // tolerance. Pass DEFAULT_VOL_SHIFT_BP (= 1bp) to match the reference.
+        let vega = cap.vega(&yts, &vs, DEFAULT_VOL_SHIFT_BP)?;
         let ref_vega = 2_656.12_f64;
         let err_pct = (vega - ref_vega).abs() / ref_vega;
         assert!(
@@ -330,16 +358,26 @@ mod tests {
             err_pct * 100.0
         );
 
-        // A long cap's PV rises with rates: DV01 > 0. Long optionality:
-        // gamma_1bp > 0. Vega > 0. Modified duration is then negative.
+        // A long cap's PV rises with rates: DV01 > 0. Long optionality means
+        // gamma > 0 (at any bump size). Modified duration is then negative.
         let dv01 = cap.dv01(&yts, &vs)?;
-        let gamma_1bp = cap.gamma_1bp(&yts, &vs)?;
+        let gamma_10bp = cap.gamma(&yts, &vs, DEFAULT_RATE_SHIFT_BP, RateShiftMode::default())?;
+        let gamma_1bp = cap.gamma(&yts, &vs, 1.0, RateShiftMode::default())?;
         let mod_dur = cap.modified_duration(&yts, &vs)?;
         assert!(dv01 > 0.0, "long cap DV01 should be positive, got {}", dv01);
         assert!(
-            gamma_1bp > 0.0,
-            "long cap gamma(1bp) should be positive, got {}",
-            gamma_1bp
+            gamma_10bp > 0.0,
+            "long cap gamma(10bp) should be positive, got {}",
+            gamma_10bp
+        );
+        // Central-difference gamma scales ≈ δ² for small δ. Confirm the 10bp
+        // reading is roughly 100× the 1bp reading (loose ±30% band — small
+        // gammas are noisy).
+        let ratio = gamma_10bp / gamma_1bp.max(1e-12);
+        assert!(
+            (70.0..130.0).contains(&ratio),
+            "gamma(10bp)/gamma(1bp) = {:.1}, expected ≈ 100",
+            ratio
         );
         assert!(vega > 0.0);
         assert!(
@@ -347,6 +385,65 @@ mod tests {
             "long cap modified duration should be negative (PV rises with rates), got {}",
             mod_dur
         );
+        Ok(())
+    }
+
+    /// Unsupported shift modes must return an error rather than silently
+    /// falling back to `Zeros`.
+    #[test]
+    fn unsupported_rate_shift_mode_errors() -> Result<()> {
+        let curve_date = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
+        let valuation_date = curve_date;
+        let yts = build_vendor_usd_sofr_curve(curve_date, valuation_date);
+        let d = |y, m, dd| NaiveDate::from_ymd_opt(y, m, dd).unwrap();
+
+        let notional = 10_000_000.0_f64;
+        let strike = 0.03543236;
+        let schedule = vendor_sofr_5y_schedule();
+        let quote = CapQuote {
+            strike,
+            notional,
+            direction: Direction::Buy,
+            kind: CapFloorKind::Cap,
+            style: CapStyle::BackwardCompounded,
+            currency: Currency::USD,
+            schedule: schedule.clone(),
+            accrual_day_counter: Box::new(Actual360),
+            market_npv: 237_665.49,
+        };
+        let md = IRCapMarketData::new(valuation_date, vec![quote]);
+        let mut vs = IRNormalVolSurface::new(valuation_date);
+        vs.rebuild(&yts, &md)?;
+        let cap = CapFloor {
+            basic_info: BasicInfo {
+                trade_date: valuation_date,
+                style: Style::IRSwap,
+                direction: Direction::Buy,
+                expiry_date: d(2031, 4, 24),
+                delivery_date: d(2031, 4, 28),
+            },
+            kind: CapFloorKind::Cap,
+            style: CapStyle::BackwardCompounded,
+            currency: Currency::USD,
+            notional,
+            strike,
+            valuation_date,
+            schedule,
+            accrual_day_counter: Box::new(Actual360),
+        };
+
+        for unsupported in [
+            RateShiftMode::Instruments,
+            RateShiftMode::Forwards,
+            RateShiftMode::Swaps,
+        ] {
+            let err = cap.gamma(&yts, &vs, DEFAULT_RATE_SHIFT_BP, unsupported);
+            assert!(
+                err.is_err(),
+                "expected error for unsupported mode {:?}",
+                unsupported
+            );
+        }
         Ok(())
     }
 
