@@ -110,6 +110,86 @@ pub fn calibrate(
     }
 }
 
+/// Fit as [`calibrate`] but **cap γ** at `gamma_max` via a bounded
+/// sigmoid reparameterisation `γ = gamma_max · 1/(1 + e^{−x})`. Useful
+/// to keep the calibrated Heston from pushing vol-of-vol so high that
+/// MC tails balloon past the market's view of the distribution — see
+/// `eurusd_worst_case` for a concrete comparison against a
+/// vendor FX-rate-forecast screen.
+pub fn calibrate_bounded(
+    initial: FxHhwParams,
+    targets: &[CalibrationTarget],
+    expiry: f64,
+    kappa_floor: f64,
+    gamma_max: f64,
+    options: NelderMeadOptions,
+) -> CalibrationResult {
+    assert!(expiry > 0.0);
+    assert!(!targets.is_empty());
+    assert!(kappa_floor >= 0.0);
+    assert!(gamma_max > 0.0);
+
+    let fwd = initial.fx_0 * (-initial.rf_0 * expiry).exp() / (-initial.rd_0 * expiry).exp();
+    let discount = (-initial.rd_0 * expiry).exp();
+
+    // For γ: use logit inverse so γ/γ_max ∈ (0, 1) maps to x ∈ ℝ.
+    let gamma_seed = (initial.heston.gamma / gamma_max).clamp(1.0e-4, 1.0 - 1.0e-4);
+    let x0 = vec![
+        inv_softplus((initial.heston.kappa - kappa_floor).max(1e-8)),
+        (gamma_seed / (1.0 - gamma_seed)).ln(), // logit
+        inv_softplus(initial.heston.theta.max(1e-8)),
+        inv_softplus(initial.heston.sigma_0.max(1e-8)),
+        initial
+            .correlations
+            .rho_xi_sigma
+            .clamp(-0.999, 0.999)
+            .atanh(),
+    ];
+
+    let targets_cloned: Vec<CalibrationTarget> = targets.to_vec();
+    let initial_cloned = initial;
+    let objective = move |x: &[f64]| -> f64 {
+        let trial = reify_params_bounded(&initial_cloned, kappa_floor, gamma_max, x);
+        let chf = FxHhw1ForwardChf::new(&trial, expiry);
+        let pricer = CosPricer::new(&chf);
+        let mut ssr = 0.0_f64;
+        for t in &targets_cloned {
+            let price = pricer.call(t.strike, discount);
+            let model_vol = match bs_implied_vol(price, fwd, t.strike, expiry, discount, true) {
+                Some(v) => v,
+                None => return 1.0e6,
+            };
+            ssr += (model_vol - t.market_vol).powi(2);
+        }
+        ssr
+    };
+
+    let minimum = nelder_mead(objective, &x0, options);
+    let params = reify_params_bounded(&initial, kappa_floor, gamma_max, &minimum.x);
+    let rmse = (minimum.f / targets.len() as f64).sqrt();
+    CalibrationResult {
+        params,
+        rmse,
+        optimiser: minimum,
+    }
+}
+
+fn reify_params_bounded(
+    base: &FxHhwParams,
+    kappa_floor: f64,
+    gamma_max: f64,
+    x: &[f64],
+) -> FxHhwParams {
+    let mut out = *base;
+    out.heston.kappa = kappa_floor + softplus(x[0]);
+    // Sigmoid bound on γ ∈ (0, gamma_max).
+    out.heston.gamma = gamma_max / (1.0 + (-x[1]).exp());
+    out.heston.theta = softplus(x[2]);
+    out.heston.sigma_0 = softplus(x[3]);
+    out.correlations.rho_xi_sigma = x[4].tanh();
+    out
+}
+
 fn softplus(x: f64) -> f64 {
     // log(1 + exp(x)), numerically stable for large x.
     if x > 35.0 { x } else { (1.0 + x.exp()).ln() }

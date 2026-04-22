@@ -30,6 +30,10 @@
 //! provided for cheap repeated evaluation inside the forward-ChF
 //! integrand.
 
+use crate::models::simulation::SimulationModel;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+use rand_distr::StandardNormal;
 use statrs::function::gamma::ln_gamma;
 
 /// Parameters of the CIR variance process.
@@ -188,9 +192,46 @@ impl SqrtMeanProxy {
     }
 }
 
+/// Euler–Maruyama simulator for the CIR process, with full-truncation
+/// of negative draws (Andersen 2008). Implements [`SimulationModel`] so
+/// paths can be driven through [`crate::models::simulation::simulate_at_dates`].
+pub struct CirSimulator {
+    pub process: CirProcess,
+    rng: ChaCha20Rng,
+}
+
+impl CirSimulator {
+    pub fn new(process: CirProcess, seed: u64) -> Self {
+        Self {
+            process,
+            rng: ChaCha20Rng::seed_from_u64(seed),
+        }
+    }
+}
+
+impl SimulationModel for CirSimulator {
+    type State = f64;
+
+    fn initial_state(&self) -> Self::State {
+        self.process.sigma_0
+    }
+
+    fn step(&mut self, state: &Self::State, _t: f64, dt: f64) -> Self::State {
+        let z: f64 = self.rng.sample(StandardNormal);
+        let sigma = state.max(0.0);
+        (sigma
+            + self.process.kappa * (self.process.theta - sigma) * dt
+            + self.process.gamma * sigma.sqrt() * dt.sqrt() * z)
+            .max(0.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::CirProcess;
+    use super::{CirProcess, CirSimulator};
+    use crate::models::simulation::simulate_at_dates;
+    use crate::time::daycounters::actual365fixed::Actual365Fixed;
+    use chrono::NaiveDate;
 
     /// CIR parameters from Grzelak–Oosterlee §2.5 (eq. 2.40):
     /// `κ = 0.5, γ = 0.3, σ̄ = 0.1, σ₀ = 0.1`. Feller is violated (γ² > 2κσ̄).
@@ -329,5 +370,46 @@ mod tests {
                 tight
             );
         }
+    }
+
+    /// `CirSimulator` under [`simulate_at_dates`]: sample-mean of σ(T)
+    /// across 10k paths must match `CirProcess::mean(T)` to within a
+    /// few sampling standard errors.
+    #[test]
+    fn cir_simulator_mean_matches_closed_form() {
+        let p = CirProcess {
+            kappa: 1.5,
+            theta: 0.04,
+            gamma: 0.25,
+            sigma_0: 0.04,
+        };
+        let mut sim = CirSimulator::new(p, 2024);
+        let val = NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+        let horizon = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let dc = Actual365Fixed::default();
+        let paths = simulate_at_dates(&mut sim, val, &[horizon], 10_000, 1, &dc);
+        let terminals = paths.states_at(horizon).unwrap();
+        let mean: f64 = terminals.iter().sum::<f64>() / terminals.len() as f64;
+        let expected = p.mean(1.0);
+        assert!(
+            (mean - expected).abs() < 1.0e-3,
+            "MC mean {} vs closed form {}",
+            mean,
+            expected
+        );
+    }
+
+    /// Initial state matches `sigma_0`; variance decays to 0 as `t → 0`.
+    #[test]
+    fn cir_simulator_trivial_step_invariants() {
+        use crate::models::simulation::SimulationModel;
+        let p = CirProcess {
+            kappa: 1.0,
+            theta: 0.1,
+            gamma: 0.1,
+            sigma_0: 0.05,
+        };
+        let sim = CirSimulator::new(p, 1);
+        assert_eq!(sim.initial_state(), 0.05);
     }
 }

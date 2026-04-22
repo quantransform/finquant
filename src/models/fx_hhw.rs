@@ -22,6 +22,7 @@
 
 use crate::models::cir::CirProcess;
 use crate::models::hull_white::HullWhite1F;
+use crate::models::simulation::SimulationModel;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -149,6 +150,10 @@ pub struct FxHhwSimulator {
     pub params: FxHhwParams,
     chol: [[f64; 4]; 4],
     rng: ChaCha20Rng,
+    /// HW mean-reversion target provider `(t) → (θ_d(t), θ_f(t))`.
+    /// Defaults to constant `(params.theta_d, params.theta_f)`. Override
+    /// via [`Self::with_theta_fn`] for a Jamshidian-style curve fit.
+    theta_fn: Box<dyn FnMut(f64) -> (f64, f64) + 'static>,
 }
 
 impl FxHhwSimulator {
@@ -157,19 +162,51 @@ impl FxHhwSimulator {
             .correlations
             .cholesky()
             .ok_or("correlation matrix is not positive-definite")?;
+        let td = params.theta_d;
+        let tf = params.theta_f;
+        let theta_fn: Box<dyn FnMut(f64) -> (f64, f64) + 'static> = Box::new(move |_t| (td, tf));
         Ok(Self {
             params,
             chol,
             rng: ChaCha20Rng::seed_from_u64(seed),
+            theta_fn,
         })
     }
 
-    /// Advance state by `dt` under the domestic-spot Q measure. Consumes
-    /// four standard-normal draws from the internal RNG; returns the
-    /// correlated Brownian increments (scaled by √dt) alongside the new
-    /// state, so tests can assert on the noise directly.
-    #[allow(clippy::needless_range_loop)] // 4×4 index loops stay readable
+    /// Install a time-dependent HW drift target. Closure signature is
+    /// `(year_fraction_from_valuation) → (θ_d, θ_f)`. Typical callers
+    /// pass a Jamshidian fit to the initial SOFR / ESTR forward curves so
+    /// `E[r_d(t)] = f(0, t)` exactly.
+    pub fn with_theta_fn<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(f64) -> (f64, f64) + 'static,
+    {
+        self.theta_fn = Box::new(f);
+        self
+    }
+
+    /// Advance state by `dt` using the `theta_d, theta_f` from
+    /// `params`. Consumes four standard-normal draws from the internal
+    /// RNG; returns the correlated Brownian increments (scaled by √dt)
+    /// alongside the new state, so tests can assert on the noise directly.
     pub fn step(&mut self, state: &FxHhwState, dt: f64) -> (FxHhwState, [f64; 4]) {
+        let theta_d = self.params.theta_d;
+        let theta_f = self.params.theta_f;
+        self.step_at_time(state, dt, theta_d, theta_f)
+    }
+
+    /// Same as [`Self::step`] but with explicit `θ_d, θ_f` for this
+    /// sub-step — lets callers feed a **time-dependent** drift target
+    /// without mutating `params`. Used by the date-driven path sampler
+    /// below and by tests that need Jamshidian-style HW calibration.
+    #[allow(clippy::needless_range_loop)] // 4×4 index loops stay readable
+    pub fn step_at_time(
+        &mut self,
+        state: &FxHhwState,
+        dt: f64,
+        theta_d: f64,
+        theta_f: f64,
+    ) -> (FxHhwState, [f64; 4]) {
         assert!(dt > 0.0);
         let z: [f64; 4] = [
             self.rng.sample(StandardNormal),
@@ -178,7 +215,6 @@ impl FxHhwSimulator {
             self.rng.sample(StandardNormal),
         ];
         let sqrt_dt = dt.sqrt();
-        // Correlated increments: dW = L · Z · √dt.
         let mut dw = [0.0_f64; 4];
         for i in 0..4 {
             let mut s = 0.0;
@@ -192,24 +228,20 @@ impl FxHhwSimulator {
         let sigma = state.variance.max(0.0);
         let sqrt_sigma = sigma.sqrt();
 
-        // Log-FX Euler:  d log ξ = (rd - rf - σ/2) dt + √σ dWξ.
         let new_log_fx =
             state.fx.ln() + (state.rd - state.rf - 0.5 * sigma) * dt + sqrt_sigma * dw[0];
         let new_fx = new_log_fx.exp();
 
-        // Variance Euler with full truncation.
         let new_variance = (sigma
             + p.heston.kappa * (p.heston.theta - sigma) * dt
             + p.heston.gamma * sqrt_sigma * dw[1])
             .max(0.0);
 
-        // Domestic short rate Euler.
         let new_rd = state.rd
-            + p.domestic.mean_reversion * (p.theta_d - state.rd) * dt
+            + p.domestic.mean_reversion * (theta_d - state.rd) * dt
             + p.domestic.sigma * dw[2];
 
-        // Foreign short rate Euler with quanto correction −ηf ρξf √σ.
-        let rf_drift = p.foreign.mean_reversion * (p.theta_f - state.rf)
+        let rf_drift = p.foreign.mean_reversion * (theta_f - state.rf)
             - p.foreign.sigma * p.correlations.rho_xi_f * sqrt_sigma;
         let new_rf = state.rf + rf_drift * dt + p.foreign.sigma * dw[3];
 
@@ -243,9 +275,23 @@ impl FxHhwSimulator {
     }
 }
 
+impl SimulationModel for FxHhwSimulator {
+    type State = FxHhwState;
+
+    fn initial_state(&self) -> Self::State {
+        FxHhwState::initial(&self.params)
+    }
+
+    fn step(&mut self, state: &Self::State, t: f64, dt: f64) -> Self::State {
+        let (theta_d, theta_f) = (self.theta_fn)(t);
+        self.step_at_time(state, dt, theta_d, theta_f).0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
 
     /// Textbook parameter set from Grzelak–Oosterlee §2.5:
     /// `κ=0.5, γ=0.3, σ̄=0.1, σ₀=0.1`, Hull-White
@@ -485,5 +531,104 @@ mod tests {
         for (a, b) in term1.iter().zip(term2.iter()) {
             assert_eq!(a, b);
         }
+    }
+
+    /// Date-driven API: state at the observation date should match the
+    /// year-fraction-driven `simulate` at the same terminal time.  Use
+    /// the same seed and identical step density — paths must coincide.
+    #[test]
+    fn date_driven_matches_year_fraction_simulate() {
+        use crate::models::simulation::simulate_at_dates;
+        use crate::time::daycounters::DayCounters;
+        use crate::time::daycounters::actual365fixed::Actual365Fixed;
+        let p = paper_params();
+        let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
+        let observation = NaiveDate::from_ymd_opt(2027, 4, 22).unwrap();
+        let dc = Actual365Fixed::default();
+
+        let mut sim_d = FxHhwSimulator::new(p, 42).unwrap();
+        let paths = simulate_at_dates(&mut sim_d, valuation, &[observation], 100, 1, &dc);
+        assert_eq!(paths.n_paths(), 100);
+        assert_eq!(paths.observation_dates, vec![observation]);
+
+        let t = dc.year_fraction(valuation, observation).unwrap();
+        let mut sim_y = FxHhwSimulator::new(p, 42).unwrap();
+        let terminals = sim_y.simulate(t, 365, 100);
+        for (i, s) in terminals.iter().enumerate() {
+            let dated = &paths.paths[i][0];
+            assert!((dated.fx - s.fx).abs() < 1e-10);
+            assert!((dated.variance - s.variance).abs() < 1e-10);
+            assert!((dated.rd - s.rd).abs() < 1e-10);
+            assert!((dated.rf - s.rf).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn dated_paths_lookup_helpers() {
+        use crate::models::simulation::simulate_at_dates;
+        use crate::time::daycounters::actual365fixed::Actual365Fixed;
+        let p = paper_params();
+        let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
+        let d1 = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(2027, 4, 22).unwrap();
+        let dc = Actual365Fixed::default();
+        let mut sim = FxHhwSimulator::new(p, 7).unwrap();
+        let paths = simulate_at_dates(&mut sim, valuation, &[d1, d2], 50, 5, &dc);
+        let states1 = paths.states_at(d1).unwrap();
+        let states2 = paths.states_at(d2).unwrap();
+        assert_eq!(states1.len(), 50);
+        assert_eq!(states2.len(), 50);
+        for i in 0..50 {
+            assert_eq!(paths.paths[i][0], states1[i]);
+            assert_eq!(paths.paths[i][1], states2[i]);
+        }
+    }
+
+    #[test]
+    fn date_driven_preserves_martingale() {
+        use crate::models::simulation::simulate_at_dates;
+        use crate::time::daycounters::DayCounters;
+        use crate::time::daycounters::actual365fixed::Actual365Fixed;
+        let mut p = paper_params();
+        p.domestic.sigma = 0.0;
+        p.foreign.sigma = 0.0;
+        let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
+        let horizon = NaiveDate::from_ymd_opt(2027, 4, 22).unwrap();
+        let dc = Actual365Fixed::default();
+        let mut sim = FxHhwSimulator::new(p, 2024).unwrap();
+        let paths = simulate_at_dates(&mut sim, valuation, &[horizon], 20_000, 1, &dc);
+        let fx = paths.sample(horizon, |s| s.fx).unwrap();
+        let t = dc.year_fraction(valuation, horizon).unwrap();
+        let growth = ((p.rf_0 - p.rd_0) * t).exp();
+        let mean_m: f64 = fx.iter().map(|x| x * growth).sum::<f64>() / fx.len() as f64;
+        assert!(
+            (mean_m - p.fx_0).abs() < 5e-3,
+            "martingale drift {} vs ξ₀ {}",
+            mean_m,
+            p.fx_0
+        );
+    }
+
+    #[test]
+    fn with_theta_fn_overrides_default_drift_target() {
+        use crate::models::simulation::simulate_at_dates;
+        use crate::time::daycounters::actual365fixed::Actual365Fixed;
+        let p = paper_params();
+        let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
+        let horizon = NaiveDate::from_ymd_opt(2027, 4, 22).unwrap();
+        let dc = Actual365Fixed::default();
+        let high_target = 0.10_f64;
+        let mut sim = FxHhwSimulator::new(p, 9)
+            .unwrap()
+            .with_theta_fn(move |_t| (high_target, 0.05));
+        let paths = simulate_at_dates(&mut sim, valuation, &[horizon], 5_000, 1, &dc);
+        let rd = paths.sample(horizon, |s| s.rd).unwrap();
+        let mean: f64 = rd.iter().sum::<f64>() / rd.len() as f64;
+        // θ_d = 10 %, λ_d = 1 %, rd_0 = 2 %: E[r_d(1y)] ≈ 2.08 %.
+        assert!(
+            mean > p.rd_0 && mean < 0.05,
+            "mean {} not in (rd_0, 5%) band",
+            mean
+        );
     }
 }

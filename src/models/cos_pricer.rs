@@ -20,26 +20,80 @@
 //! `L = 10`. Callers can override via [`CosPricer::with_range`].
 
 use crate::models::fx_hhw1_chf::FxHhw1ForwardChf;
+use crate::models::fx_hlmm1_chf::FxHlmm1ForwardChf;
 use num_complex::Complex64;
 
-/// Pricer that glues a forward ChF onto the COS quadrature.
-pub struct CosPricer<'a> {
-    chf: &'a FxHhw1ForwardChf<'a>,
+/// Interface a characteristic function must expose for COS pricing:
+/// frequency evaluation plus enough information to build a sensible
+/// default truncation range. Implemented for both FX-HHW1 and FX-HLMM1.
+pub trait ForwardChf {
+    /// `φ_T(u)` at time 0 under the forward domestic measure.
+    fn evaluate(&self, u: Complex64) -> Complex64;
+    /// Maturity `T` in year-fractions.
+    fn expiry(&self) -> f64;
+    /// `log FX_T(0)` — the initial forward's log, used to centre the
+    /// COS truncation range.
+    fn log_forward(&self) -> f64;
+    /// Typical instantaneous variance of `log FX_T(T)`. Used to set the
+    /// COS half-width; a factor-10 is applied on top. For Heston-type
+    /// models this is just the long-run variance `σ̄`.
+    fn typical_variance(&self) -> f64;
+}
+
+impl<'a> ForwardChf for FxHhw1ForwardChf<'a> {
+    fn evaluate(&self, u: Complex64) -> Complex64 {
+        FxHhw1ForwardChf::evaluate(self, u)
+    }
+    fn expiry(&self) -> f64 {
+        self.expiry
+    }
+    fn log_forward(&self) -> f64 {
+        let p = self.params();
+        let t = self.expiry;
+        (p.fx_0 * (-p.rf_0 * t).exp() / (-p.rd_0 * t).exp()).ln()
+    }
+    fn typical_variance(&self) -> f64 {
+        self.params().heston.theta
+    }
+}
+
+impl<'a> ForwardChf for FxHlmm1ForwardChf<'a> {
+    fn evaluate(&self, u: Complex64) -> Complex64 {
+        FxHlmm1ForwardChf::evaluate(self, u)
+    }
+    fn expiry(&self) -> f64 {
+        self.expiry
+    }
+    fn log_forward(&self) -> f64 {
+        // FX-HLMM rates are derived from initial Libor levels inside the
+        // ChF; the forward offset is already absorbed there, so evaluating
+        // at `u = 0` leaves just `log FX_T(0)` under the exp.
+        self.params().fx_0.ln()
+    }
+    fn typical_variance(&self) -> f64 {
+        // FX Heston variance is the dominant contributor; LMM contributions
+        // are second-order for typical parameter sets.
+        self.params().heston.theta
+    }
+}
+
+/// Pricer that glues any `ForwardChf` onto the COS quadrature.
+pub struct CosPricer<'a, C: ForwardChf> {
+    chf: &'a C,
     /// Number of Fourier-cosine terms. More terms → better accuracy.
     pub n_terms: usize,
     /// Truncation range `[a, b]` in log-forward space.
     pub range: (f64, f64),
 }
 
-impl<'a> CosPricer<'a> {
+impl<'a, C: ForwardChf> CosPricer<'a, C> {
     /// Build a pricer with default `N = 128` terms and a cumulant-based
     /// truncation range centred on `log FX_T(0)` with half-width
     /// `10 · √(σ̄·T)`.
-    pub fn new(chf: &'a FxHhw1ForwardChf<'a>) -> Self {
-        let p = chf.params();
-        let t = chf.expiry;
-        let log_forward = (p.fx_0 * (-p.rf_0 * t).exp() / (-p.rd_0 * t).exp()).ln();
-        let half_width = 10.0 * (p.heston.theta * t).sqrt().max(1.0e-6);
+    pub fn new(chf: &'a C) -> Self {
+        let t = chf.expiry();
+        let log_forward = chf.log_forward();
+        let half_width = 10.0 * (chf.typical_variance() * t).sqrt().max(1.0e-6);
         let a = log_forward - half_width;
         let b = log_forward + half_width;
         Self {
@@ -330,5 +384,91 @@ mod tests {
             err,
             4.0 * se + 5.0e-4
         );
+    }
+
+    /// COS prices from the FX-HLMM1 ChF. In the pure-Heston limit
+    /// (LMM vol → 0), HLMM and HHW should give identical prices.
+    #[test]
+    fn cos_works_with_fx_hlmm1_chf_in_pure_heston_limit() {
+        use crate::models::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
+        use crate::models::fx_hlmm1_chf::FxHlmm1ForwardChf;
+
+        let p_hhw = FxHhwParams {
+            fx_0: 1.35,
+            heston: CirProcess {
+                kappa: 0.5,
+                theta: 0.04,
+                gamma: 0.3,
+                sigma_0: 0.04,
+            },
+            domestic: HullWhite1F {
+                mean_reversion: 0.01,
+                sigma: 0.0,
+            },
+            foreign: HullWhite1F {
+                mean_reversion: 0.05,
+                sigma: 0.0,
+            },
+            rd_0: 0.02,
+            rf_0: 0.02,
+            theta_d: 0.02,
+            theta_f: 0.02,
+            correlations: Correlation4x4 {
+                rho_xi_sigma: -0.3,
+                rho_xi_d: 0.0,
+                rho_xi_f: 0.0,
+                rho_sigma_d: 0.0,
+                rho_sigma_f: 0.0,
+                rho_d_f: 0.0,
+            },
+        };
+
+        // Construct a matching FX-HLMM with LMM vols set to ~zero so both
+        // ChFs describe the same process (pure Heston with flat rates).
+        let tenor = LiborTenor::new(vec![0.0, 0.5, 1.0], vec![0.02, 0.02]);
+        let lmm = DdSvLmm {
+            sigmas: vec![1e-8; 2],
+            betas: vec![0.5; 2],
+            lambda: 1.0,
+            eta: 1e-8,
+            v_0: 1.0,
+            libor_corr: vec![vec![1.0, 0.0], vec![0.0, 1.0]],
+        };
+        let p_hlmm = FxHlmmParams {
+            fx_0: 1.35,
+            heston: p_hhw.heston,
+            tenor,
+            domestic: lmm.clone(),
+            foreign: lmm,
+            correlations: FxHlmmCorrelations {
+                rho_xi_sigma: -0.3,
+                rho_xi_d: vec![0.0; 2],
+                rho_xi_f: vec![0.0; 2],
+                libor_cross_corr: vec![vec![0.0; 2]; 2],
+            },
+        };
+
+        let t = 1.0_f64;
+        let chf_hhw = FxHhw1ForwardChf::new(&p_hhw, t);
+        let chf_hlmm = FxHlmm1ForwardChf::new(&p_hlmm, t);
+        let pricer_hhw = CosPricer::new(&chf_hhw).with_n_terms(256);
+        let pricer_hlmm = CosPricer::new(&chf_hlmm).with_n_terms(256);
+        let discount = (-p_hhw.rd_0 * t).exp();
+
+        for strike in [1.20_f64, 1.35, 1.50] {
+            let hhw = pricer_hhw.call(strike, discount);
+            let hlmm = pricer_hlmm.call(strike, discount);
+            // Both models should agree on the pure-Heston limit to a few
+            // basis points — there's a slight forward-offset difference
+            // (HLMM derives rates from the Libor grid) so allow ~5e-3.
+            assert!(
+                (hhw - hlmm).abs() < 5.0e-3,
+                "K={}: HHW {} vs HLMM {}, diff {}",
+                strike,
+                hhw,
+                hlmm,
+                hhw - hlmm
+            );
+        }
     }
 }

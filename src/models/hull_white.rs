@@ -18,6 +18,11 @@
 //! (negative), giving `P(t, T) = exp(A + B r)` with the expected
 //! monotonicity `∂P/∂r < 0`. The same convention is used here.
 
+use crate::models::simulation::SimulationModel;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+use rand_distr::StandardNormal;
+
 /// One-factor Hull–White short-rate parameters. `θ(t)` is intentionally
 /// absent: it's inferred from the paired yield curve at pricing time.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -125,9 +130,68 @@ impl HullWhite1F {
     }
 }
 
+/// Euler simulator for the Hull–White short rate
+/// `dr = λ (θ(t) − r) dt + η dW`. Pair with [`SimulationModel`] to drive
+/// paths through [`crate::models::simulation::simulate_at_dates`].
+///
+/// The mean-reversion target `θ(t)` is supplied as a closure — constant
+/// by default. Callers who want `E[r(t)] = f(0, t)` (market forward
+/// rate) wire in a Jamshidian fit via [`Self::with_theta_fn`].
+pub struct HullWhiteSimulator {
+    pub model: HullWhite1F,
+    pub r_0: f64,
+    rng: ChaCha20Rng,
+    theta_fn: Box<dyn FnMut(f64) -> f64 + 'static>,
+}
+
+impl HullWhiteSimulator {
+    /// Construct with a constant `θ = theta_constant`. Sample-mean of
+    /// `r(t)` drifts from `r_0` toward this target at rate `λ`.
+    pub fn new_constant_theta(
+        model: HullWhite1F,
+        r_0: f64,
+        theta_constant: f64,
+        seed: u64,
+    ) -> Self {
+        Self {
+            model,
+            r_0,
+            rng: ChaCha20Rng::seed_from_u64(seed),
+            theta_fn: Box::new(move |_t| theta_constant),
+        }
+    }
+
+    /// Override the θ target with a time-dependent closure. Typical
+    /// callers pass a Jamshidian fit so `E[r(t)] = f(0, t)` exactly.
+    pub fn with_theta_fn<F>(mut self, f: F) -> Self
+    where
+        F: FnMut(f64) -> f64 + 'static,
+    {
+        self.theta_fn = Box::new(f);
+        self
+    }
+}
+
+impl SimulationModel for HullWhiteSimulator {
+    type State = f64;
+
+    fn initial_state(&self) -> Self::State {
+        self.r_0
+    }
+
+    fn step(&mut self, state: &Self::State, t: f64, dt: f64) -> Self::State {
+        let z: f64 = self.rng.sample(StandardNormal);
+        let theta = (self.theta_fn)(t);
+        state + self.model.mean_reversion * (theta - state) * dt + self.model.sigma * dt.sqrt() * z
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::HullWhite1F;
+    use super::{HullWhite1F, HullWhiteSimulator};
+    use crate::models::simulation::simulate_at_dates;
+    use crate::time::daycounters::actual365fixed::Actual365Fixed;
+    use chrono::NaiveDate;
 
     fn grzelak_usd_like() -> HullWhite1F {
         // Values from GO §2.5: ηd = 0.7 %, λd = 1 %.
@@ -251,6 +315,69 @@ mod tests {
             "HW discount at t=0 should equal market, got {} want {}",
             got,
             p0_big_t
+        );
+    }
+
+    /// MC sample variance of `r(T)` must match the closed-form
+    /// `η²/(2λ)·(1−e^{−2λT})` under the constant-θ simulator.
+    #[test]
+    fn hw_simulator_variance_matches_closed_form() {
+        let hw = grzelak_usd_like();
+        let r0 = 0.035;
+        let theta = 0.035; // same as r0 — no drift, so E[r(T)] stays at r0
+        let mut sim = HullWhiteSimulator::new_constant_theta(hw, r0, theta, 42);
+        let val = NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+        let horizon = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let dc = Actual365Fixed::default();
+        let paths = simulate_at_dates(&mut sim, val, &[horizon], 20_000, 1, &dc);
+        let rs = paths.states_at(horizon).unwrap();
+        let mean: f64 = rs.iter().sum::<f64>() / rs.len() as f64;
+        let var: f64 = rs.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / rs.len() as f64;
+        let expected = hw.short_rate_variance(0.0, 1.0);
+        // 5 % tolerance on MC variance with 20k paths.
+        assert!(
+            (var - expected).abs() < 0.05 * expected,
+            "MC var {:.3e} vs closed form {:.3e}",
+            var,
+            expected
+        );
+        // Mean is drift-free (θ = r_0) so should stay at r_0 within SE.
+        let se = (var / rs.len() as f64).sqrt();
+        assert!(
+            (mean - r0).abs() < 4.0 * se,
+            "MC mean {} vs r_0 {}",
+            mean,
+            r0
+        );
+    }
+
+    /// `with_theta_fn` overrides the default. Drift shifts the mean
+    /// toward the time-dependent target.
+    #[test]
+    fn hw_simulator_time_dep_theta_drags_mean() {
+        let hw = HullWhite1F {
+            mean_reversion: 0.5, // moderately fast — 1y produces visible drift
+            sigma: 0.01,
+        };
+        let r0 = 0.02;
+        let target = 0.06;
+        let mut sim =
+            HullWhiteSimulator::new_constant_theta(hw, r0, r0, 7).with_theta_fn(move |_t| target);
+        let val = NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+        let horizon = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let dc = Actual365Fixed::default();
+        let paths = simulate_at_dates(&mut sim, val, &[horizon], 5_000, 1, &dc);
+        let rs = paths.states_at(horizon).unwrap();
+        let mean: f64 = rs.iter().sum::<f64>() / rs.len() as f64;
+        // Expected: E[r(1)] = r_0·e^{-λ} + θ·(1-e^{-λ})
+        //                   = 0.02·0.607 + 0.06·0.393 = 0.0357
+        let expected =
+            r0 * (-hw.mean_reversion).exp() + target * (1.0 - (-hw.mean_reversion).exp());
+        assert!(
+            (mean - expected).abs() < 0.002,
+            "MC mean {:.5} vs expected {:.5}",
+            mean,
+            expected
         );
     }
 }
