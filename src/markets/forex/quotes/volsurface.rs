@@ -15,7 +15,7 @@
 //! # Quote conventions
 //!
 //! Each `FXDeltaVolPillar` is a bag of [`FXVolQuote`]s. Supported quote types
-//! mirror the Bloomberg FX vol surface contribution formats:
+//! mirror the market-standard FX vol surface contribution formats:
 //!
 //! * [`FXVolQuote::Atm`]          – at-the-money vol (DNS convention)
 //! * [`FXVolQuote::Call`] /[`FXVolQuote::Put`]     – direct call/put vols at a
@@ -519,7 +519,7 @@ mod tests {
     ///   10Δ Put EUR  = 8.9125 %
     /// 5Y forward: F ≈ 1.2376. Target strike 1.2995 (5 % OTMF) → mid 7.748 %.
     #[test]
-    fn ovdv_5y_smile_recovers_vol_at_1_2995_direct_quotes() -> Result<()> {
+    fn vendor_5y_smile_recovers_vol_at_1_2995_direct_quotes() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let expiry = NaiveDate::from_ymd_opt(2031, 4, 23).unwrap();
         let surface = FXVolSurface::new(

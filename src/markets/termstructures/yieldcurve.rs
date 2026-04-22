@@ -269,6 +269,24 @@ impl YieldTermStructure {
         Ok((-zero_rate * duration).exp())
     }
 
+    /// Discount factor under a parallel zero-rate shift of `shift_bp` basis
+    /// points, applied uniformly across all pillars. Mathematically equivalent
+    /// to constructing a new curve with every `zero_rate` bumped by
+    /// `shift_bp · 1e-4` and calling `discount` on it — regardless of
+    /// interpolation scheme — because a constant-in-time shift factors out of
+    /// the zero-rate lookup. Used for bump-and-reprice IR Greeks (DV01,
+    /// gamma-1bp, modified duration).
+    pub fn shifted_discount(
+        &self,
+        date: NaiveDate,
+        interpolation_method_enum: &InterpolationMethodEnum,
+        shift_bp: f64,
+    ) -> Result<f64> {
+        let base = self.discount(date, interpolation_method_enum)?;
+        let yf = Actual365Fixed::default().year_fraction(self.valuation_date, date)?;
+        Ok(base * (-shift_bp * 1.0e-4 * yf).exp())
+    }
+
     /// Get forward rate from zero rate.
     pub fn forward_rate(
         &self,

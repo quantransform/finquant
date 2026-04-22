@@ -890,7 +890,7 @@ mod tests {
     ///     1M       3.65110        OIS cash
     ///     3M       3.66790        OIS cash
     ///     6M       3.68070        OIS cash
-    ///    12M       3.68800        OIS cash (single-coupon; matches ICVS)
+    ///    12M       3.68800        OIS cash (single-coupon; matches vendor curve)
     ///     2Y       3.60645        OIS swap (annual)
     ///     4Y       3.57510        OIS swap (annual, no 3Y quote)
     ///     5Y       3.60743        OIS swap (annual)
@@ -912,7 +912,7 @@ mod tests {
         YieldTermMarketData::new(valuation_date, ois_quotes, vec![], swap_quotes)
     }
 
-    /// SWPM reference: USD 5Y Fixed vs SOFR swap (screenshots, 04/21/2026 curve date).
+    /// Vendor swap-pricing reference: USD 5Y Fixed vs SOFR swap (04/21/2026 curve date).
     ///
     /// Deal:
     ///   Leg 1 Receive Fixed: USD 10MM, Coupon 3.68800 %, ACT/360 Money Mkt, Annual
@@ -933,7 +933,7 @@ mod tests {
     /// Validates that our bootstrap produces DFs close to expected values at each pay date,
     /// then prices the fixed leg manually.
     #[test]
-    fn test_usd_sofr_curve_and_fixed_leg_expected_swpm() -> Result<()> {
+    fn test_usd_sofr_curve_and_fixed_leg_vendor_reference() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
@@ -1076,14 +1076,14 @@ mod tests {
         ]
     }
 
-    /// Expected SWPM: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
+    /// Vendor reference: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
     /// Curve date 04/21/2026, valuation 04/23/2026 (effective). Net NPV: $36,739.97.
     ///
     /// Drives the swap through `InterestRateSwap::npv`, with the discount curve
     /// produced by `usd_sofr_market_data().get_stripped_curve()` —
     /// i.e. finquant does the bootstrap end-to-end from raw market quotes.
     #[test]
-    fn test_usd_sofr_5y_swap_npv_expected_swpm() -> Result<()> {
+    fn test_usd_sofr_5y_swap_npv_vendor_reference() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
