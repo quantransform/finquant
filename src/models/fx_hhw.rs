@@ -20,7 +20,7 @@
 //! characteristic-function approximation (PR-G3) and for calibration
 //! (PR-G4).
 
-use crate::math::cir::CirProcess;
+use crate::models::cir::CirProcess;
 use crate::models::hull_white::HullWhite1F;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;

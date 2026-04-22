@@ -24,7 +24,7 @@ use crate::derivatives::interestrate::basic::{CapFloorKind, CapStyle, caplet_tot
 use crate::derivatives::interestrate::swap::InterestRateSchedulePeriod;
 use crate::error::{Error, Result};
 use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
-use crate::math::bachelier::{bachelier_call, bachelier_put};
+use crate::models::bachelier::{bachelier_call, bachelier_put};
 use crate::patterns::observer::{Observable, Observer};
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;

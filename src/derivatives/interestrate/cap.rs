@@ -26,7 +26,7 @@ use crate::error::Error;
 use crate::error::Result;
 use crate::markets::interestrate::volsurface::IRNormalVolSurface;
 use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
-use crate::math::bachelier::{bachelier_call, bachelier_put, bachelier_vega_variance};
+use crate::models::bachelier::{bachelier_call, bachelier_put, bachelier_vega_variance};
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use iso_currency::Currency;
