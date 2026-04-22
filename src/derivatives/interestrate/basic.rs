@@ -21,7 +21,7 @@ pub enum CapFloorKind {
 /// * **ForwardLooking** — classic Libor-style caplet whose fixing is known at
 ///   the accrual start. `V = σ² · (T_s − t)`.
 /// * **BackwardCompounded** — RFR (SOFR / SONIA / ESTR) caplet whose fixing is
-///   only known at the accrual end. Vendor screens quote these with `σ_decay`,
+///   only known at the accrual end. expected screens quote these with `σ_decay`,
 ///   the level of a linearly-decaying instantaneous vol over `[T_s, T_e]`; the
 ///   resulting total variance at the valuation date `t ≤ T_s` is
 ///   `V = σ² · [ (T_s − t) + (T_e − T_s) / 3 ]`.
@@ -61,7 +61,7 @@ pub fn caplet_total_variance(
 }
 
 /// How a rate bump is applied when computing IR Greeks. Mirrors the set of
-/// options exposed on vendor curve-risk screens. Currently only
+/// options exposed on expected curve-risk screens. Currently only
 /// [`RateShiftMode::Zeros`] is implemented — the other modes are reserved
 /// so callers can pass them forward without API churn when support lands.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Deserialize, Serialize)]
@@ -80,7 +80,7 @@ pub enum RateShiftMode {
 }
 
 /// Conventional default bump size for rate Greeks. Matches the 10bp default
-/// on vendor curve-risk screens; DV01 overrides this to 1bp by definition.
+/// on expected curve-risk screens; DV01 overrides this to 1bp by definition.
 pub const DEFAULT_RATE_SHIFT_BP: f64 = 10.0;
 
 /// Conventional default bump size for vega. 1bp is the common quoting
@@ -113,7 +113,7 @@ pub trait IRDerivatives {
 
     /// Second-order rate sensitivity as a central difference:
     /// `PV(y + δ) + PV(y − δ) − 2·PV(y)` where `δ = rate_shift_bp` basis
-    /// points. Scales with δ² for small δ. Vendor convention is
+    /// points. Scales with δ² for small δ. expected convention is
     /// [`DEFAULT_RATE_SHIFT_BP`] (10bp); pass `1.0` for the per-1bp number.
     fn gamma(
         &self,

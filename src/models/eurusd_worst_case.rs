@@ -1,5 +1,5 @@
-//! EURUSD 90 % confidence-interval regression tests against vendor
-//! FXFO-style reference, calibrated from a snapshot of vendor market
+//! EURUSD 90 % confidence-interval regression tests against expected value,
+//! calibrated from a snapshot of market
 //! data (spot, forwards, delta-quoted vol surface, SOFR & ESTR par-swap
 //! curves) on 2026-04-22.
 //!
@@ -13,8 +13,8 @@
 //! * **SOFR mean**: simulated `E[r_d(T)]` within 10 bp of market swap rate.
 //! * **Tail width reasonableness**: 90 % CI half-width implies a log-space σ
 //!   inside a sensible band around ATM vol.
-//! * **γ-bounded variant matches vendor reference** at long tenors
-//!   (5Y CI within ±50 bp σ-equivalent of the 0.860–1.609 vendor band).
+//! * **γ-bounded variant matches expected reference** at long tenors
+//!   (5Y CI within ±50 bp σ-equivalent of the 0.860–1.609 expected band).
 //!
 //! MC tests are `#[ignore]`d (each MC is 100k paths × daily steps; ≈10s
 //! each in release). Run with:
@@ -54,8 +54,8 @@ mod test {
         c25: f64,
         p10: f64,
         c10: f64,
-        /// Vendor FXFO-style 90 % CI, if available.
-        vendor_ci: Option<(f64, f64)>,
+        /// expected FXFO-style 90 % CI, if available.
+        expected_ci: Option<(f64, f64)>,
     }
 
     fn pillars() -> Vec<Pillar> {
@@ -70,7 +70,7 @@ mod test {
                 c25: 0.07125,
                 p10: 0.077225,
                 c10: 0.082775,
-                vendor_ci: Some((1.0454, 1.3273)),
+                expected_ci: Some((1.0454, 1.3273)),
             },
             Pillar {
                 expiry: d(2028, 4, 20),
@@ -81,7 +81,7 @@ mod test {
                 c25: 0.075375,
                 p10: 0.081775,
                 c10: 0.087125,
-                vendor_ci: Some((0.9860, 1.4108)),
+                expected_ci: Some((0.9860, 1.4108)),
             },
             Pillar {
                 expiry: d(2029, 4, 22),
@@ -92,7 +92,7 @@ mod test {
                 c25: 0.077775,
                 p10: 0.084335,
                 c10: 0.08961,
-                vendor_ci: None,
+                expected_ci: None,
             },
             Pillar {
                 expiry: d(2031, 4, 22),
@@ -103,7 +103,7 @@ mod test {
                 c25: 0.08164,
                 p10: 0.08940,
                 c10: 0.09295,
-                vendor_ci: Some((0.8600, 1.6089)),
+                expected_ci: Some((0.8600, 1.6089)),
             },
         ]
     }
@@ -431,9 +431,9 @@ mod test {
 
     #[test]
     #[ignore = "Monte Carlo regression — run with --ignored in --release"]
-    fn mc_gamma_bounded_tails_align_with_vendor_at_long_tenors() {
+    fn mc_gamma_bounded_tails_align_with_expected_at_long_tenors() {
         for pi in pillars() {
-            let Some((bbg_p5, bbg_p95)) = pi.vendor_ci else {
+            let Some((expected_p5, expected_p95)) = pi.expected_ci else {
                 continue;
             };
             let cal = calibrate_one(Variant::FivePointGammaBounded { gamma_max: 0.25 }, &pi);
@@ -441,14 +441,14 @@ mod test {
             let mut fx = mc.fx_at(pi.expiry);
             let (p5, p95) = percentiles(&mut fx, 0.05, 0.95);
             let model_sig = (p95 / p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
-            let bbg_sig = (bbg_p95 / bbg_p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+            let expected_sig = (expected_p95 / expected_p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
             assert!(
-                (model_sig - bbg_sig).abs() < 50.0e-4,
-                "T={}Y: model σ-eq {:.3}%, vendor {:.3}% (Δ={:.3}%)",
+                (model_sig - expected_sig).abs() < 50.0e-4,
+                "T={}Y: model σ-eq {:.3}%, expected {:.3}% (Δ={:.3}%)",
                 pi.tenor,
                 model_sig * 100.0,
-                bbg_sig * 100.0,
-                (model_sig - bbg_sig) * 100.0,
+                expected_sig * 100.0,
+                (model_sig - expected_sig) * 100.0,
             );
         }
     }

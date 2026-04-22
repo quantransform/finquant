@@ -228,7 +228,7 @@ fn analytic_vega_1bp(
 }
 
 // ---------------------------------------------------------------------------
-// Tests: vendor-screen reference — USD 5Y SOFR cap, ATM, $10MM notional
+// Tests: expected-screen reference — USD 5Y SOFR cap, ATM, $10MM notional
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -252,7 +252,7 @@ mod tests {
     use chrono::NaiveDate;
     use iso_currency::Currency;
 
-    /// Vendor cap-pricing reference (curve date 04/22/2026, valuation 04/24/2026):
+    /// expected cap-pricing reference (curve date 04/22/2026, valuation 04/24/2026):
     ///   Index:       1D SOFRRATE (backward-looking daily-compounded)
     ///   Effective:   04/24/2026
     ///   Maturity:    04/24/2031 (5Y)
@@ -270,23 +270,23 @@ mod tests {
     /// of the Brent solve; we also verify it sits in the 70–120 bp range
     /// consistent with the USD SOFR swaption vol cube at 5Y.
     #[test]
-    fn usd_sofr_5y_cap_matches_vendor_reference() -> Result<()> {
+    fn usd_sofr_5y_cap_matches_expected_reference() -> Result<()> {
         // Curve date = 04/22/2026. The deal effective is 04/24 (T+2); the
-        // vendor screen shows a valuation of 04/24, but the stripping and
+        // expected screen shows a valuation of 04/24, but the stripping and
         // discounting use the 04/22 curve. We run everything from the curve
         // date, matching the reference.
         let curve_date = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
         let valuation_date = curve_date;
 
-        let yts = build_vendor_usd_sofr_curve(curve_date, valuation_date);
+        let yts = build_expected_usd_sofr_curve(curve_date, valuation_date);
         let d = |y, m, dd| NaiveDate::from_ymd_opt(y, m, dd).unwrap();
 
-        // --- Build the vendor cap schedule ------------------------------------
+        // --- Build the expected cap schedule ------------------------------------
         let notional = 10_000_000.0_f64;
         let strike = 0.03543236;
-        let schedule = vendor_sofr_5y_schedule();
+        let schedule = expected_sofr_5y_schedule();
 
-        // Single ATM 5Y market quote. Vendor reference NPV = 237,665.49.
+        // Single ATM 5Y market quote. expected reference NPV = 237,665.49.
         let quote = CapQuote {
             strike,
             notional,
@@ -339,20 +339,20 @@ mod tests {
         // After stripping, the repriced NPV must match the quote to solver tolerance.
         assert!(
             (mtm.value - 237_665.49).abs() < 1.0,
-            "repriced NPV {} vs vendor reference 237,665.49",
+            "repriced NPV {} vs expected reference 237,665.49",
             mtm.value
         );
         assert_eq!(mtm.currency, Currency::USD);
 
-        // Vega(1bp) ≈ $2,656 on the vendor screen. Check within ~10% — the curve
-        // is a coarsely-digitised version of the vendor's so there's some
+        // Vega(1bp) ≈ $2,656 on the expected screen. Check within ~10% — the curve
+        // is a coarsely-digitised version of the expected's so there's some
         // tolerance. Pass DEFAULT_VOL_SHIFT_BP (= 1bp) to match the reference.
         let vega = cap.vega(&yts, &vs, DEFAULT_VOL_SHIFT_BP)?;
         let ref_vega = 2_656.12_f64;
         let err_pct = (vega - ref_vega).abs() / ref_vega;
         assert!(
             err_pct < 0.10,
-            "Vega(1bp) {} vs vendor reference {} — {:.2}% off",
+            "Vega(1bp) {} vs expected reference {} — {:.2}% off",
             vega,
             ref_vega,
             err_pct * 100.0
@@ -394,12 +394,12 @@ mod tests {
     fn unsupported_rate_shift_mode_errors() -> Result<()> {
         let curve_date = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
         let valuation_date = curve_date;
-        let yts = build_vendor_usd_sofr_curve(curve_date, valuation_date);
+        let yts = build_expected_usd_sofr_curve(curve_date, valuation_date);
         let d = |y, m, dd| NaiveDate::from_ymd_opt(y, m, dd).unwrap();
 
         let notional = 10_000_000.0_f64;
         let strike = 0.03543236;
-        let schedule = vendor_sofr_5y_schedule();
+        let schedule = expected_sofr_5y_schedule();
         let quote = CapQuote {
             strike,
             notional,
@@ -451,7 +451,7 @@ mod tests {
     /// and verify the stripper recovers those σ's to solver tolerance and
     /// that in-strike linear interpolation is consistent.
     ///
-    /// Not a vendor-anchored test — the three NPVs are produced in-test by
+    /// Not a expected-anchored test — the three NPVs are produced in-test by
     /// pricing each cap at its own (strike, σ) via a single-node surface.
     /// Purpose is to exercise the column-per-strike bootstrap and the bilinear
     /// query path.
@@ -459,7 +459,7 @@ mod tests {
     fn smile_strike_bootstrap_roundtrip() -> Result<()> {
         let curve_date = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
         let valuation_date = curve_date;
-        let yts = build_vendor_usd_sofr_curve(curve_date, valuation_date);
+        let yts = build_expected_usd_sofr_curve(curve_date, valuation_date);
         let d = |y, m, dd| NaiveDate::from_ymd_opt(y, m, dd).unwrap();
 
         let notional = 10_000_000.0_f64;
@@ -472,7 +472,7 @@ mod tests {
             (atm, 0.0085),
             (atm + 0.0050, 0.0092),
         ];
-        let schedule = vendor_sofr_5y_schedule();
+        let schedule = expected_sofr_5y_schedule();
         let last_accrual_start = schedule.last().unwrap().accrual_start_date;
 
         // For each (K, σ), price a cap under a one-node surface at that (K, σ)
@@ -579,11 +579,11 @@ mod tests {
         }
     }
 
-    /// USD SOFR stripped curve (vendor OIS-curve screen, mid). Minimal pillar
+    /// USD SOFR stripped curve (expected OIS-curve screen, mid). Minimal pillar
     /// set: one non-hidden pillar at each caplet pay date plus a terminal one
     /// beyond 2031-04-28 so `step_forward_zero_rate` never degenerates. Values
-    /// read off the vendor curve screen at each tenor.
-    fn build_vendor_usd_sofr_curve(
+    /// read off the expected curve screen at each tenor.
+    fn build_expected_usd_sofr_curve(
         curve_date: NaiveDate,
         valuation_date: NaiveDate,
     ) -> YieldTermStructure {
@@ -619,9 +619,9 @@ mod tests {
         )
     }
 
-    /// Hand-coded accrual schedule lifted from the vendor cap-details tab —
+    /// Hand-coded accrual schedule lifted from the expected cap-details tab —
     /// quarterly, pay-delay 2BD, effective 04/24/2026, maturity 04/24/2031.
-    fn vendor_sofr_5y_schedule() -> Vec<InterestRateSchedulePeriod> {
+    fn expected_sofr_5y_schedule() -> Vec<InterestRateSchedulePeriod> {
         let notional = 10_000_000.0_f64;
         let d = |y, m, dd| NaiveDate::from_ymd_opt(y, m, dd).unwrap();
         let rows: &[(NaiveDate, NaiveDate, NaiveDate)] = &[

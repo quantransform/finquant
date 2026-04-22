@@ -115,7 +115,7 @@ pub fn calibrate(
 /// to keep the calibrated Heston from pushing vol-of-vol so high that
 /// MC tails balloon past the market's view of the distribution — see
 /// `eurusd_worst_case` for a concrete comparison against a
-/// vendor FX-rate-forecast screen.
+/// expected FX-rate-forecast screen.
 pub fn calibrate_bounded(
     initial: FxHhwParams,
     targets: &[CalibrationTarget],
