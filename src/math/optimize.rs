@@ -50,6 +50,7 @@ impl Default for NelderMeadOptions {
 }
 
 /// Minimise `f` starting from `x0`. Returns the best vertex seen.
+#[allow(clippy::needless_range_loop)] // dense vector ops — indexing reads more naturally than iterators
 pub fn nelder_mead<F>(mut f: F, x0: &[f64], opts: NelderMeadOptions) -> Minimum
 where
     F: FnMut(&[f64]) -> f64,
