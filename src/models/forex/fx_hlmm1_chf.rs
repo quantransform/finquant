@@ -34,7 +34,7 @@
 //! `f(t)` integration uses composite Simpson on each segment (low order
 //! is fine — `f(t)` is smooth). All other pieces are closed form.
 
-use crate::models::fx_hlmm::{FxHlmmParams, compute_a_d, compute_a_f, compute_f_linearised};
+use crate::models::forex::fx_hlmm::{FxHlmmParams, compute_a_d, compute_a_f, compute_f_linearised};
 use num_complex::Complex64;
 
 /// Components of the FX-HLMM1 forward ChF at `(u, τ)`.
@@ -394,8 +394,8 @@ fn discount_factors_from_libors(params: &FxHlmmParams, expiry: f64) -> (f64, f64
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
+    use crate::models::common::cir::CirProcess;
+    use crate::models::forex::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
 
     fn toy_params(tenor_dates: Vec<f64>, libors: Vec<f64>) -> FxHlmmParams {
         let tenor = LiborTenor::new(tenor_dates, libors.clone());

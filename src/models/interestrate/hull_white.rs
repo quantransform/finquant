@@ -18,7 +18,7 @@
 //! (negative), giving `P(t, T) = exp(A + B r)` with the expected
 //! monotonicity `∂P/∂r < 0`. The same convention is used here.
 
-use crate::models::simulation::SimulationModel;
+use crate::models::common::simulation::SimulationModel;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -132,7 +132,7 @@ impl HullWhite1F {
 
 /// Euler simulator for the Hull–White short rate
 /// `dr = λ (θ(t) − r) dt + η dW`. Pair with [`SimulationModel`] to drive
-/// paths through [`crate::models::simulation::simulate_at_dates`].
+/// paths through [`crate::models::common::simulation::simulate_at_dates`].
 ///
 /// The mean-reversion target `θ(t)` is supplied as a closure — constant
 /// by default. Callers who want `E[r(t)] = f(0, t)` (market forward
@@ -189,7 +189,7 @@ impl SimulationModel for HullWhiteSimulator {
 #[cfg(test)]
 mod tests {
     use super::{HullWhite1F, HullWhiteSimulator};
-    use crate::models::simulation::simulate_at_dates;
+    use crate::models::common::simulation::simulate_at_dates;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use chrono::NaiveDate;
 

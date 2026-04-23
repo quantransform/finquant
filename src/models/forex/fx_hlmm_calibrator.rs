@@ -15,10 +15,10 @@
 //! separate LMM cap calibrator.
 
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
-use crate::models::black_scholes::bs_implied_vol;
-use crate::models::cos_pricer::CosPricer;
-use crate::models::fx_hlmm::FxHlmmParams;
-use crate::models::fx_hlmm1_chf::FxHlmm1ForwardChf;
+use crate::models::common::black_scholes::bs_implied_vol;
+use crate::models::common::cos_pricer::CosPricer;
+use crate::models::forex::fx_hlmm::FxHlmmParams;
+use crate::models::forex::fx_hlmm1_chf::FxHlmm1ForwardChf;
 
 /// One target point on the smile curve.
 #[derive(Copy, Clone, Debug)]
@@ -183,8 +183,8 @@ pub fn price_call(params: &FxHlmmParams, expiry: f64, strike: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::math::optimize::NelderMeadOptions;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
+    use crate::models::common::cir::CirProcess;
+    use crate::models::forex::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
 
     fn paper_params() -> FxHlmmParams {
         let tenor = LiborTenor::new(vec![0.0, 0.5, 1.0], vec![0.03, 0.03]);

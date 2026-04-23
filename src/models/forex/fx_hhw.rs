@@ -20,9 +20,9 @@
 //! characteristic-function approximation (PR-G3) and for calibration
 //! (PR-G4).
 
-use crate::models::cir::CirProcess;
-use crate::models::hull_white::HullWhite1F;
-use crate::models::simulation::SimulationModel;
+use crate::models::common::cir::CirProcess;
+use crate::models::common::simulation::SimulationModel;
+use crate::models::interestrate::hull_white::HullWhite1F;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -538,7 +538,7 @@ mod tests {
     /// the same seed and identical step density — paths must coincide.
     #[test]
     fn date_driven_matches_year_fraction_simulate() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::DayCounters;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         let p = paper_params();
@@ -565,7 +565,7 @@ mod tests {
 
     #[test]
     fn dated_paths_lookup_helpers() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         let p = paper_params();
         let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();
@@ -586,7 +586,7 @@ mod tests {
 
     #[test]
     fn date_driven_preserves_martingale() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::DayCounters;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         let mut p = paper_params();
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn with_theta_fn_overrides_default_drift_target() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         let p = paper_params();
         let valuation = NaiveDate::from_ymd_opt(2026, 4, 22).unwrap();

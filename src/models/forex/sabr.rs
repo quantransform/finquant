@@ -19,9 +19,9 @@
 //!   closed-form implied-Black vol approximation.
 //! * [`SabrSimulator`] — Euler (forward, with full-truncation at 0) +
 //!   log-Euler (vol) simulator implementing
-//!   [`SimulationModel`][crate::models::simulation::SimulationModel].
+//!   [`SimulationModel`][crate::models::common::simulation::SimulationModel].
 
-use crate::models::simulation::SimulationModel;
+use crate::models::common::simulation::SimulationModel;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -245,7 +245,7 @@ impl SimulationModel for SabrSimulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::black_scholes::{bs_call_forward, bs_implied_vol};
+    use crate::models::common::black_scholes::{bs_call_forward, bs_implied_vol};
 
     /// A typical test calibration point — FX-like smile.
     fn toy_params() -> SabrParams {
@@ -469,7 +469,7 @@ mod tests {
     /// Date-driven path API works for SABR the same way it does for FX-HHW.
     #[test]
     fn date_driven_matches_year_fraction_simulate() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::DayCounters;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         use chrono::NaiveDate;

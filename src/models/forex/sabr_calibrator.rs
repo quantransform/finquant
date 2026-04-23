@@ -2,7 +2,7 @@
 //! strike-grid of market-implied Black vols at a single expiry, with `β`
 //! held fixed (industry convention: `β = 0.5` for FX).
 //!
-//! Mirrors the structure of [`crate::models::fx_hhw_calibrator`]:
+//! Mirrors the structure of [`crate::models::forex::fx_hhw_calibrator`]:
 //! Nelder-Mead on an unconstrained reparameterisation.
 //!
 //! | Parameter | Reparameterisation | Domain      |
@@ -11,11 +11,11 @@
 //! | `ν`       | `log(1 + eˣ)`      | `(0, ∞)`    |
 //! | `ρ`       | `tanh(x)`          | `(−1, 1)`   |
 //!
-//! The pricer under the hood is just [`crate::models::sabr::hagan_implied_vol`] —
+//! The pricer under the hood is just [`crate::models::forex::sabr::hagan_implied_vol`] —
 //! no COS / MC in the inner loop, so calibration is microseconds.
 
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
-use crate::models::sabr::{SabrParams, hagan_implied_vol};
+use crate::models::forex::sabr::{SabrParams, hagan_implied_vol};
 
 /// One target point on the smile curve.
 #[derive(Copy, Clone, Debug)]

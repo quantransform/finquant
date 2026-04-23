@@ -147,13 +147,13 @@
 mod test {
     use crate::math::normal::inverse_cdf;
     use crate::math::optimize::NelderMeadOptions;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
-    use crate::models::fx_hhw_calibrator::{
+    use crate::models::common::cir::CirProcess;
+    use crate::models::common::simulation::{DatedPaths, simulate_at_dates};
+    use crate::models::forex::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
+    use crate::models::forex::fx_hhw_calibrator::{
         CalibrationResult, CalibrationTarget, calibrate, calibrate_bounded,
     };
-    use crate::models::hull_white::HullWhite1F;
-    use crate::models::simulation::{DatedPaths, simulate_at_dates};
+    use crate::models::interestrate::hull_white::HullWhite1F;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use chrono::NaiveDate;
 
@@ -414,7 +414,7 @@ mod test {
     }
 
     struct MonteCarlo {
-        paths: DatedPaths<crate::models::fx_hhw::FxHhwState>,
+        paths: DatedPaths<crate::models::forex::fx_hhw::FxHhwState>,
     }
     impl MonteCarlo {
         fn fx_at(&self, date: NaiveDate) -> Vec<f64> {
@@ -612,8 +612,8 @@ mod test {
     // has no SABR analogue. We do port the 90%-CI-σ test and the
     // forward-martingale test.
 
-    use crate::models::sabr::{SabrParams, SabrSimulator};
-    use crate::models::sabr_calibrator::{
+    use crate::models::forex::sabr::{SabrParams, SabrSimulator};
+    use crate::models::forex::sabr_calibrator::{
         CalibrationResult as SabrCalResult, calibrate as calibrate_sabr,
         targets_from_grid as sabr_targets_from_grid,
     };
@@ -824,5 +824,94 @@ mod test {
             );
         }
         eprintln!("{:=<96}\n", "");
+    }
+
+    // ---------- Markets-pipeline integration demo ----------------------
+    //
+    // FinQuant's signature pattern: analytics / simulation / pricing /
+    // greeks all consume `markets::*` types directly. The tests above
+    // use an ad-hoc `Pillar` struct for historical reasons (when
+    // `FXVolSurface` didn't exist yet); the test below exercises the
+    // canonical `FXVolSurface → MarketSmileStrip → calibrator` pipeline
+    // on the same 1 Y EURUSD data, proving the bridge preserves
+    // calibration quality.
+
+    use crate::markets::forex::quotes::volsurface::{FXDeltaVolPillar, FXVolQuote, FXVolSurface};
+    use crate::models::forex::market_data::smile_strip;
+
+    /// Build the canonical EURUSD vol surface for the 1 Y / 2 Y / 3 Y /
+    /// 5 Y pillars. Quotes mirror the market snapshot in [`pillars`];
+    /// callers that want the markets-layer pipeline should go through
+    /// this function instead of the ad-hoc `Pillar` struct.
+    fn eurusd_vol_surface() -> FXVolSurface {
+        let val = NaiveDate::from_ymd_opt(VALUATION.0, VALUATION.1, VALUATION.2).unwrap();
+        let fx_pillars: Vec<FXDeltaVolPillar> = pillars()
+            .into_iter()
+            .map(|pi| FXDeltaVolPillar {
+                expiry: pi.expiry,
+                forward: pi.forward,
+                quotes: vec![
+                    FXVolQuote::Atm(pi.atm),
+                    FXVolQuote::Put {
+                        delta: 0.25,
+                        vol: pi.p25,
+                    },
+                    FXVolQuote::Call {
+                        delta: 0.25,
+                        vol: pi.c25,
+                    },
+                    FXVolQuote::Put {
+                        delta: 0.10,
+                        vol: pi.p10,
+                    },
+                    FXVolQuote::Call {
+                        delta: 0.10,
+                        vol: pi.c10,
+                    },
+                ],
+            })
+            .collect();
+        FXVolSurface::new(val, fx_pillars).expect("EURUSD surface builds")
+    }
+
+    /// SABR calibration via the canonical markets pipeline: construct
+    /// an `FXVolSurface`, strip it at the 5-point smile strike grid to
+    /// a `MarketSmileStrip`, feed the strip to the SABR calibrator.
+    /// RMSE stays within 20 bp at every pillar — same ballpark as the
+    /// ad-hoc `Pillar`-driven path in
+    /// `sabr_smile_rmse_is_acceptable_at_every_expiry`.
+    #[test]
+    fn markets_pipeline_sabr_calibration_holds_at_every_expiry() {
+        let val = NaiveDate::from_ymd_opt(VALUATION.0, VALUATION.1, VALUATION.2).unwrap();
+        let surface = eurusd_vol_surface();
+        for pi in pillars() {
+            // Strike grid via delta conversion — identical to
+            // `build_targets(_, /*five_pt*/ true)`.
+            let k_atm = atm_strike(pi.forward, pi.atm, pi.tenor);
+            let k_25p = strike_from_put_delta(0.25, pi.p25, pi.forward, pi.tenor);
+            let k_25c = strike_from_call_delta(0.25, pi.c25, pi.forward, pi.tenor);
+            let k_10p = strike_from_put_delta(0.10, pi.p10, pi.forward, pi.tenor);
+            let k_10c = strike_from_call_delta(0.10, pi.c10, pi.forward, pi.tenor);
+            let strikes = vec![k_10p, k_25p, k_atm, k_25c, k_10c];
+
+            let strip = smile_strip(&surface, val, pi.expiry, pi.forward, &strikes)
+                .expect("surface should evaluate at every quoted strike");
+            let targets = strip.sabr_targets();
+
+            let initial = SabrParams::new(pi.atm, 0.5, -0.20, 0.30);
+            let options = NelderMeadOptions {
+                max_iter: 600,
+                ftol: 1.0e-10,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_sabr(initial, pi.forward, &targets, pi.tenor, options);
+            assert!(
+                cal.rmse < 20.0e-4,
+                "T={}Y markets-pipeline SABR RMSE {:.3} bp vol > 20 bp",
+                pi.tenor,
+                cal.rmse * 10_000.0,
+            );
+        }
     }
 }

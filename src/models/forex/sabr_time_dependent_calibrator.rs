@@ -26,17 +26,17 @@
 //! compensator from paper Phase 5 is out of scope here — see
 //! `FX_SABR_PLAN.md`.
 //!
-//! [csabr]: crate::models::sabr_calibrator::calibrate
+//! [csabr]: crate::models::forex::sabr_calibrator::calibrate
 
 use crate::math::optimize::NelderMeadOptions;
-use crate::models::sabr::SabrParams;
-use crate::models::sabr_calibrator::{
+use crate::models::forex::sabr::SabrParams;
+use crate::models::forex::sabr_calibrator::{
     CalibrationTarget, calibrate as calibrate_sabr, targets_from_grid,
 };
-use crate::models::sabr_effective::{
+use crate::models::forex::sabr_effective::{
     PiecewiseConstant, effective_correlation, effective_term_structure, effective_vol_vol,
 };
-use crate::models::sabr_time_dependent::TimeDependentSabrParams;
+use crate::models::forex::sabr_time_dependent::TimeDependentSabrParams;
 
 /// Market data for one expiry.
 #[derive(Clone, Debug)]
@@ -76,7 +76,7 @@ pub struct TimeDependentCalibrationResult {
 /// * `stage1_options` — Nelder-Mead tuning for the per-pillar fits
 ///   (identical meaning to [`calibrate_sabr`][csabr]'s `options`).
 ///
-/// [csabr]: crate::models::sabr_calibrator::calibrate
+/// [csabr]: crate::models::forex::sabr_calibrator::calibrate
 pub fn calibrate_time_dependent(
     pillars: &[PillarTarget],
     beta: f64,
@@ -105,7 +105,7 @@ pub fn calibrate_time_dependent(
         .iter()
         .zip(&market)
         .map(|(pi, mp)| {
-            use crate::models::sabr::hagan_implied_vol;
+            use crate::models::forex::sabr::hagan_implied_vol;
             let mut ss = 0.0;
             for (k, v) in pi.strikes.iter().zip(&pi.market_vols) {
                 let m = hagan_implied_vol(mp, pi.forward, *k, pi.expiry);
@@ -319,7 +319,7 @@ fn bisect<F: Fn(f64) -> f64>(f: F, mut lo: f64, mut hi: f64, tol: f64, max_iter:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::sabr::hagan_implied_vol;
+    use crate::models::forex::sabr::hagan_implied_vol;
 
     fn options() -> NelderMeadOptions {
         NelderMeadOptions {
@@ -385,7 +385,7 @@ mod tests {
     /// sequential sub-stages.
     #[test]
     fn two_pillar_round_trip_reprices_market_smiles() {
-        use crate::models::sabr_effective::{
+        use crate::models::forex::sabr_effective::{
             effective_correlation, effective_term_structure, effective_vol_vol,
         };
         let beta = 0.5_f64;
@@ -464,7 +464,7 @@ mod tests {
         let rho_true = PiecewiseConstant::new(knots.clone(), vec![-0.30; 3]);
         let nu_true = PiecewiseConstant::new(knots.clone(), vec![0.60, 0.45, 0.30]);
 
-        use crate::models::sabr_effective::{
+        use crate::models::forex::sabr_effective::{
             effective_correlation, effective_term_structure, effective_vol_vol,
         };
         let strikes = vec![1.05, 1.20, 1.30, 1.45, 1.70];

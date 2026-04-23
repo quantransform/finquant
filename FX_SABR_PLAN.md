@@ -25,14 +25,22 @@ sabr_effective.rs                  Phase 2 — DONE (γ̃ + ω̃ + ρ̃ mappings
 sabr_calibrator.rs                 Phase 4a — DONE (per-expiry constant-SABR fit)
 sabr_time_dependent.rs             Phase 3 — DONE (piecewise-constant time-dep simulator)
 sabr_time_dependent_calibrator.rs  Phase 4 — DONE (4-stage calibrator, minus Phase 5 LV)
-sabr_slv.rs                        Phase 5 — PENDING (non-parametric LV compensator)
+dupire_local_vol.rs                Phase 5a — DONE (Dupire LV from market smile grid)
+sabr_slv.rs                        Phase 5 — DONE (particle-method SLV simulator)
 ```
 
 **Phase 2b Fourier-cosine ω̃ recovery** deferred (tracked in the
 effective-term-structure docstring). Variance-match form (eq. 15)
 handles constant-ω identity exactly and gives ≲30 bp vol calibration
-residual on time-varying ω — the same residual the paper absorbs via
-the Phase 5 LV compensator.
+residual on time-varying ω — the same residual the Phase 5 LV
+compensator now absorbs.
+
+**Phase 5 status**: particle-method simulator landed. Test
+`slv_compensator_reduces_atm_calibration_residual` confirms ≥ 40 %
+reduction in ATM calibration error vs plain time-dep SABR (in
+practice pulls ATM IV residual from ~100 bp to ≲ 30 bp at toy
+parameters). Iterative calibration-time refinement (paper §5 stage 4
+with LV re-build per iteration) still pending — a follow-up PR.
 
 Register each new module in `src/models.rs`.
 

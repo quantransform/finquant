@@ -23,7 +23,7 @@
 //! ChF in the further `γ = 0`, `σ(t) ≡ σ̄` limit — both covered by
 //! tests in this module.
 
-use crate::models::fx_hhw::FxHhwParams;
+use crate::models::forex::fx_hhw::FxHhwParams;
 use num_complex::Complex64;
 
 /// Scratch-space components of the forward ChF at `(u, τ)`. Exposed so
@@ -324,9 +324,9 @@ fn integrand(u: Complex64, s: f64, big_t: f64, params: &FxHhwParams) -> Complex6
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
-    use crate::models::hull_white::HullWhite1F;
+    use crate::models::common::cir::CirProcess;
+    use crate::models::forex::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
+    use crate::models::interestrate::hull_white::HullWhite1F;
 
     fn paper_params() -> FxHhwParams {
         FxHhwParams {

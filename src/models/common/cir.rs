@@ -30,7 +30,7 @@
 //! provided for cheap repeated evaluation inside the forward-ChF
 //! integrand.
 
-use crate::models::simulation::SimulationModel;
+use crate::models::common::simulation::SimulationModel;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -194,7 +194,7 @@ impl SqrtMeanProxy {
 
 /// Euler–Maruyama simulator for the CIR process, with full-truncation
 /// of negative draws (Andersen 2008). Implements [`SimulationModel`] so
-/// paths can be driven through [`crate::models::simulation::simulate_at_dates`].
+/// paths can be driven through [`crate::models::common::simulation::simulate_at_dates`].
 pub struct CirSimulator {
     pub process: CirProcess,
     rng: ChaCha20Rng,
@@ -229,7 +229,7 @@ impl SimulationModel for CirSimulator {
 #[cfg(test)]
 mod tests {
     use super::{CirProcess, CirSimulator};
-    use crate::models::simulation::simulate_at_dates;
+    use crate::models::common::simulation::simulate_at_dates;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use chrono::NaiveDate;
 
@@ -402,7 +402,7 @@ mod tests {
     /// Initial state matches `sigma_0`; variance decays to 0 as `t → 0`.
     #[test]
     fn cir_simulator_trivial_step_invariants() {
-        use crate::models::simulation::SimulationModel;
+        use crate::models::common::simulation::SimulationModel;
         let p = CirProcess {
             kappa: 1.0,
             theta: 0.1,

@@ -33,9 +33,9 @@
 //! European-only equity-FX hybrids one can still use the marginal
 //! FX-HHW1 ChF on `ξ` alone.
 
-use crate::models::cir::CirProcess;
-use crate::models::fx_hhw::{FxHhwParams, FxHhwState};
-use crate::models::simulation::SimulationModel;
+use crate::models::common::cir::CirProcess;
+use crate::models::common::simulation::SimulationModel;
+use crate::models::forex::fx_hhw::{FxHhwParams, FxHhwState};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -234,8 +234,8 @@ impl SimulationModel for FxHhwStockSimulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::fx_hhw::Correlation4x4;
-    use crate::models::hull_white::HullWhite1F;
+    use crate::models::forex::fx_hhw::Correlation4x4;
+    use crate::models::interestrate::hull_white::HullWhite1F;
 
     fn base_fx() -> FxHhwParams {
         FxHhwParams {
@@ -402,7 +402,7 @@ mod tests {
     /// identical step density.
     #[test]
     fn date_driven_matches_year_fraction_simulate() {
-        use crate::models::simulation::simulate_at_dates;
+        use crate::models::common::simulation::simulate_at_dates;
         use crate::time::daycounters::DayCounters;
         use crate::time::daycounters::actual365fixed::Actual365Fixed;
         use chrono::NaiveDate;

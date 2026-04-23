@@ -17,9 +17,9 @@
 //! its 2 × 2 Cholesky factor on the fly. That's a ~5 ns cost per step;
 //! negligible next to the two `ln/exp` calls in the forward update.
 
-use crate::models::sabr::{SabrParams, SabrSimulator, SabrState};
-use crate::models::sabr_effective::PiecewiseConstant;
-use crate::models::simulation::SimulationModel;
+use crate::models::common::simulation::SimulationModel;
+use crate::models::forex::sabr::{SabrParams, SabrSimulator, SabrState};
+use crate::models::forex::sabr_effective::PiecewiseConstant;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
@@ -100,7 +100,7 @@ impl TimeDependentSabrParams {
 /// consistent with the right-continuous `at` lookup and the convention
 /// in [`PiecewiseConstant::at`]. Callers that need knot-boundary
 /// precision should populate the simulation grid with the schedule
-/// knots via [`simulate_at_dates`][crate::models::simulation::simulate_at_dates].
+/// knots via [`simulate_at_dates`][crate::models::common::simulation::simulate_at_dates].
 pub struct TimeDependentSabrSimulator {
     pub params: TimeDependentSabrParams,
     rng: ChaCha20Rng,
@@ -221,8 +221,8 @@ impl SimulationModel for TimeDependentSabrSimulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::black_scholes::bs_implied_vol;
-    use crate::models::sabr::hagan_atm_vol;
+    use crate::models::common::black_scholes::bs_implied_vol;
+    use crate::models::forex::sabr::hagan_atm_vol;
 
     fn flat_params(
         alpha: f64,
@@ -319,7 +319,7 @@ mod tests {
     /// effective-parameter mappings.
     #[test]
     fn atm_iv_matches_effective_parameter_hagan() {
-        use crate::models::sabr_effective::{
+        use crate::models::forex::sabr_effective::{
             effective_correlation, effective_term_structure, effective_vol_vol,
         };
         let knots = vec![0.0, 0.5, 1.0];

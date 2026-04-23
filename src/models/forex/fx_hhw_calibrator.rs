@@ -22,10 +22,10 @@
 //! brittle projection steps; `tanh` parameterisation bounds correlation.
 
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
-use crate::models::black_scholes::bs_implied_vol;
-use crate::models::cos_pricer::CosPricer;
-use crate::models::fx_hhw::FxHhwParams;
-use crate::models::fx_hhw1_chf::FxHhw1ForwardChf;
+use crate::models::common::black_scholes::bs_implied_vol;
+use crate::models::common::cos_pricer::CosPricer;
+use crate::models::forex::fx_hhw::FxHhwParams;
+use crate::models::forex::fx_hhw1_chf::FxHhw1ForwardChf;
 
 /// One target point on the smile curve.
 #[derive(Copy, Clone, Debug)]
@@ -255,9 +255,9 @@ pub fn price_call(params: &FxHhwParams, expiry: f64, strike: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::math::optimize::NelderMeadOptions;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hhw::{Correlation4x4, FxHhwParams};
-    use crate::models::hull_white::HullWhite1F;
+    use crate::models::common::cir::CirProcess;
+    use crate::models::forex::fx_hhw::{Correlation4x4, FxHhwParams};
+    use crate::models::interestrate::hull_white::HullWhite1F;
 
     fn paper_params() -> FxHhwParams {
         FxHhwParams {

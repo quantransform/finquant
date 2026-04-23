@@ -1,25 +1,17 @@
 //! Stochastic models and their closed-form pricing / moment results.
+//!
+//! Organised by asset-class, mirroring `markets::` and `derivatives::`:
+//!
+//! * [`common`] — asset-class-neutral primitives (simulation trait,
+//!   Black-Scholes and Bachelier analytics, CIR moments, COS pricer).
+//! * [`interestrate`] — short-rate and market-model IR dynamics.
+//! * [`forex`] — cross-currency stochastic-volatility models
+//!   (FX-HHW, FX-HLMM, time-dependent SABR, local-vol and SLV).
+//!
 //! Distinct from `markets::termstructures::yieldcurve`, which holds
 //! *static* bootstrapped curves, and from `math`, which holds pure
 //! mathematical primitives (e.g. the normal distribution).
 
-pub mod bachelier;
-pub mod black_scholes;
-pub mod cir;
-pub mod cos_pricer;
-#[cfg(test)]
-pub mod eurusd_worst_case;
-pub mod fx_hhw;
-pub mod fx_hhw1_chf;
-pub mod fx_hhw_calibrator;
-pub mod fx_hhw_stock;
-pub mod fx_hlmm;
-pub mod fx_hlmm1_chf;
-pub mod fx_hlmm_calibrator;
-pub mod hull_white;
-pub mod sabr;
-pub mod sabr_calibrator;
-pub mod sabr_effective;
-pub mod sabr_time_dependent;
-pub mod sabr_time_dependent_calibrator;
-pub mod simulation;
+pub mod common;
+pub mod forex;
+pub mod interestrate;

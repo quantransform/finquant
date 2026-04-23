@@ -19,8 +19,8 @@
 //! half-width of `L · √(σ̄·T)` — a conservative Heston-style rule with
 //! `L = 10`. Callers can override via [`CosPricer::with_range`].
 
-use crate::models::fx_hhw1_chf::FxHhw1ForwardChf;
-use crate::models::fx_hlmm1_chf::FxHlmm1ForwardChf;
+use crate::models::forex::fx_hhw1_chf::FxHhw1ForwardChf;
+use crate::models::forex::fx_hlmm1_chf::FxHlmm1ForwardChf;
 use num_complex::Complex64;
 
 /// Interface a characteristic function must expose for COS pricing:
@@ -193,10 +193,10 @@ fn psi_k(k: usize, a: f64, b: f64, c: f64, d: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::math::normal::cdf;
-    use crate::models::cir::CirProcess;
-    use crate::models::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
-    use crate::models::fx_hhw1_chf::FxHhw1ForwardChf;
-    use crate::models::hull_white::HullWhite1F;
+    use crate::models::common::cir::CirProcess;
+    use crate::models::forex::fx_hhw::{Correlation4x4, FxHhwParams, FxHhwSimulator};
+    use crate::models::forex::fx_hhw1_chf::FxHhw1ForwardChf;
+    use crate::models::interestrate::hull_white::HullWhite1F;
 
     /// Black–Scholes call on a forward: `Pd·[F·Φ(d₁) − K·Φ(d₂)]` with
     /// `d₁,₂ = (ln(F/K) ± σ²T/2)/(σ√T)`. Inline helper for the BS-limit
@@ -390,8 +390,10 @@ mod tests {
     /// (LMM vol → 0), HLMM and HHW should give identical prices.
     #[test]
     fn cos_works_with_fx_hlmm1_chf_in_pure_heston_limit() {
-        use crate::models::fx_hlmm::{DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor};
-        use crate::models::fx_hlmm1_chf::FxHlmm1ForwardChf;
+        use crate::models::forex::fx_hlmm::{
+            DdSvLmm, FxHlmmCorrelations, FxHlmmParams, LiborTenor,
+        };
+        use crate::models::forex::fx_hlmm1_chf::FxHlmm1ForwardChf;
 
         let p_hhw = FxHhwParams {
             fx_0: 1.35,

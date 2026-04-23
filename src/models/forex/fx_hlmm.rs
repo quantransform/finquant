@@ -42,7 +42,7 @@
 //! (paper's recursive formulas for `A(u, τ_j)`, `D_d(u, τ_j)`,
 //! `D_f(u, τ_j)`).
 
-use crate::models::cir::CirProcess;
+use crate::models::common::cir::CirProcess;
 
 /// Tenor grid for a Libor Market Model. `T_0` is the valuation date,
 /// `T_1, …, T_N` are the payment/reset dates. `libors[k−1] = L_k(0)` is
