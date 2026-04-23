@@ -44,12 +44,17 @@ jobs:
         with:
           tool: cargo-tarpaulin
       - name: Coverage Report
+        # Tarpaulin's --timeout is the per-test watchdog. COS-pricer
+        # calibration tests (fx_hlmm_calibrator, eurusd_worst_case
+        # smile-fit) can take ~60s locally under coverage
+        # instrumentation; bump to 300 s so they aren't killed on
+        # Actions runners which are slower than dev boxes.
         run: |
           cargo tarpaulin \
           --verbose \
           --all-features \
           --workspace \
-          --timeout 120 \
+          --timeout 300 \
           --out Xml
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3

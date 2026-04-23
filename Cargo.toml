@@ -34,3 +34,10 @@ typetag = "0.2.20"
 cargo-husky = "1.5.0"
 rstest = "0.26.1"
 
+# Tests do heavy numerics (COS pricer × Nelder-Mead × MC simulation).
+# Unoptimised debug tests are ~4× slower than release; tarpaulin coverage
+# then times out on the calibration suites. `opt-level = 3` keeps full
+# debug info while running tests at near-release speed.
+[profile.test]
+opt-level = 3
+
