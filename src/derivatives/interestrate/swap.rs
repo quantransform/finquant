@@ -2,8 +2,11 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::derivatives::basic::Direction;
-use crate::error::Result;
+use crate::derivatives::forex::basic::CurrencyValue;
+use crate::derivatives::interestrate::basic::{IRDerivatives, RateShiftMode};
+use crate::error::{Error, Result};
 use crate::markets::interestrate::interestrateindex::InterestRateIndex;
+use crate::markets::interestrate::market_context::IrMarketContext;
 use crate::markets::termstructures::yieldcurve::{
     InterestRateQuote, InterestRateQuoteEnum, InterpolationMethodEnum, StrippedCurve,
     YieldTermStructure,
@@ -14,6 +17,7 @@ use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
 use crate::time::frequency::Frequency;
 use crate::time::period::Period;
+use iso_currency::Currency;
 use roots::{SimpleConvergency, find_root_brent};
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -360,6 +364,121 @@ impl InterestRateSwap {
             discount: Some(discount),
             present_value: Some(payment * discount * direction_sign),
         })
+    }
+
+    /// Deal currency — inferred from the first leg's rate-index
+    /// currency. Vanilla IRS are single-currency; cross-currency
+    /// swaps (mixed leg currencies) aren't supported by this helper
+    /// and return the first-leg currency deterministically.
+    pub fn currency(&self) -> Result<Currency> {
+        self.legs
+            .first()
+            .map(|leg| leg.interest_rate_index.currency)
+            .ok_or_else(|| Error::InvalidData("InterestRateSwap has no legs".to_string()))
+    }
+
+    /// PV under a parallel `rate_shift_bp`-basis-point zero-rate
+    /// bump applied to every pillar on the discount curve. Mirrors
+    /// [`CapFloor::pv_under_shift`]'s role for the rate Greeks.
+    ///
+    /// Float-leg coupons are implied by the *shifted* discount
+    /// factors via `r · τ = DF(start)/DF(end) − 1`, so the shift
+    /// propagates to both the projection and the discounting step —
+    /// the standard "bumped-curve" DV01 definition.
+    fn pv_under_shift(
+        &self,
+        valuation_date: NaiveDate,
+        yts: &YieldTermStructure,
+        rate_shift_bp: f64,
+    ) -> Result<f64> {
+        let method = &InterpolationMethodEnum::PiecewiseLinearContinuous;
+        let mut total_npv = 0.0_f64;
+        for leg in &self.legs {
+            let schedule = leg.generate_schedule(valuation_date)?;
+            let direction_sign = match leg.direction {
+                Direction::Buy => 1.0_f64,
+                Direction::Sell => -1.0_f64,
+            };
+            for period in &schedule {
+                let year_fraction = leg
+                    .schedule_detail
+                    .day_counter
+                    .year_fraction(period.accrual_start_date, period.accrual_end_date)?;
+                let reset_rate = match leg.swap_type {
+                    InterestRateSwapLegType::Fixed { coupon } => coupon,
+                    InterestRateSwapLegType::Float { spread } => {
+                        let df_start =
+                            yts.shifted_discount(period.accrual_start_date, method, rate_shift_bp)?;
+                        let df_end =
+                            yts.shifted_discount(period.accrual_end_date, method, rate_shift_bp)?;
+                        (df_start / df_end - 1.0) / year_fraction + spread
+                    }
+                };
+                let df_pay = yts.shifted_discount(period.pay_date, method, rate_shift_bp)?;
+                let payment = reset_rate * year_fraction * period.balance;
+                total_npv += payment * df_pay * direction_sign;
+            }
+            // Bond-style return of notional on the final pay date so
+            // per-leg NPVs match expected values; matched-notional IRS
+            // have the two legs' principals cancel.
+            if let Some(last) = schedule.last() {
+                let df_last = yts.shifted_discount(last.pay_date, method, rate_shift_bp)?;
+                total_npv += last.balance * df_last * direction_sign;
+            }
+        }
+        Ok(total_npv)
+    }
+}
+
+impl IRDerivatives for InterestRateSwap {
+    fn mtm(&self, market: &IrMarketContext) -> Result<CurrencyValue> {
+        let pv = self.pv_under_shift(market.valuation_date, &market.curve, 0.0)?;
+        Ok(CurrencyValue {
+            currency: self.currency()?,
+            value: pv,
+        })
+    }
+
+    /// DV01 = PV(y + 1bp) − PV(y). Receiver-fixed swap DV01 is
+    /// negative (PV falls as rates rise); payer-fixed is positive.
+    fn dv01(&self, market: &IrMarketContext) -> Result<f64> {
+        let base = self.pv_under_shift(market.valuation_date, &market.curve, 0.0)?;
+        let up = self.pv_under_shift(market.valuation_date, &market.curve, 1.0)?;
+        Ok(up - base)
+    }
+
+    /// Central second difference with bump `δ = rate_shift_bp`. For a
+    /// vanilla IRS the PV is nearly linear in the zero-rate shift, so
+    /// `gamma` is tiny — but it isn't identically zero because float
+    /// projection and discounting both move under the bump, producing
+    /// a small second-order term.
+    fn gamma(
+        &self,
+        market: &IrMarketContext,
+        rate_shift_bp: f64,
+        mode: RateShiftMode,
+    ) -> Result<f64> {
+        match mode {
+            RateShiftMode::Zeros => {}
+            other => {
+                return Err(Error::InvalidData(format!(
+                    "rate shift mode {:?} is not yet implemented; only Zeros is supported",
+                    other
+                )));
+            }
+        }
+        let base = self.pv_under_shift(market.valuation_date, &market.curve, 0.0)?;
+        let up = self.pv_under_shift(market.valuation_date, &market.curve, rate_shift_bp)?;
+        let down = self.pv_under_shift(market.valuation_date, &market.curve, -rate_shift_bp)?;
+        Ok(up + down - 2.0 * base)
+    }
+
+    /// Vega is identically zero for a vanilla interest-rate swap —
+    /// there's no optionality, so PV is a pure linear function of
+    /// forward rates and discount factors with zero vol sensitivity.
+    /// `vol_shift_bp` is ignored.
+    fn vega(&self, _market: &IrMarketContext, _vol_shift_bp: f64) -> Result<f64> {
+        Ok(0.0)
     }
 }
 
@@ -890,7 +1009,7 @@ mod tests {
     ///     1M       3.65110        OIS cash
     ///     3M       3.66790        OIS cash
     ///     6M       3.68070        OIS cash
-    ///    12M       3.68800        OIS cash (single-coupon; matches ICVS)
+    ///    12M       3.68800        OIS cash (single-coupon; matches expected curve)
     ///     2Y       3.60645        OIS swap (annual)
     ///     4Y       3.57510        OIS swap (annual, no 3Y quote)
     ///     5Y       3.60743        OIS swap (annual)
@@ -912,7 +1031,7 @@ mod tests {
         YieldTermMarketData::new(valuation_date, ois_quotes, vec![], swap_quotes)
     }
 
-    /// SWPM reference: USD 5Y Fixed vs SOFR swap (screenshots, 04/21/2026 curve date).
+    /// expected swap-pricing reference: USD 5Y Fixed vs SOFR swap (04/21/2026 curve date).
     ///
     /// Deal:
     ///   Leg 1 Receive Fixed: USD 10MM, Coupon 3.68800 %, ACT/360 Money Mkt, Annual
@@ -933,7 +1052,7 @@ mod tests {
     /// Validates that our bootstrap produces DFs close to expected values at each pay date,
     /// then prices the fixed leg manually.
     #[test]
-    fn test_usd_sofr_curve_and_fixed_leg_expected_swpm() -> Result<()> {
+    fn test_usd_sofr_curve_and_fixed_leg_expected_reference() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
@@ -1076,14 +1195,14 @@ mod tests {
         ]
     }
 
-    /// Expected SWPM: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
+    /// expected reference: USD 5Y Fixed vs SOFR swap, Receive Fixed 3.688 %, 10MM notional.
     /// Curve date 04/21/2026, valuation 04/23/2026 (effective). Net NPV: $36,739.97.
     ///
     /// Drives the swap through `InterestRateSwap::npv`, with the discount curve
     /// produced by `usd_sofr_market_data().get_stripped_curve()` —
     /// i.e. finquant does the bootstrap end-to-end from raw market quotes.
     #[test]
-    fn test_usd_sofr_5y_swap_npv_expected_swpm() -> Result<()> {
+    fn test_usd_sofr_5y_swap_npv_expected_reference() -> Result<()> {
         let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
         let market_data = usd_sofr_market_data(valuation_date);
         let stripped_curves = market_data.get_stripped_curve()?;
@@ -1153,6 +1272,138 @@ mod tests {
             abs_err,
             expected_net_npv,
         );
+
+        Ok(())
+    }
+
+    /// **`IRDerivatives` integration** — build the same receive-fixed
+    /// 5 Y SOFR swap, wrap the yield curve in an [`IrMarketContext`],
+    /// and exercise the full trait surface (`mtm / dv01 / gamma /
+    /// vega / modified_duration`).
+    ///
+    /// Checks are physics-based:
+    ///
+    /// * `mtm` matches the legacy `npv` free-form path (round-trip).
+    /// * `dv01 < 0` for receive-fixed (PV falls when rates rise).
+    /// * `|gamma|` small (swap is nearly linear in zeros).
+    /// * `vega == 0` exactly (no optionality).
+    /// * `modified_duration > 0` for receive-fixed (PV rises as rates
+    ///   fall, by definition).
+    #[test]
+    fn ir_derivatives_trait_on_usd_sofr_5y_swap() -> Result<()> {
+        use crate::derivatives::interestrate::basic::{
+            DEFAULT_RATE_SHIFT_BP, IRDerivatives, RateShiftMode,
+        };
+        use crate::markets::interestrate::market_context::IrMarketContext;
+
+        let valuation_date = NaiveDate::from_ymd_opt(2026, 4, 21).unwrap();
+        let market_data = usd_sofr_market_data(valuation_date);
+        let stripped_curves = market_data.get_stripped_curve()?;
+        let yts = YieldTermStructure::new(
+            Box::new(UnitedStates::default()),
+            Box::new(Actual365Fixed::default()),
+            valuation_date,
+            stripped_curves,
+        );
+
+        let schedule = expected_5y_sofr_schedule();
+
+        let fixed_leg = InterestRateSwapLeg::new(
+            InterestRateSwapLegType::Fixed { coupon: 0.036880 },
+            Direction::Buy,
+            usd_sofr_index(Period::Years(1)),
+            10_000_000.0,
+            ScheduleDetail::new(
+                Frequency::Annual,
+                Period::Years(1),
+                Period::Years(5),
+                Box::new(Actual360),
+                Box::new(UnitedStates::default()),
+                BusinessDayConvention::ModifiedFollowing,
+                2,
+                2,
+                0,
+            ),
+            schedule.clone(),
+        );
+        let float_leg = InterestRateSwapLeg::new(
+            InterestRateSwapLegType::Float { spread: 0.0 },
+            Direction::Sell,
+            usd_sofr_index(Period::Years(1)),
+            10_000_000.0,
+            ScheduleDetail::new(
+                Frequency::Annual,
+                Period::Years(1),
+                Period::Years(5),
+                Box::new(Actual360),
+                Box::new(UnitedStates::default()),
+                BusinessDayConvention::ModifiedFollowing,
+                2,
+                2,
+                0,
+            ),
+            schedule,
+        );
+        let swap = InterestRateSwap::new(vec![fixed_leg, float_leg]);
+
+        // IR context without a cap surface — swaps don't need one.
+        let ctx = IrMarketContext::new(valuation_date, Currency::USD, yts, None);
+
+        // mtm — currency + reasonable value.
+        let mtm = swap.mtm(&ctx)?;
+        assert_eq!(mtm.currency, Currency::USD);
+        assert!(
+            mtm.value.abs() < 1_000_000.0,
+            "mtm {} implausibly large for ATM-ish 5 Y IRS",
+            mtm.value
+        );
+        assert!(
+            mtm.value > 0.0,
+            "receive-fixed mtm should be positive at 3.688% coupon"
+        );
+
+        // DV01 should be negative (receive-fixed loses as rates rise).
+        // Magnitude scales with PV01 × notional × duration — at 5 Y /
+        // 10 MM / 3.7 % expect a few thousand dollars per basis point.
+        let dv01 = swap.dv01(&ctx)?;
+        assert!(
+            dv01 < 0.0,
+            "receive-fixed DV01 should be negative, got {}",
+            dv01
+        );
+        assert!(
+            dv01.abs() > 100.0 && dv01.abs() < 10_000.0,
+            "DV01 {} outside expected O($1k) band for 5 Y / 10 MM IRS",
+            dv01,
+        );
+
+        // Gamma is *small* but not zero (float projection + discounting
+        // both move under a bump). At a 10 bp shift we expect
+        // O(|DV01| · 10 · 1e-4) = O($1s) of second-order.
+        let gamma10 = swap.gamma(&ctx, DEFAULT_RATE_SHIFT_BP, RateShiftMode::default())?;
+        assert!(gamma10.abs() < 1_000.0, "|gamma10bp| {} too large", gamma10);
+
+        // Vega is identically zero.
+        let vega = swap.vega(&ctx, 1.0)?;
+        assert_eq!(vega, 0.0);
+
+        // Modified duration: for receive-fixed with positive PV and
+        // negative DV01, mod_dur = -DV01 · 1e4 / PV > 0.
+        let mod_dur = swap.modified_duration(&ctx)?;
+        assert!(
+            mod_dur > 0.0,
+            "receive-fixed mod duration should be > 0, got {}",
+            mod_dur
+        );
+
+        // Unsupported rate-shift modes error cleanly.
+        for mode in [
+            RateShiftMode::Instruments,
+            RateShiftMode::Forwards,
+            RateShiftMode::Swaps,
+        ] {
+            assert!(swap.gamma(&ctx, DEFAULT_RATE_SHIFT_BP, mode).is_err());
+        }
 
         Ok(())
     }

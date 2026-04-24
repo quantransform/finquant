@@ -1,6 +1,6 @@
 [package]
 name = "finquant"
-version = "0.0.57"
+version = "0.0.58"
 authors = ["Jeremy Wang <j.wang@quantransform.co.uk>", "David Steiner <david_j_steiner@yahoo.co.nz>"]
 license = "MIT OR Apache-2.0"
 description = "Experimental Rust Quant Library"
@@ -16,7 +16,11 @@ rust-version = "1.95"
 chrono = { version = "0.4.41", features = ["serde"] }
 iso_currency = { version = "0.5.3", features = ["with-serde"] }
 lazy_static = "1.4"
+num-complex = "0.4"
 once_cell = "1.21.3"
+rand = "0.9"
+rand_chacha = "0.9"
+rand_distr = "0.5"
 roots = "0.0.8"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
@@ -29,4 +33,11 @@ typetag = "0.2.20"
 [dev-dependencies]
 cargo-husky = "1.5.0"
 rstest = "0.26.1"
+
+# Tests do heavy numerics (COS pricer × Nelder-Mead × MC simulation).
+# Unoptimised debug tests are ~4× slower than release; tarpaulin coverage
+# then times out on the calibration suites. `opt-level = 3` keeps full
+# debug info while running tests at near-release speed.
+[profile.test]
+opt-level = 3
 

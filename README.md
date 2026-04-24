@@ -28,7 +28,7 @@
    - [x] Forex - forward points
    - [x] Forex - volatility 
    - [x] Interest Rate - curves (cash rates, futures, swaps)
-   - [ ] Interest Rate - volatility 
+   - [x] Interest Rate - volatility 
 3. Forex markets
    - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
      - Forward
@@ -38,13 +38,13 @@
        - [x] implied vol generator
        - [x] pricing + greeks
    - Simulator
-     - [ ] Monte Carlo
+     - [x] Monte Carlo
 4. Interest rate markets
    - Pricer
-     - [ ] Swap
-     - [ ] Cap/Floor
+     - [x] Swap
+     - [x] Cap/Floor
    - Simulator
-     - [ ] Monte Carlo
+     - [x] Monte Carlo
 
 
 [crates-badge]: https://img.shields.io/crates/v/finquant.svg

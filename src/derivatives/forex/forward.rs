@@ -1,8 +1,8 @@
 use crate::derivatives::basic::BasicInfo;
 use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
 use crate::error::{Error, Result};
-use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
-use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
+use crate::markets::forex::market_context::FxMarketContext;
+use crate::markets::termstructures::yieldcurve::InterpolationMethodEnum;
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 
@@ -16,25 +16,21 @@ pub struct FXForward {
 }
 
 impl FXDerivatives for FXForward {
-    fn mtm(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue> {
+    fn mtm(&self, market: &FxMarketContext) -> Result<CurrencyValue> {
         let calendar = self.asset.calendar();
-        let forward_points = fx_forward_helper
+        let forward_points = market
+            .forwards
             .get_forward(self.basic_info.expiry_date, &calendar)?
             .ok_or_else(|| {
                 Error::TradeExpired(format!(
                     "Trade expired at {} before {}",
-                    self.basic_info.expiry_date, fx_forward_helper.valuation_date
+                    self.basic_info.expiry_date, market.valuation_date
                 ))
             })?;
         // Market convention: forward points are quoted as raw pips
         // (e.g. EURUSD 48.12 pts → 0.004812). JPY crosses use a 100 divisor.
-        let outright_forward =
-            fx_forward_helper.spot_ref + forward_points / self.asset.forward_points_converter();
-        let discount_factor = yield_term_structure.discount(
+        let outright_forward = market.spot + forward_points / self.asset.forward_points_converter();
+        let discount_factor = market.domestic_curve.discount(
             self.basic_info.expiry_date,
             &InterpolationMethodEnum::PiecewiseLinearContinuous,
         )?;
@@ -55,11 +51,7 @@ impl FXDerivatives for FXForward {
 
     /// FX forward has a linear payoff, so delta is just the signed notional —
     /// independent of market data.
-    fn delta(
-        &self,
-        _fx_forward_helper: &FXForwardHelper,
-        _yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue> {
+    fn delta(&self, _market: &FxMarketContext) -> Result<CurrencyValue> {
         let delta = if self.notional_currency == self.asset.frn_currency() {
             self.notional_amounts * self.basic_info.direction as i8 as f64
         } else {
@@ -71,19 +63,11 @@ impl FXDerivatives for FXForward {
         })
     }
 
-    fn gamma(
-        &self,
-        _fx_forward_helper: &FXForwardHelper,
-        _yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64> {
+    fn gamma(&self, _market: &FxMarketContext) -> Result<f64> {
         Ok(0f64)
     }
 
-    fn vega(
-        &self,
-        _fx_forward_helper: &FXForwardHelper,
-        _yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64> {
+    fn vega(&self, _market: &FxMarketContext) -> Result<f64> {
         Ok(0f64)
     }
 }
@@ -94,6 +78,7 @@ mod tests {
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
     use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
     use crate::error::Result;
+    use crate::markets::forex::market_context::FxMarketContext;
     use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
     use crate::markets::termstructures::yieldcurve::{
         InterestRateQuoteEnum, StrippedCurve, YieldTermStructure,
@@ -107,6 +92,18 @@ mod tests {
     use iso_currency::Currency;
     use std::cell::RefCell;
     use std::rc::Rc;
+
+    /// Replicate a `YieldTermStructure` so the same stripped curve can
+    /// be passed as both the domestic and foreign leg for linear-
+    /// product tests (FXForward only reads the domestic side).
+    fn clone_yts(yts: &YieldTermStructure) -> YieldTermStructure {
+        YieldTermStructure::new(
+            Box::new(Target::default()),
+            Box::new(Actual365Fixed::default()),
+            yts.valuation_date,
+            yts.stripped_curves.clone(),
+        )
+    }
 
     #[test]
     fn test_fx_forward_serializer() {
@@ -194,23 +191,25 @@ mod tests {
                     strike,
                 };
                 let fx_forward_helper = sample_fx_forward_helper();
-                let mtm = fx_forward.mtm(&fx_forward_helper, yts_observer)?;
+                let ctx = FxMarketContext::for_linear(
+                    yts_observer.valuation_date,
+                    fx_forward_helper.spot_ref,
+                    (Currency::USD, Currency::EUR),
+                    clone_yts(yts_observer),
+                    clone_yts(yts_observer),
+                    fx_forward_helper,
+                )?;
+                let mtm = fx_forward.mtm(&ctx)?;
                 assert_eq!(mtm.currency, Currency::from_code("USD").unwrap());
                 assert_eq!(
-                    fx_forward.delta(&fx_forward_helper, yts_observer)?,
+                    fx_forward.delta(&ctx)?,
                     CurrencyValue {
                         currency: Currency::from_code("EUR").unwrap(),
                         value: expected_delta,
                     }
                 );
-                assert_eq!(
-                    fx_forward.gamma(&fx_forward_helper, yts_observer)?,
-                    expected_gamma
-                );
-                assert_eq!(
-                    fx_forward.vega(&fx_forward_helper, yts_observer)?,
-                    expected_vega
-                )
+                assert_eq!(fx_forward.gamma(&ctx)?, expected_gamma);
+                assert_eq!(fx_forward.vega(&ctx)?, expected_vega)
             }
         }
         Ok(())
@@ -307,7 +306,15 @@ mod tests {
             strike: 1.15,
         };
 
-        let mtm = fx_forward.mtm(&fx_forward_helper, &yts)?;
+        let ctx = FxMarketContext::for_linear(
+            valuation_date,
+            1.1736,
+            (Currency::USD, Currency::EUR),
+            clone_yts(&yts),
+            clone_yts(&yts),
+            fx_forward_helper,
+        )?;
+        let mtm = fx_forward.mtm(&ctx)?;
         assert_eq!(mtm.currency, Currency::from_code("USD").unwrap());
         // Tight tolerance against our own computation; loose tolerance vs. Expected.
         assert!(
