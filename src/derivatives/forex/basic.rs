@@ -1,6 +1,5 @@
 use crate::error::Result;
-use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
-use crate::markets::termstructures::yieldcurve::YieldTermStructure;
+use crate::markets::forex::market_context::FxMarketContext;
 use crate::time::calendars::{
     Calendar, Canada, Japan, JointCalendar, Target, UnitedKingdom, UnitedStates,
 };
@@ -87,31 +86,23 @@ pub struct CurrencyValue {
     pub value: f64,
 }
 
-/// Market-aware trait for FX derivatives. Every risk measure takes the same
-/// `(fx_forward_helper, yield_term_structure)` pair so that non-linear
-/// instruments (options) can compute analytic Black-Scholes Greeks while
-/// linear instruments (forwards) simply ignore the inputs.
+/// Market-aware trait for FX derivatives. All risk measures take a
+/// single [`FxMarketContext`] reference — the **raw-quote-to-pricing
+/// pipeline's one touchpoint into derivative code**. The context
+/// bundles both legs' yield curves, the FX forward helper and the
+/// vol surface; implementations pull out whichever fields they need
+/// (linear forwards ignore vol, options ignore settlement-calendar
+/// details).
+///
+/// Callers building a context from raw quotes should use
+/// [`FxMarketContext::from_raw_quotes`]. For ad-hoc analytics with
+/// pre-built aggregators, [`FxMarketContext::new`] skips the
+/// bootstrap.
 pub trait FXDerivatives {
-    fn mtm(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue>;
-    fn delta(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue>;
-    fn gamma(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64>;
-    fn vega(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64>;
+    fn mtm(&self, market: &FxMarketContext) -> Result<CurrencyValue>;
+    fn delta(&self, market: &FxMarketContext) -> Result<CurrencyValue>;
+    fn gamma(&self, market: &FxMarketContext) -> Result<f64>;
+    fn vega(&self, market: &FxMarketContext) -> Result<f64>;
 }
 
 #[cfg(test)]

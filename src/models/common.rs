@@ -4,6 +4,7 @@
 
 pub mod bachelier;
 pub mod black_scholes;
+pub mod calibration;
 pub mod cir;
 pub mod cos_pricer;
 pub mod simulation;

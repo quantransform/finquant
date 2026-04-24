@@ -14,7 +14,10 @@
 //! The pricer under the hood is just [`crate::models::forex::sabr::hagan_implied_vol`] —
 //! no COS / MC in the inner loop, so calibration is microseconds.
 
+use crate::error::Result;
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
+use crate::models::common::calibration::{Calibration, CalibrationReport};
+use crate::models::forex::market_data::MarketSmileStrip;
 use crate::models::forex::sabr::{SabrParams, hagan_implied_vol};
 
 /// One target point on the smile curve.
@@ -132,6 +135,40 @@ pub fn model_implied_vols(
         .iter()
         .map(|&k| hagan_implied_vol(params, forward, k, expiry))
         .collect()
+}
+
+/// Trait-object wrapper for the constant-SABR smile calibrator. Plugs
+/// into the [`Calibration`] pipeline so downstream code (e.g. market-
+/// context-driven calibration) doesn't need to know whether the
+/// underlying fit is SABR, Heston, or anything else.
+pub struct SabrSmileCalibrator {
+    /// Seed parameters — fed as the Nelder-Mead starting point.
+    pub initial: SabrParams,
+}
+
+impl Calibration for SabrSmileCalibrator {
+    type Market = MarketSmileStrip;
+    type Params = SabrParams;
+
+    fn calibrate(
+        &self,
+        market: &Self::Market,
+        options: NelderMeadOptions,
+    ) -> Result<CalibrationReport<Self::Params>> {
+        let targets = market.sabr_targets();
+        let res = calibrate(
+            self.initial,
+            market.forward,
+            &targets,
+            market.expiry_yf,
+            options,
+        );
+        Ok(CalibrationReport {
+            params: res.params,
+            rmse: res.rmse,
+            optimiser: Some(res.optimiser),
+        })
+    }
 }
 
 #[cfg(test)]

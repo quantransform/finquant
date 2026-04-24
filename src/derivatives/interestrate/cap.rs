@@ -24,6 +24,7 @@ use crate::derivatives::interestrate::basic::{
 use crate::derivatives::interestrate::swap::InterestRateSchedulePeriod;
 use crate::error::Error;
 use crate::error::Result;
+use crate::markets::interestrate::market_context::IrMarketContext;
 use crate::markets::interestrate::volsurface::IRNormalVolSurface;
 use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
 use crate::models::common::bachelier::{bachelier_call, bachelier_put, bachelier_vega_variance};
@@ -118,8 +119,18 @@ struct CapletMarket {
     variance: f64,
 }
 
+/// Unpack the IR context into (curve, vol surface), erroring cleanly
+/// if vol surface is missing (which is required for any cap pricing).
+fn unpack(market: &IrMarketContext) -> Result<(&YieldTermStructure, &IRNormalVolSurface)> {
+    let vs = market.cap_surface.as_ref().ok_or_else(|| {
+        Error::InvalidData("CapFloor: IrMarketContext.cap_surface must be present".to_string())
+    })?;
+    Ok((&market.curve, vs))
+}
+
 impl IRDerivatives for CapFloor {
-    fn mtm(&self, yts: &YieldTermStructure, vs: &IRNormalVolSurface) -> Result<CurrencyValue> {
+    fn mtm(&self, market: &IrMarketContext) -> Result<CurrencyValue> {
+        let (yts, vs) = unpack(market)?;
         let pv = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
         Ok(CurrencyValue {
             currency: self.currency,
@@ -131,7 +142,8 @@ impl IRDerivatives for CapFloor {
     /// pillars, vol held fixed (sticky-vol). Long-cap DV01 is positive:
     /// higher rates lift the call payoff even though the discount term pulls
     /// the other way.
-    fn dv01(&self, yts: &YieldTermStructure, vs: &IRNormalVolSurface) -> Result<f64> {
+    fn dv01(&self, market: &IrMarketContext) -> Result<f64> {
+        let (yts, vs) = unpack(market)?;
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
         let up = self.pv_under_shift(yts, vs, 1.0, 0.0)?;
         Ok(up - base)
@@ -141,12 +153,12 @@ impl IRDerivatives for CapFloor {
     /// `PV(y + δ) + PV(y − δ) − 2·PV(y)`. Scales with δ² for small δ.
     fn gamma(
         &self,
-        yts: &YieldTermStructure,
-        vs: &IRNormalVolSurface,
+        market: &IrMarketContext,
         rate_shift_bp: f64,
         mode: RateShiftMode,
     ) -> Result<f64> {
         ensure_supported_mode(mode)?;
+        let (yts, vs) = unpack(market)?;
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
         let up = self.pv_under_shift(yts, vs, rate_shift_bp, 0.0)?;
         let down = self.pv_under_shift(yts, vs, -rate_shift_bp, 0.0)?;
@@ -159,12 +171,8 @@ impl IRDerivatives for CapFloor {
     /// The closed-form alternative `Σ τ · DF · (∂C/∂V) · (2σ · T_var) · δ·1e−4`
     /// agrees to O(1e-8) for typical vols; the finite-difference form is kept
     /// for symmetry with DV01 and to stay honest about sticky-vol.
-    fn vega(
-        &self,
-        yts: &YieldTermStructure,
-        vs: &IRNormalVolSurface,
-        vol_shift_bp: f64,
-    ) -> Result<f64> {
+    fn vega(&self, market: &IrMarketContext, vol_shift_bp: f64) -> Result<f64> {
+        let (yts, vs) = unpack(market)?;
         let base = self.pv_under_shift(yts, vs, 0.0, 0.0)?;
         let up = self.pv_under_shift(yts, vs, 0.0, vol_shift_bp)?;
         Ok(up - base)
@@ -240,6 +248,7 @@ mod tests {
     };
     use crate::derivatives::interestrate::swap::InterestRateSchedulePeriod;
     use crate::error::Result;
+    use crate::markets::interestrate::market_context::IrMarketContext;
     use crate::markets::interestrate::volsurface::{
         CapQuote, CapletVolPillar, IRCapMarketData, IRNormalVolSurface,
     };
@@ -251,6 +260,18 @@ mod tests {
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use chrono::NaiveDate;
     use iso_currency::Currency;
+
+    /// Rebuild a fresh `YieldTermStructure` from an existing one's
+    /// stripped curves — used inside closures where we need multiple
+    /// `IrMarketContext` instances without `yts` being `Clone`.
+    fn clone_yts(yts: &YieldTermStructure) -> YieldTermStructure {
+        YieldTermStructure::new(
+            Box::new(UnitedStates::default()),
+            Box::new(Actual365Fixed::default()),
+            yts.valuation_date,
+            yts.stripped_curves.clone(),
+        )
+    }
 
     /// expected cap-pricing reference (curve date 04/22/2026, valuation 04/24/2026):
     ///   Index:       1D SOFRRATE (backward-looking daily-compounded)
@@ -335,7 +356,8 @@ mod tests {
             accrual_day_counter: Box::new(Actual360),
         };
 
-        let mtm = cap.mtm(&yts, &vs)?;
+        let ctx = IrMarketContext::new(valuation_date, Currency::USD, yts, Some(vs));
+        let mtm = cap.mtm(&ctx)?;
         // After stripping, the repriced NPV must match the quote to solver tolerance.
         assert!(
             (mtm.value - 237_665.49).abs() < 1.0,
@@ -347,7 +369,7 @@ mod tests {
         // Vega(1bp) ≈ $2,656 on the expected screen. Check within ~10% — the curve
         // is a coarsely-digitised version of the expected's so there's some
         // tolerance. Pass DEFAULT_VOL_SHIFT_BP (= 1bp) to match the reference.
-        let vega = cap.vega(&yts, &vs, DEFAULT_VOL_SHIFT_BP)?;
+        let vega = cap.vega(&ctx, DEFAULT_VOL_SHIFT_BP)?;
         let ref_vega = 2_656.12_f64;
         let err_pct = (vega - ref_vega).abs() / ref_vega;
         assert!(
@@ -360,10 +382,10 @@ mod tests {
 
         // A long cap's PV rises with rates: DV01 > 0. Long optionality means
         // gamma > 0 (at any bump size). Modified duration is then negative.
-        let dv01 = cap.dv01(&yts, &vs)?;
-        let gamma_10bp = cap.gamma(&yts, &vs, DEFAULT_RATE_SHIFT_BP, RateShiftMode::default())?;
-        let gamma_1bp = cap.gamma(&yts, &vs, 1.0, RateShiftMode::default())?;
-        let mod_dur = cap.modified_duration(&yts, &vs)?;
+        let dv01 = cap.dv01(&ctx)?;
+        let gamma_10bp = cap.gamma(&ctx, DEFAULT_RATE_SHIFT_BP, RateShiftMode::default())?;
+        let gamma_1bp = cap.gamma(&ctx, 1.0, RateShiftMode::default())?;
+        let mod_dur = cap.modified_duration(&ctx)?;
         assert!(dv01 > 0.0, "long cap DV01 should be positive, got {}", dv01);
         assert!(
             gamma_10bp > 0.0,
@@ -432,12 +454,13 @@ mod tests {
             accrual_day_counter: Box::new(Actual360),
         };
 
+        let ctx = IrMarketContext::new(valuation_date, Currency::USD, yts, Some(vs));
         for unsupported in [
             RateShiftMode::Instruments,
             RateShiftMode::Forwards,
             RateShiftMode::Swaps,
         ] {
-            let err = cap.gamma(&yts, &vs, DEFAULT_RATE_SHIFT_BP, unsupported);
+            let err = cap.gamma(&ctx, DEFAULT_RATE_SHIFT_BP, unsupported);
             assert!(
                 err.is_err(),
                 "expected error for unsupported mode {:?}",
@@ -502,7 +525,11 @@ mod tests {
                     expiry: last_accrual_start,
                     nodes: vec![(*k, *sigma)],
                 }];
-                let npv = cap.mtm(&yts, &vs).unwrap().value;
+                // Build an ad-hoc per-iteration context (yts rebuilt
+                // from stripped curves to stay Clone-free).
+                let ctx =
+                    IrMarketContext::new(valuation_date, Currency::USD, clone_yts(&yts), Some(vs));
+                let npv = cap.mtm(&ctx).unwrap().value;
                 CapQuote {
                     strike: *k,
                     notional,

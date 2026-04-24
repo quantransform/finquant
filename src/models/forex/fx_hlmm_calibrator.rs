@@ -14,11 +14,14 @@
 //! σ_{f,k}, β_{f,k}`) a follow-up module can compose this with a
 //! separate LMM cap calibrator.
 
+use crate::error::Result;
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
 use crate::models::common::black_scholes::bs_implied_vol;
+use crate::models::common::calibration::{Calibration, CalibrationReport};
 use crate::models::common::cos_pricer::CosPricer;
 use crate::models::forex::fx_hlmm::FxHlmmParams;
 use crate::models::forex::fx_hlmm1_chf::FxHlmm1ForwardChf;
+use crate::models::forex::market_data::MarketSmileStrip;
 
 /// One target point on the smile curve.
 #[derive(Copy, Clone, Debug)]
@@ -177,6 +180,45 @@ pub fn price_call(params: &FxHlmmParams, expiry: f64, strike: f64) -> f64 {
     let pricer = CosPricer::new(&chf);
     let discount = discount_factor(params, expiry);
     pricer.call(strike, discount)
+}
+
+/// Trait-object wrapper for FX-HLMM smile calibration.
+pub struct FxHlmmSmileCalibrator {
+    pub initial: FxHlmmParams,
+    pub kappa_floor: f64,
+}
+
+impl Calibration for FxHlmmSmileCalibrator {
+    type Market = MarketSmileStrip;
+    type Params = FxHlmmParams;
+
+    fn calibrate(
+        &self,
+        market: &Self::Market,
+        options: NelderMeadOptions,
+    ) -> Result<CalibrationReport<Self::Params>> {
+        // HLMM has its own CalibrationTarget type (distinct from the
+        // FX-HHW / SABR ones even though the fields coincide). Build
+        // HLMM targets directly from the strike-vol pairs.
+        let targets: Vec<CalibrationTarget> = market
+            .strikes
+            .iter()
+            .zip(market.vols.iter())
+            .map(|(&strike, &market_vol)| CalibrationTarget { strike, market_vol })
+            .collect();
+        let res = calibrate(
+            self.initial.clone(),
+            &targets,
+            market.expiry_yf,
+            self.kappa_floor,
+            options,
+        );
+        Ok(CalibrationReport {
+            params: res.params,
+            rmse: res.rmse,
+            optimiser: Some(res.optimiser),
+        })
+    }
 }
 
 #[cfg(test)]

@@ -21,11 +21,14 @@
 //! Soft-floors on `κ, γ, σ̄, σ₀` keep them strictly positive without
 //! brittle projection steps; `tanh` parameterisation bounds correlation.
 
+use crate::error::Result;
 use crate::math::optimize::{Minimum, NelderMeadOptions, nelder_mead};
 use crate::models::common::black_scholes::bs_implied_vol;
+use crate::models::common::calibration::{Calibration, CalibrationReport};
 use crate::models::common::cos_pricer::CosPricer;
 use crate::models::forex::fx_hhw::FxHhwParams;
 use crate::models::forex::fx_hhw1_chf::FxHhw1ForwardChf;
+use crate::models::forex::market_data::MarketSmileStrip;
 
 /// One target point on the smile curve.
 #[derive(Copy, Clone, Debug)]
@@ -249,6 +252,53 @@ pub fn price_call(params: &FxHhwParams, expiry: f64, strike: f64) -> f64 {
     let pricer = CosPricer::new(&chf);
     let discount = (-params.rd_0 * expiry).exp();
     pricer.call(strike, discount)
+}
+
+/// Trait-object wrapper for FX-HHW smile calibration. Implements
+/// [`Calibration`] against a `MarketSmileStrip` so this model plugs
+/// into the same driver as SABR / HLMM.
+pub struct FxHhwSmileCalibrator {
+    pub initial: FxHhwParams,
+    pub kappa_floor: f64,
+    /// `Some(gmax)` activates the γ-bounded variant
+    /// ([`calibrate_bounded`]); `None` uses the unbounded
+    /// [`calibrate`].
+    pub gamma_max: Option<f64>,
+}
+
+impl Calibration for FxHhwSmileCalibrator {
+    type Market = MarketSmileStrip;
+    type Params = FxHhwParams;
+
+    fn calibrate(
+        &self,
+        market: &Self::Market,
+        options: NelderMeadOptions,
+    ) -> Result<CalibrationReport<Self::Params>> {
+        let targets = market.hhw_targets();
+        let res = match self.gamma_max {
+            Some(gmax) => calibrate_bounded(
+                self.initial,
+                &targets,
+                market.expiry_yf,
+                self.kappa_floor,
+                gmax,
+                options,
+            ),
+            None => calibrate(
+                self.initial,
+                &targets,
+                market.expiry_yf,
+                self.kappa_floor,
+                options,
+            ),
+        };
+        Ok(CalibrationReport {
+            params: res.params,
+            rmse: res.rmse,
+            optimiser: Some(res.optimiser),
+        })
+    }
 }
 
 #[cfg(test)]

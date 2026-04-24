@@ -18,8 +18,8 @@
 use crate::derivatives::basic::BasicInfo;
 use crate::derivatives::forex::basic::{CurrencyValue, FXDerivatives, FXUnderlying};
 use crate::error::{Error, Result};
-use crate::markets::forex::quotes::forwardpoints::FXForwardHelper;
-use crate::markets::termstructures::yieldcurve::{InterpolationMethodEnum, YieldTermStructure};
+use crate::markets::forex::market_context::FxMarketContext;
+use crate::markets::termstructures::yieldcurve::InterpolationMethodEnum;
 use crate::math::normal::{cdf, pdf};
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual365fixed::Actual365Fixed;
@@ -106,36 +106,30 @@ struct BsContext {
 }
 
 impl FXVanillaOption {
-    fn bs_context(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<BsContext> {
+    fn bs_context(&self, market: &FxMarketContext) -> Result<BsContext> {
         let calendar = self.asset.calendar();
-        let forward_points = fx_forward_helper
+        let forward_points = market
+            .forwards
             .get_forward(self.basic_info.expiry_date, &calendar)?
             .ok_or_else(|| {
                 Error::TradeExpired(format!(
                     "Option expiry {} outside the forward points range (valuation {})",
-                    self.basic_info.expiry_date, fx_forward_helper.valuation_date
+                    self.basic_info.expiry_date, market.valuation_date
                 ))
             })?;
-        let forward =
-            fx_forward_helper.spot_ref + forward_points / self.asset.forward_points_converter();
-        let year_fraction = Actual365Fixed::default().year_fraction(
-            fx_forward_helper.valuation_date,
-            self.basic_info.expiry_date,
-        )?;
+        let forward = market.spot + forward_points / self.asset.forward_points_converter();
+        let year_fraction = Actual365Fixed::default()
+            .year_fraction(market.valuation_date, self.basic_info.expiry_date)?;
         let variance = self.volatility * self.volatility * year_fraction;
         let sqrt_v = variance.sqrt();
         let d1 = ((forward / self.strike).ln() + 0.5 * variance) / sqrt_v;
-        let discount = yield_term_structure.discount(
+        let discount = market.domestic_curve.discount(
             self.basic_info.expiry_date,
             &InterpolationMethodEnum::StepFunctionForward,
         )?;
         Ok(BsContext {
             forward,
-            spot: fx_forward_helper.spot_ref,
+            spot: market.spot,
             strike: self.strike,
             year_fraction,
             discount,
@@ -152,12 +146,8 @@ impl FXVanillaOption {
 impl FXDerivatives for FXVanillaOption {
     /// Premium in the notional currency. Sign is adjusted for Buy / Sell —
     /// a buyer sees a negative PV (they owe premium), a seller positive.
-    fn mtm(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue> {
-        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+    fn mtm(&self, market: &FxMarketContext) -> Result<CurrencyValue> {
+        let ctx = self.bs_context(market)?;
 
         // `black_scholes` yields the domestic (quote) premium per unit of
         // base (foreign) notional. 1 EUR of notional costs `premium_dom` USD.
@@ -191,12 +181,8 @@ impl FXDerivatives for FXVanillaOption {
     /// (base) currency. For a call: `Δ_fwd = N(d₁)`; for a put:
     /// `Δ_fwd = N(d₁) − 1`. Multiply by signed notional to get the effective
     /// base-currency exposure.
-    fn delta(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<CurrencyValue> {
-        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+    fn delta(&self, market: &FxMarketContext) -> Result<CurrencyValue> {
+        let ctx = self.bs_context(market)?;
         let omega = self.option_type.omega();
         let fwd_delta_per_unit = omega * cdf(omega * ctx.d1);
         let delta = self.notional_amounts * self.direction_sign() * fwd_delta_per_unit;
@@ -208,12 +194,8 @@ impl FXDerivatives for FXVanillaOption {
 
     /// Black-Scholes gamma per 1 unit of spot, scaled by notional:
     /// `Γ = DF_d · φ(d₁) / (F · σ · √T) × notional × direction_sign`.
-    fn gamma(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64> {
-        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+    fn gamma(&self, market: &FxMarketContext) -> Result<f64> {
+        let ctx = self.bs_context(market)?;
         if ctx.sqrt_v <= 0.0 {
             return Ok(0.0);
         }
@@ -226,12 +208,8 @@ impl FXDerivatives for FXVanillaOption {
     /// otherwise. Formula (per unit base, in domestic currency, per 1 unit σ):
     /// `V_σ = DF_d · F · φ(d₁) · √T`. Divide by 100 for 1 % convention, and
     /// by spot when the notional is in base so the quote is base-currency.
-    fn vega(
-        &self,
-        fx_forward_helper: &FXForwardHelper,
-        yield_term_structure: &YieldTermStructure,
-    ) -> Result<f64> {
-        let ctx = self.bs_context(fx_forward_helper, yield_term_structure)?;
+    fn vega(&self, market: &FxMarketContext) -> Result<f64> {
+        let ctx = self.bs_context(market)?;
         if ctx.year_fraction <= 0.0 {
             return Ok(0.0);
         }
@@ -252,16 +230,30 @@ mod tests {
     use crate::derivatives::basic::{BasicInfo, Direction, Style};
     use crate::derivatives::forex::basic::{FXDerivatives, FXUnderlying};
     use crate::error::Result;
+    use crate::markets::forex::market_context::FxMarketContext;
     use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
     use crate::markets::forex::quotes::volsurface::{FXDeltaVolPillar, FXVolQuote, FXVolSurface};
     use crate::markets::termstructures::yieldcurve::{
         InterestRateQuoteEnum, StrippedCurve, YieldTermStructure,
     };
+    use crate::time::calendars::Target;
     use crate::time::calendars::UnitedStates;
     use crate::time::daycounters::actual365fixed::Actual365Fixed;
     use crate::time::period::Period;
     use chrono::NaiveDate;
     use iso_currency::Currency;
+
+    /// Replicate a `YieldTermStructure` so it can be passed as both
+    /// the domestic and foreign leg (FXVanillaOption only reads the
+    /// domestic curve for discounting).
+    fn clone_yts(yts: &YieldTermStructure) -> YieldTermStructure {
+        YieldTermStructure::new(
+            Box::new(Target),
+            Box::new(Actual365Fixed::default()),
+            yts.valuation_date,
+            yts.stripped_curves.clone(),
+        )
+    }
 
     /// Sanity: at-the-money call under high discount rate matches a textbook value.
     /// With F = 100, K = 100, σ = 20%, T = 1, r = 5%:
@@ -399,7 +391,15 @@ mod tests {
             volatility: 0.07748, // Expected mid vol
         };
 
-        let mtm = option.mtm(&fx_forward_helper, &yts)?;
+        let ctx = FxMarketContext::for_linear(
+            valuation_date,
+            1.1736,
+            (Currency::USD, Currency::EUR),
+            clone_yts(&yts),
+            clone_yts(&yts),
+            fx_forward_helper,
+        )?;
+        let mtm = option.mtm(&ctx)?;
         assert_eq!(mtm.currency, Currency::from_code("EUR").unwrap());
 
         // Buyer pays premium → negative PV to the buyer's book.
@@ -524,7 +524,16 @@ mod tests {
             volatility: sigma,
         };
 
-        let mtm = option.mtm(&fx_forward_helper, &yts)?;
+        let ctx = FxMarketContext::new(
+            valuation_date,
+            1.1736,
+            (Currency::USD, Currency::EUR),
+            clone_yts(&yts),
+            clone_yts(&yts),
+            fx_forward_helper,
+            surface,
+        );
+        let mtm = option.mtm(&ctx)?;
         let bb_premium_eur = -42_784.82f64;
         let abs_err = (mtm.value - bb_premium_eur).abs();
         assert!(
@@ -610,11 +619,19 @@ mod tests {
         let buy_call = make(OptionType::Call, Direction::Buy);
         let sell_call = make(OptionType::Call, Direction::Sell);
         let buy_put = make(OptionType::Put, Direction::Buy);
+        let ctx = FxMarketContext::for_linear(
+            valuation_date,
+            1.1736,
+            (Currency::USD, Currency::EUR),
+            clone_yts(&yts),
+            clone_yts(&yts),
+            fxh,
+        )?;
 
         // Signs.
-        let d_bc = buy_call.delta(&fxh, &yts)?.value;
-        let g_bc = buy_call.gamma(&fxh, &yts)?;
-        let v_bc = buy_call.vega(&fxh, &yts)?;
+        let d_bc = buy_call.delta(&ctx)?.value;
+        let g_bc = buy_call.gamma(&ctx)?;
+        let v_bc = buy_call.vega(&ctx)?;
         assert!(
             d_bc > 0.0,
             "buy-call delta should be positive, got {}",
@@ -624,8 +641,8 @@ mod tests {
         assert!(v_bc > 0.0, "long vega should be positive, got {}", v_bc);
 
         // Short flips sign on delta/gamma/vega.
-        let d_sc = sell_call.delta(&fxh, &yts)?.value;
-        let g_sc = sell_call.gamma(&fxh, &yts)?;
+        let d_sc = sell_call.delta(&ctx)?.value;
+        let g_sc = sell_call.gamma(&ctx)?;
         assert!(
             (d_bc + d_sc).abs() < 1e-9,
             "buy+sell call delta must cancel"
@@ -637,7 +654,7 @@ mod tests {
 
         // Put-call parity on forward delta: Δ_call − Δ_put = notional · direction
         // (a.k.a. a long call + short put = a long forward on the base currency).
-        let d_bp = buy_put.delta(&fxh, &yts)?.value;
+        let d_bp = buy_put.delta(&ctx)?.value;
         let parity = d_bc - d_bp;
         let expected_parity = 1_000_000.0; // notional × +1 direction
         assert!(
@@ -648,8 +665,8 @@ mod tests {
         );
 
         // Gamma and vega are identical for call and put at same strike/notional.
-        let g_bp = buy_put.gamma(&fxh, &yts)?;
-        let v_bp = buy_put.vega(&fxh, &yts)?;
+        let g_bp = buy_put.gamma(&ctx)?;
+        let v_bp = buy_put.vega(&ctx)?;
         assert!(
             (g_bc - g_bp).abs() / g_bc.abs() < 1e-9,
             "call/put gamma mismatch: {} vs {}",

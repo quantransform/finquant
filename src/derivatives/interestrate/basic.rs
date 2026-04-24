@@ -4,8 +4,7 @@
 
 use crate::derivatives::forex::basic::CurrencyValue;
 use crate::error::Result;
-use crate::markets::interestrate::volsurface::IRNormalVolSurface;
-use crate::markets::termstructures::yieldcurve::YieldTermStructure;
+use crate::markets::interestrate::market_context::IrMarketContext;
 use serde::{Deserialize, Serialize};
 
 /// Whether the option is a cap (call on rate) or a floor (put on rate).
@@ -87,29 +86,27 @@ pub const DEFAULT_RATE_SHIFT_BP: f64 = 10.0;
 /// convention for normal-vol Greeks.
 pub const DEFAULT_VOL_SHIFT_BP: f64 = 1.0;
 
-/// Market-aware trait for IR-option pricing with bump-and-reprice Greeks.
-/// All bumped quantities are returned **in the deal currency's natural P&L
-/// unit** — Greek values scale with the size of the bump supplied.
+/// Market-aware trait for IR-option pricing with bump-and-reprice
+/// Greeks. Inputs come through a single [`IrMarketContext`] bundling
+/// the discount curve and (where needed) the caplet vol surface —
+/// the IR analogue of [`FXDerivatives`][fxd]'s `FxMarketContext`.
 ///
-/// The vol surface is held fixed through `dv01` and `gamma` (sticky-vol
-/// convention), cleanly separating curve risk from vol risk.
+/// All bumped quantities are returned **in the deal currency's
+/// natural P&L unit** — Greek values scale with the size of the bump
+/// supplied. The vol surface is held fixed through `dv01` and
+/// `gamma` (sticky-vol convention), cleanly separating curve risk
+/// from vol risk.
+///
+/// [fxd]: crate::derivatives::forex::basic::FXDerivatives
 pub trait IRDerivatives {
     /// Present value in the deal currency.
-    fn mtm(
-        &self,
-        yield_term_structure: &YieldTermStructure,
-        ir_vol_surface: &IRNormalVolSurface,
-    ) -> Result<CurrencyValue>;
+    fn mtm(&self, market: &IrMarketContext) -> Result<CurrencyValue>;
 
     /// DV01 = PV(y + 1bp) − PV(y), using a parallel zero-rate shift across
     /// every pillar. Per 1bp by definition — the conventional name encodes
     /// the bump size. Use [`IRDerivatives::gamma`] (not `dv01`) for
     /// configurable shifts. Sign follows the PV change under a rate *rise*.
-    fn dv01(
-        &self,
-        yield_term_structure: &YieldTermStructure,
-        ir_vol_surface: &IRNormalVolSurface,
-    ) -> Result<f64>;
+    fn dv01(&self, market: &IrMarketContext) -> Result<f64>;
 
     /// Second-order rate sensitivity as a central difference:
     /// `PV(y + δ) + PV(y − δ) − 2·PV(y)` where `δ = rate_shift_bp` basis
@@ -117,8 +114,7 @@ pub trait IRDerivatives {
     /// [`DEFAULT_RATE_SHIFT_BP`] (10bp); pass `1.0` for the per-1bp number.
     fn gamma(
         &self,
-        yield_term_structure: &YieldTermStructure,
-        ir_vol_surface: &IRNormalVolSurface,
+        market: &IrMarketContext,
         rate_shift_bp: f64,
         mode: RateShiftMode,
     ) -> Result<f64>;
@@ -126,26 +122,17 @@ pub trait IRDerivatives {
     /// Vol sensitivity: `PV(σ + δ) − PV(σ)` where `δ = vol_shift_bp` basis
     /// points of normal vol. Curve held fixed. Pass
     /// [`DEFAULT_VOL_SHIFT_BP`] (1bp) for the conventional per-1bp number.
-    fn vega(
-        &self,
-        yield_term_structure: &YieldTermStructure,
-        ir_vol_surface: &IRNormalVolSurface,
-        vol_shift_bp: f64,
-    ) -> Result<f64>;
+    fn vega(&self, market: &IrMarketContext, vol_shift_bp: f64) -> Result<f64>;
 
     /// Modified duration = −DV01 · 1e4 / PV. Returns `0.0` if PV is
     /// effectively zero. Always derived from the per-1bp DV01 regardless of
     /// the bump sizes chosen for gamma or vega.
-    fn modified_duration(
-        &self,
-        yield_term_structure: &YieldTermStructure,
-        ir_vol_surface: &IRNormalVolSurface,
-    ) -> Result<f64> {
-        let pv = self.mtm(yield_term_structure, ir_vol_surface)?.value;
+    fn modified_duration(&self, market: &IrMarketContext) -> Result<f64> {
+        let pv = self.mtm(market)?.value;
         if pv.abs() < 1.0e-12 {
             return Ok(0.0);
         }
-        let dv01 = self.dv01(yield_term_structure, ir_vol_surface)?;
+        let dv01 = self.dv01(market)?;
         Ok(-dv01 * 1.0e4 / pv)
     }
 }

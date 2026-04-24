@@ -28,7 +28,10 @@
 //!
 //! [csabr]: crate::models::forex::sabr_calibrator::calibrate
 
+use crate::error::Result;
 use crate::math::optimize::NelderMeadOptions;
+use crate::models::common::calibration::{Calibration, CalibrationReport};
+use crate::models::forex::market_data::MarketSmileStrip;
 use crate::models::forex::sabr::SabrParams;
 use crate::models::forex::sabr_calibrator::{
     CalibrationTarget, calibrate as calibrate_sabr, targets_from_grid,
@@ -314,6 +317,53 @@ fn bisect<F: Fn(f64) -> f64>(f: F, mut lo: f64, mut hi: f64, tol: f64, max_iter:
         }
     }
     0.5 * (lo + hi)
+}
+
+/// Trait-object wrapper for the 4-stage time-dependent SABR
+/// surface calibrator. `Market` is the multi-pillar
+/// `Vec<MarketSmileStrip>` shape; the trait drives
+/// [`calibrate_time_dependent`] after building `PillarTarget`s from
+/// each strip.
+///
+/// `forward_0` is used as the initial forward in the resulting
+/// [`TimeDependentSabrParams`]; downstream simulator builders
+/// typically override this per-pillar via
+/// [`TimeDependentSabrParams::new`] when rerunning MC at a specific
+/// expiry.
+pub struct SabrTimeDependentSurfaceCalibrator {
+    pub beta: f64,
+    pub forward_0: f64,
+}
+
+impl Calibration for SabrTimeDependentSurfaceCalibrator {
+    type Market = Vec<MarketSmileStrip>;
+    type Params = TimeDependentSabrParams;
+
+    fn calibrate(
+        &self,
+        pillars: &Self::Market,
+        options: NelderMeadOptions,
+    ) -> Result<CalibrationReport<Self::Params>> {
+        let pillar_targets: Vec<PillarTarget> = pillars.iter().map(|s| s.pillar_target()).collect();
+        let res = calibrate_time_dependent(&pillar_targets, self.beta, self.forward_0, options);
+        // Surface-level RMSE: max across pillars of the stage-1 smile
+        // RMSE. This is the most conservative single summary number;
+        // callers who need per-pillar breakdowns should call
+        // `calibrate_time_dependent` directly and consume
+        // `per_pillar`.
+        let rmse = res
+            .per_pillar
+            .iter()
+            .map(|d| d.stage1_rmse)
+            .fold(0.0_f64, f64::max);
+        Ok(CalibrationReport {
+            params: res.params,
+            rmse,
+            // Multi-stage sequential calibrator: no single optimiser
+            // diagnostic is representative.
+            optimiser: None,
+        })
+    }
 }
 
 #[cfg(test)]
