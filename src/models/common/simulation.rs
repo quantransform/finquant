@@ -30,8 +30,13 @@ use rand_distr::StandardNormal;
 /// curves). Implementations must be deterministic given a seed set at
 /// construction, so repeated runs are reproducible.
 pub trait SimulationModel {
-    /// Per-path state snapshot. Copy for cheap cloning inside the MC loop.
-    type State: Copy;
+    /// Per-path state snapshot. Required to be `Clone` so the MC loop
+    /// can keep a working copy per path while also capturing snapshots
+    /// at each observation date. Small scalar states (HW, BM, GBM) stay
+    /// `Copy`-derived and pay no runtime cost; variable-size states (the
+    /// generalised FMM, which carries `Vec<f64>` per-rate buffers)
+    /// satisfy `Clone` with a single heap copy per captured observation.
+    type State: Clone;
 
     /// State at the valuation date (`t = 0`).
     fn initial_state(&self) -> Self::State;
@@ -52,7 +57,7 @@ pub struct DatedPaths<S> {
     pub paths: Vec<Vec<S>>,
 }
 
-impl<S: Copy> DatedPaths<S> {
+impl<S: Clone> DatedPaths<S> {
     pub fn n_paths(&self) -> usize {
         self.paths.len()
     }
@@ -61,7 +66,7 @@ impl<S: Copy> DatedPaths<S> {
     /// `None` if `date` wasn't in the observation grid.
     pub fn states_at(&self, date: NaiveDate) -> Option<Vec<S>> {
         let idx = self.observation_dates.binary_search(&date).ok()?;
-        Some(self.paths.iter().map(|p| p[idx]).collect())
+        Some(self.paths.iter().map(|p| p[idx].clone()).collect())
     }
 
     /// Extract a scalar from each path at `date`. `None` if not in grid.
@@ -157,7 +162,7 @@ pub fn simulate_at_dates<M: SimulationModel>(
             let t_mid = 0.5 * (yf[i] + yf[i - 1]);
             state = model.step(&state, t_mid, dt);
             while next_obs < obs_indices.len() && obs_indices[next_obs] == i {
-                path.push(state);
+                path.push(state.clone());
                 next_obs += 1;
             }
         }
@@ -172,6 +177,16 @@ pub fn simulate_at_dates<M: SimulationModel>(
 /// Standard Brownian motion `dX = μ dt + σ dW`, `X(0) = x₀`. Useful as
 /// a baseline simulator for testing the trait plumbing and as a
 /// building block for composite SDEs. Defaults: `x₀ = 0, μ = 0, σ = 1`.
+///
+/// # Papers
+///
+/// * **Brown, R. (1828)** — *A Brief Account of Microscopical
+///   Observations*. The phenomenon.
+/// * **Wiener, N. (1923)** — *Differential Space*, Journal of
+///   Mathematics and Physics 2: 131–174. The mathematical construction.
+/// * **Itô, K. (1944)** — *Stochastic Integral*, Proceedings of the
+///   Imperial Academy 20(8): 519–524. Itô calculus underpinning every
+///   SDE in this crate.
 pub struct BrownianMotion {
     pub x_0: f64,
     pub drift: f64,
@@ -214,7 +229,18 @@ impl SimulationModel for BrownianMotion {
 }
 
 /// Geometric Brownian motion `dS/S = μ dt + σ dW`, `S(0) = s₀`.
-/// Log-Euler scheme. Useful as a simple baseline and for testing.
+/// Log-Euler scheme — exact in distribution at every step because
+/// `log S` is Gaussian with known mean / variance under GBM.
+///
+/// # Papers
+///
+/// * **Samuelson, P. A. (1965)** — *Rational Theory of Warrant
+///   Pricing*, Industrial Management Review 6(2): 13–31. Proposes GBM
+///   as an equity-price model.
+/// * **Black, F., Scholes, M. (1973)** — *The Pricing of Options and
+///   Corporate Liabilities*, Journal of Political Economy 81(3):
+///   637–654. GBM underlies the closed-form option price; see
+///   [`crate::models::common::black_scholes`].
 pub struct GeometricBrownianMotion {
     pub s_0: f64,
     pub drift: f64,

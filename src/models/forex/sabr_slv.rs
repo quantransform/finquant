@@ -40,6 +40,31 @@ use rand_chacha::ChaCha20Rng;
 use rand_distr::StandardNormal;
 
 /// Particle-method SABR-SLV simulator.
+///
+/// # Papers
+///
+/// * **van der Stoep, A. W., Grzelak, L. A., Oosterlee, C. W.
+///   (2015)** — *The Time-Dependent FX-SABR Model: Efficient
+///   Calibration based on Effective Parameters*
+///   (`time-dep-SABR.pdf` in this repo). §2.2 eq. (10) — the
+///   non-parametric local-vol compensator
+///   `σ²_SLV(t, F) = σ²_LV / (E[vol²|F] · F^{2β−2})` this simulator
+///   applies at every MC step.
+/// * **van der Stoep, A. W., Grzelak, L. A., Oosterlee, C. W.
+///   (2014)** — *The Heston Stochastic-Local Volatility Model:
+///   Efficient Monte Carlo Simulation*, IJTAF 17(7). Introduces the
+///   particle method (bin paths by underlying, compute conditional
+///   expectations as bin means) that this module ports from Heston
+///   to SABR.
+/// * **Gyöngy, I. (1986)** — *Mimicking the One-Dimensional Marginal
+///   Distributions of Processes having an Itô Differential*,
+///   Probability Theory and Related Fields 71: 501–516. Theoretical
+///   basis for why the compensated process reproduces the market
+///   marginal.
+/// * **Dupire, B. (1994)** — *Pricing with a Smile*, Risk 7(1):
+///   18–20. The local-volatility formula evaluated by
+///   [`crate::models::forex::dupire_local_vol`] to build the
+///   surface this simulator consumes.
 pub struct TimeDependentSabrSlvSimulator {
     pub params: TimeDependentSabrParams,
     pub dupire: DupireLocalVol,

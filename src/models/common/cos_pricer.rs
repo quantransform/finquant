@@ -77,6 +77,23 @@ impl<'a> ForwardChf for FxHlmm1ForwardChf<'a> {
     }
 }
 
+impl<'a> ForwardChf for crate::models::forex::fx_fmm1_chf::FxFmm1ForwardChf<'a> {
+    fn evaluate(&self, u: Complex64) -> Complex64 {
+        crate::models::forex::fx_fmm1_chf::FxFmm1ForwardChf::evaluate(self, u)
+    }
+    fn expiry(&self) -> f64 {
+        self.expiry
+    }
+    fn log_forward(&self) -> f64 {
+        // Same single-curve convention as FX-HLMM: P_f ≈ P_d under the
+        // shared-tenor setup, so `log FX_T(0) = log ξ(0)`.
+        self.params().fx_0.ln()
+    }
+    fn typical_variance(&self) -> f64 {
+        self.params().heston.theta
+    }
+}
+
 /// Pricer that glues any `ForwardChf` onto the COS quadrature.
 pub struct CosPricer<'a, C: ForwardChf> {
     chf: &'a C,

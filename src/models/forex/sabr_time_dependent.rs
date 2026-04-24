@@ -101,6 +101,20 @@ impl TimeDependentSabrParams {
 /// in [`PiecewiseConstant::at`]. Callers that need knot-boundary
 /// precision should populate the simulation grid with the schedule
 /// knots via [`simulate_at_dates`][crate::models::common::simulation::simulate_at_dates].
+///
+/// # Papers
+///
+/// * **van der Stoep, A. W., Grzelak, L. A., Oosterlee, C. W.
+///   (2015)** — *The Time-Dependent FX-SABR Model: Efficient
+///   Calibration based on Effective Parameters*
+///   (`time-dep-SABR.pdf` in this repo). §2.1 eq. (1)–(5): the SDE
+///   system this simulator implements; §3 introduces the effective
+///   parameters that [`crate::models::forex::sabr_effective`]
+///   computes; §5 defines the 4-stage calibration in
+///   [`crate::models::forex::sabr_time_dependent_calibrator`].
+/// * **Hagan, P. S., et al. (2002)** — *Managing Smile Risk*,
+///   Wilmott Magazine, Sept. 2002: 84–108. The constant-parameter
+///   SABR that this simulator reduces to when every segment is flat.
 pub struct TimeDependentSabrSimulator {
     pub params: TimeDependentSabrParams,
     rng: ChaCha20Rng,

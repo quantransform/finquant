@@ -158,6 +158,21 @@ pub struct SabrState {
 /// Brownian correlation is applied in-place via a 2 × 2 Cholesky factor
 /// (`dW_F, dW_α = ρ dW_F + √(1−ρ²) dW_⊥`). RNG is seeded ChaCha20 for
 /// reproducibility — matches the pattern in `fx_hhw`, `cir`, etc.
+///
+/// # Papers
+///
+/// * **Hagan, P. S., Kumar, D., Lesniewski, A. S., Woodward, D. E.
+///   (2002)** — *Managing Smile Risk*, Wilmott Magazine,
+///   Sept. 2002: 84–108. Introduces the SABR model (eq. 2.1) and
+///   the asymptotic implied-vol formula in [`hagan_implied_vol`].
+/// * **Andersen, L., Andreasen, J. (2002)** — *Volatile Volatilities*,
+///   Risk 15(12): 163–168. Displaced-diffusion variant and MC
+///   simulation schemes for CEV-like underlyings.
+/// * **Chen, B., Oosterlee, C. W., Van der Weide, H. (2012)** — *A
+///   Low-Bias Simulation Scheme for the SABR Stochastic Volatility
+///   Model*, IJTAF 15(2). Discusses Euler bias for small `F` and
+///   large `ν`; full-truncation at zero used here is the simplest
+///   bias-safe variant at realistic FX parameters.
 pub struct SabrSimulator {
     pub params: SabrParams,
     pub forward_0: f64,
