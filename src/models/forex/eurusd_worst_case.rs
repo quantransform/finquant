@@ -1,8 +1,8 @@
 //! EURUSD 90 % confidence-interval regression suite — **the reference
-//! integration test** for the FX-HHW and FX-SABR builds of this crate.
-//! Both models are calibrated to the **same** market snapshot so the
-//! tail behaviour, martingale discipline and calibration quality can be
-//! compared apples-to-apples.
+//! integration test** for the FX-HHW, FX-SABR and FX-FMM builds of this
+//! crate. All three model families are calibrated to the **same**
+//! market snapshot so the tail behaviour, martingale discipline and
+//! calibration quality can be compared apples-to-apples.
 //!
 //! # Inputs (market snapshot, mid, NY 10:00, 2026-04-22)
 //!
@@ -88,11 +88,20 @@
 //! * [`sabr_mc_tails_are_wider_than_atm_but_bounded`] — σ-eq ∈
 //!   [0.90·ATM, 2·ATM].
 //!
+//! FX-FMM (COS / ChF smile fit — no MC path simulator yet):
+//! * [`fx_fmm_smile_rmse_is_acceptable_at_every_expiry_five_point`] —
+//!   FX-FMM 5-pt RMSE < 25 bp vol at each pillar. `#[ignore]` because
+//!   the COS + Nelder-Mead inner loop runs ~23 s per pillar in
+//!   release; total ~90 s across four pillars.
+//!
 //! Diagnostic (no assertions, prints the comparison table):
 //! * [`mc_report_table`] — `cargo test --release --lib mc_report_table
-//!   -- --ignored --nocapture`. Runs all four models side-by-side.
+//!   -- --ignored --nocapture`. Runs all four MC models side-by-side.
+//! * [`fx_fmm_report_table`] — `cargo test --release --lib
+//!   fx_fmm_report_table -- --ignored --nocapture`. Per-pillar FX-FMM
+//!   fitted parameters + per-strike residuals.
 //!
-//! # Test results — 4-way model comparison
+//! # Test results — 5-way model comparison (HHW / SABR / SABR-T / SABR-SLV / FX-FMM)
 //!
 //! Captured 2026-04-24, seed `20_260_422`, 100 k paths, daily
 //! stepping, γ-bounded HHW (`gamma_max = 0.25`). All SABR variants
@@ -124,7 +133,19 @@
 //!      |          | ν segments:   [0.8046, 0.0000, 0.0000, 0.0000]
 //!   —  | SABR-SLV | reuses SABR-T schedule + Dupire LV (built from
 //!      |          | the same FXVolSurface on an 11-strike rectangular grid)
+//!  1 Y | FX-FMM   | κ=1.115  γ=0.244  σ̄=0.0101  σ₀=0.0026  ρ_ξσ=+0.055
+//!  2 Y | FX-FMM   | κ=1.151  γ=0.226  σ̄=0.0055  σ₀=0.0073  ρ_ξσ=+0.036
+//!  3 Y | FX-FMM   | κ=1.140  γ=0.249  σ̄=0.0055  σ₀=0.0092  ρ_ξσ=+0.025
+//!  5 Y | FX-FMM   | κ=1.115  γ=0.312  σ̄=0.0077  σ₀=0.0046  ρ_ξσ=−0.012
 //! ```
+//!
+//! **FX-FMM fit parameters only cover the FX-Heston block** —
+//! `(κ, γ, σ̄, σ₀, ρ_{ξ,σ})` — while the FMM rate block is held fixed
+//! at `σ_j = 15 %`, linear decay, 6 M tenor, correlations `ρ^d_{i,j}`
+//! of 0.9 on the off-diagonal, shared across domestic and foreign
+//! sides. Exactly the same structure as FX-HLMM: the rate-block
+//! skew contribution is small (paper §3.3.1), so only the Heston
+//! parameters are calibrated per pillar.
 //!
 //! **Read the SABR-T schedule carefully**: the sequential stage-2
 //! calibrator has clamped `ρ → +0.999` and driven `ν → 0` on segments
@@ -147,18 +168,34 @@
 //!  1 Y | SABR     |  0.67 bp  |   −0.4 bp  |  6.93%  |  1.04× |  −32.9 bp  |
 //!  1 Y | SABR-T   |  0.67 bp  |   −0.4 bp  |  6.93%  |  1.04× |  −32.9 bp  |
 //!  1 Y | SABR-SLV |  0.67 bp  |   +0.7 bp  |  7.14%  |  1.08× |  −12.1 bp  |
+//!  1 Y | FX-FMM   |  1.97 bp  |     —      |    —    |   —    |      —     | ChF-only (no MC yet)
 //!  2 Y | HHW      |  2.10 bp  |  +36.9 bp  |  7.57%  |  1.08× |  −12.6 bp  | SOFR Δ=1.3 bp
 //!  2 Y | SABR     |  1.04 bp  |   +2.3 bp  |  7.38%  |  1.05× |  −32.5 bp  |
 //!  2 Y | SABR-T   |  1.04 bp  |   +3.1 bp  |  7.07%  |  1.01× |  −63.0 bp  |
 //!  2 Y | SABR-SLV |  1.04 bp  |   +5.8 bp  |  7.95%  |  1.13× |  +24.6 bp  |
+//!  2 Y | FX-FMM   |  1.24 bp  |     —      |    —    |   —    |      —     | ChF-only
 //!  3 Y | HHW      |  2.78 bp  |  +50.5 bp  |  7.99%  |  1.10× |      —     | SOFR Δ=2.7 bp
 //!  3 Y | SABR     |  1.51 bp  |   +5.0 bp  |  7.60%  |  1.05× |      —     |
 //!  3 Y | SABR-T   |  1.51 bp  |   +2.7 bp  |  7.06%  |  0.97× |      —     |
 //!  3 Y | SABR-SLV |  1.51 bp  |   +9.9 bp  |  8.35%  |  1.15× |      —     |
+//!  3 Y | FX-FMM   |  0.80 bp  |     —      |    —    |   —    |      —     | ChF-only
 //!  5 Y | HHW      |  3.95 bp  |  +65.8 bp  |  8.61%  |  1.12× |   +9.8 bp  | SOFR Δ=6.2 bp
 //!  5 Y | SABR     |  2.22 bp  |   +6.5 bp  |  8.10%  |  1.05× |  −41.3 bp  |
 //!  5 Y | SABR-T   |  2.22 bp  |   +8.1 bp  |  7.09%  |  0.92× | −142.6 bp  |
 //!  5 Y | SABR-SLV |  2.22 bp  |   +6.8 bp  |  8.78%  |  1.14× |  +26.1 bp  |
+//!  5 Y | FX-FMM   |  0.21 bp  |     —      |    —    |   —    |      —     | ChF-only
+//! ```
+//!
+//! Per-strike FX-FMM smile residuals (5-pt grid, `market − model` in
+//! bp vol), from `fx_fmm_report_table`:
+//!
+//! ```text
+//!    T  | 10Δ put  | 25Δ put  |  ATM     | 25Δ call | 10Δ call | max |Δ|
+//!   ----+---------+----------+---------+----------+----------+---------
+//!   1 Y |  −0.25  |  +1.33   |  −2.69  |  +3.00   |  −1.18   | 3.00 bp
+//!   2 Y |  −0.18  |  +0.88   |  −1.71  |  +1.83   |  −0.76   | 1.83 bp
+//!   3 Y |  −0.03  |  +0.42   |  −1.09  |  +1.26   |  −0.55   | 1.26 bp
+//!   5 Y |  +0.12  |  −0.17   |  −0.12  |  +0.36   |  −0.18   | 0.36 bp
 //! ```
 //!
 //! `σ-eq` collapses both wings of the 90 % CI into one number via
@@ -248,17 +285,32 @@
 //!   and has no martingale drift. Net: **SABR-SLV dominates for
 //!   products dominated by the downside**, HHW for products
 //!   dominated by shape and forward drift.
+//! * **FX-FMM smile fit**: 0.21–1.97 bp RMSE across the four
+//!   pillars — tighter than HHW (2.1–4.0 bp) at every tenor and
+//!   tighter than SABR (0.7–2.2 bp) at 2 Y, 3 Y, 5 Y.
+//!   **At 5 Y, FX-FMM hits 0.21 bp** (max strike residual
+//!   0.36 bp), the sharpest in-sample smile fit of any model in the
+//!   suite. The fitted Heston block is stable across pillars
+//!   (κ ≈ 1.1, γ 0.22–0.31, ρ_{ξσ} ≈ 0 to +0.06), consistent with
+//!   the FMM rate block absorbing some of the skew that HHW pushes
+//!   into ρ_{ξσ}. No MC regression yet — the FMM path simulator
+//!   produces rate / `Y_{k,k}` / `x_k` states but an FX-FMM joint
+//!   MC that also simulates `(ξ, σ, v_d, v_f)` is still to land,
+//!   so the martingale / σ-eq / vendor-CI columns are empty.
 //! * **SOFR mean**: Jamshidian-θ HHW keeps the simulated domestic
 //!   short-rate mean within 7 bp of the market par-swap curve at
 //!   every pillar. SABR has no rate block, so this diagnostic is
-//!   HHW-only.
+//!   HHW-only. FX-FMM uses the same SOFR curve to seed its initial
+//!   forward term rates `R_j(0)` but does not currently run an MC
+//!   rate drift check.
 //!
 //! Run the whole suite with:
 //!
 //! ```text
 //!     cargo test --lib eurusd                                 # fast only
-//!     cargo test --release --lib eurusd -- --ignored          # + MC regression
-//!     cargo test --release --lib mc_report_table -- --ignored --nocapture
+//!     cargo test --release --lib eurusd -- --ignored          # + MC regression + FX-FMM
+//!     cargo test --release --lib mc_report_table       -- --ignored --nocapture
+//!     cargo test --release --lib fx_fmm_report_table   -- --ignored --nocapture
 //! ```
 
 #[cfg(test)]
@@ -1326,6 +1378,193 @@ mod test {
                 pi.tenor,
                 cal.rmse * 10_000.0,
             );
+        }
+    }
+
+    // =====================================================================
+    // FX-FMM calibration — Lyashenko–Mercurio (2020) generalised forward
+    // market model on each currency side, calibrated to the **same**
+    // 5-strike EURUSD smile as FX-HHW / SABR. Fits only the FX-Heston
+    // block `(κ, γ, σ̄, σ₀, ρ_{ξ,σ})`; the FMM rate block is seeded from
+    // the SOFR curve (single-curve convention, matching FX-HLMM).
+    //
+    // These tests are `#[ignore]` because each pillar's full COS-based
+    // Nelder-Mead calibration runs ~15 s in release mode — affordable for
+    // an opt-in diagnostic run, too expensive for the default lib suite.
+    //
+    // Run with:
+    // ```
+    //   cargo test --release --lib fx_fmm_smile_rmse_is_acceptable \
+    //              -- --ignored --nocapture
+    //   cargo test --release --lib fx_fmm_report_table \
+    //              -- --ignored --nocapture
+    // ```
+    // =====================================================================
+
+    use crate::models::forex::fx_fmm::{FmmSide, FxFmmCorrelations, FxFmmParams};
+    use crate::models::forex::fx_fmm_calibrator::{
+        CalibrationTarget as FmmCalibrationTarget, calibrate as calibrate_fmm, model_implied_vols,
+    };
+    use crate::models::interestrate::fmm::{FmmTenor, LinearDecay};
+
+    /// Build a 6-month tenor grid extending out past `tenor_yf`, and pull
+    /// initial forward-rate levels from the domestic SOFR anchors (the
+    /// single-curve FMM uses shared rates on both sides — the forward
+    /// offset comes in via `fx_0 = pi.forward`). Simple-compounded rate
+    /// `R_j(0)` is derived from the zero rate `r(T)` as
+    /// `R_j(0) ≈ (exp(r·τ) − 1) / τ` on each 6 M chunk.
+    fn fmm_tenor_from_market(tenor_yf: f64) -> FmmTenor {
+        let step = 0.5_f64;
+        let n_periods = (tenor_yf / step).ceil() as usize;
+        let n_periods = n_periods.max(1);
+        let mut dates = vec![0.0_f64];
+        for k in 1..=n_periods {
+            dates.push(k as f64 * step);
+        }
+        let mut rates = Vec::with_capacity(n_periods);
+        let sofr = sofr_anchors();
+        for k in 1..=n_periods {
+            let tau = step;
+            let r_mid = curve_at(&sofr, (k as f64 - 0.5) * step);
+            rates.push(((r_mid * tau).exp() - 1.0) / tau);
+        }
+        FmmTenor::new(dates, rates)
+    }
+
+    /// Identity-like intra-currency rate correlation: `ρ_{i,j} = 0.9` on
+    /// the off-diagonal to mirror fx_hlmm's toy setup and keep the block
+    /// positive-definite at any `M`.
+    fn identity_like_rate_corr(m: usize) -> Vec<Vec<f64>> {
+        let mut mat = vec![vec![0.0_f64; m]; m];
+        for (i, row) in mat.iter_mut().enumerate() {
+            for (j, v) in row.iter_mut().enumerate() {
+                *v = if i == j { 1.0 } else { 0.9 };
+            }
+        }
+        mat
+    }
+
+    /// Per-pillar FX-FMM initial point. Tenor and initial rates come from
+    /// [`fmm_tenor_from_market`]; the Heston seed uses the pillar's ATM
+    /// variance, matching the HHW seeding convention. Intra-currency
+    /// `σ_j` is set to 15 % (the fx_hlmm reference setup) and FX-rate
+    /// correlations to −0.15 each.
+    fn fmm_initial(pi: &Pillar) -> FxFmmParams {
+        let tenor = fmm_tenor_from_market(pi.tenor);
+        let m = tenor.m();
+        let side = FmmSide {
+            sigmas: vec![0.15; m],
+            lambda: 1.0,
+            eta: 0.1,
+            v_0: 1.0,
+            rate_corr: identity_like_rate_corr(m),
+            decay: LinearDecay,
+        };
+        FxFmmParams {
+            fx_0: pi.forward,
+            heston: CirProcess {
+                kappa: 1.0,
+                theta: pi.atm * pi.atm,
+                gamma: 0.30,
+                sigma_0: pi.atm * pi.atm,
+            },
+            tenor,
+            domestic: side.clone(),
+            foreign: side,
+            correlations: FxFmmCorrelations {
+                rho_xi_sigma: if pi.c25 > pi.p25 { 0.20 } else { -0.20 },
+                rho_xi_d: vec![-0.15; m],
+                rho_xi_f: vec![-0.15; m],
+                cross_rate_corr: vec![vec![0.25; m]; m],
+            },
+        }
+    }
+
+    fn fmm_targets_from_pillar(pi: &Pillar, five_pt: bool) -> Vec<FmmCalibrationTarget> {
+        build_targets(pi, five_pt)
+            .into_iter()
+            .map(|t| FmmCalibrationTarget {
+                strike: t.strike,
+                market_vol: t.market_vol,
+            })
+            .collect()
+    }
+
+    /// FX-FMM smile-fit RMSE at each pillar on the 5-point strike grid.
+    /// Loose 25 bp tolerance — FMM shares FX-HHW's Heston skew source
+    /// but the rate block is held fixed (single-curve, no per-pillar
+    /// FMM refit), so short-expiry fits degrade slightly vs HHW's 2 bp.
+    #[test]
+    #[ignore = "FX-FMM calibration regression — run with --ignored in --release"]
+    fn fx_fmm_smile_rmse_is_acceptable_at_every_expiry_five_point() {
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let result = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            assert!(
+                result.rmse < 2.5e-3,
+                "T={}Y FX-FMM 5-pt smile RMSE {:.3} bp vol > 25 bp",
+                pi.tenor,
+                result.rmse * 10_000.0,
+            );
+        }
+    }
+
+    /// Side-by-side FX-FMM smile-fit diagnostic. Prints the fitted
+    /// parameters and residuals per pillar/strike for visual inspection
+    /// against the FX-HHW and SABR tables earlier in this suite. Doesn't
+    /// assert — it's a pure diagnostic, run with `--nocapture`.
+    #[test]
+    #[ignore = "FX-FMM diagnostic report — run with --ignored --nocapture"]
+    fn fx_fmm_report_table() {
+        println!();
+        println!("  T  | κ       γ       σ̄        σ₀        ρ_ξσ     | RMSE (bp vol)");
+        println!(" ----+----------------------------------------------+-----------------");
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let result = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let p = &result.params;
+            println!(
+                " {:>3}Y| κ={:.3}  γ={:.3}  σ̄={:.4}  σ₀={:.4}  ρ={:+.3} | {:>5.2} bp  ({}{} iters)",
+                pi.tenor as i32,
+                p.heston.kappa,
+                p.heston.gamma,
+                p.heston.theta,
+                p.heston.sigma_0,
+                p.correlations.rho_xi_sigma,
+                result.rmse * 10_000.0,
+                if result.optimiser.converged { "✓ " } else { "  " },
+                result.optimiser.iterations,
+            );
+            // Per-strike residuals.
+            let strikes: Vec<f64> = targets.iter().map(|t| t.strike).collect();
+            let vols: Vec<f64> = targets.iter().map(|t| t.market_vol).collect();
+            let fit = model_implied_vols(&result.params, pi.tenor, &strikes);
+            for (i, (&k, &v)) in strikes.iter().zip(vols.iter()).enumerate() {
+                match fit[i] {
+                    Some(mv) => println!(
+                        "       K={:.4}  market={:.4}  model={:.4}  Δ={:+.2} bp",
+                        k,
+                        v,
+                        mv,
+                        (mv - v) * 10_000.0
+                    ),
+                    None => println!("       K={:.4}  — BS-IV inversion failed", k),
+                }
+            }
         }
     }
 }

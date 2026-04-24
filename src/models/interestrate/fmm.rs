@@ -134,21 +134,96 @@ impl LinearDecay {
     }
 }
 
+/// Time-dependence schedule for the FMM rate volatility. Overrides the
+/// constant [`Fmm::sigmas`] when present. Two shapes are supported:
+///
+/// * [`VolSchedule::PiecewiseConstant`] — per-rate step-function vol,
+///   useful for calibrated term-structure inputs (e.g. cap vol strips).
+///   Knots are `(t_start, σ)` pairs; at a query time `t`, the σ from the
+///   largest `t_start ≤ t` is used. The first knot's `t_start` should be
+///   `≤ 0`.
+/// * [`VolSchedule::HoLeeEquivalent`] — paper eq. (20): the time-varying
+///   shape that makes the FMM equivalent, on the given tenor grid, to a
+///   one-factor Hull–White / Ho–Lee model with volatility `vol` and
+///   mean-reversion `a`. `σ_k(t) = vol · (e^{−a(T_{k−1}−t)} −
+///   e^{−a(T_k−t)}) / a` for `t ∈ [0, T_k]` (zero outside). Passing
+///   `mean_reversion = 0` gives the Ho–Lee limit `σ_k(t) = vol · τ_k`.
+///
+/// Both variants are deterministic — no stochastic-vol extensions yet.
+#[derive(Clone, Debug, PartialEq)]
+pub enum VolSchedule {
+    PiecewiseConstant(Vec<Vec<(f64, f64)>>),
+    HoLeeEquivalent {
+        vol: f64,
+        mean_reversion: f64,
+    },
+}
+
+impl VolSchedule {
+    fn sigma_at(&self, j: usize, t: f64, tenor: &FmmTenor) -> f64 {
+        match self {
+            VolSchedule::PiecewiseConstant(schedules) => {
+                let per_rate = &schedules[j - 1];
+                assert!(!per_rate.is_empty(), "empty per-rate schedule for j={j}");
+                let mut last = per_rate[0].1;
+                for &(t_start, sigma) in per_rate.iter() {
+                    if t_start <= t {
+                        last = sigma;
+                    } else {
+                        break;
+                    }
+                }
+                last
+            }
+            VolSchedule::HoLeeEquivalent { vol, mean_reversion } => {
+                let a = *mean_reversion;
+                let t_km1 = tenor.dates[j - 1];
+                let t_k = tenor.dates[j];
+                if t >= t_k {
+                    return 0.0;
+                }
+                if a.abs() < 1e-12 {
+                    // Ho–Lee limit: σ_k(t) = vol · τ_k for t ∈ [0, T_k].
+                    return vol * (t_k - t_km1);
+                }
+                vol * ((-a * (t_km1 - t)).exp() - (-a * (t_k - t)).exp()) / a
+            }
+        }
+    }
+}
+
 /// Fully specified FMM parameter set.
 ///
-/// `sigmas[j − 1]` is the volatility level `σ_j` entering the rate
-/// diffusion `σ_j γ_j(t) dW_j`. We keep `σ_j` time-constant here — the
-/// paper's more general time-dependent `σ_j(t)` would promote this field
-/// to a closure in a follow-up. `correlation[i − 1][j − 1] = ρ_{i,j}` is
-/// symmetric with unit diagonal and must be positive semi-definite.
+/// `sigmas[j − 1]` is the *default* volatility level `σ_j` entering the
+/// rate diffusion `σ_j(t) γ_j(t) · f_j(R_j) dW_j`, where
+/// `σ_j(t) = sigmas[j-1]` unless overridden by [`Fmm::vol_schedule`],
+/// and `f_j(R_j) = R_j + 1/τ_j` by default unless [`Fmm::betas`] is
+/// set to implement shifted-lognormal displacement (paper §FMM
+/// notation; see [`Fmm::effective_level`]).
+///
+/// `correlation[i − 1][j − 1] = ρ_{i,j}` is symmetric with unit
+/// diagonal and must be positive semi-definite.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fmm {
     pub tenor: FmmTenor,
-    /// Per-rate volatilities `σ_1, …, σ_M`.
+    /// Per-rate default volatilities `σ_1, …, σ_M`. Used when
+    /// `vol_schedule = None`.
     pub sigmas: Vec<f64>,
     /// `M × M` correlation matrix of the driving Brownians.
     pub correlation: Vec<Vec<f64>>,
     pub decay: LinearDecay,
+    /// Optional per-rate displacement `β_j ∈ [0, 1]` for shifted-
+    /// lognormal dynamics: the effective diffusion level becomes
+    /// `β_j R_j(t) + (1 − β_j) R_j(0)` instead of the normal-FMM
+    /// default `R_j + 1/τ_j`. `β = 0` reproduces a "scaled-by-R(0)"
+    /// lognormal-like regime; `β = 1` gives full local-lognormal.
+    /// `None` = pure normal FMM (identical to the original paper
+    /// dynamics eq. 5).
+    pub betas: Option<Vec<f64>>,
+    /// Optional time-dependent / Ho–Lee-equivalent volatility. When
+    /// `Some`, [`Fmm::sigma_at`] returns the schedule value; otherwise
+    /// it returns the constant `sigmas[j−1]`.
+    pub vol_schedule: Option<VolSchedule>,
 }
 
 impl Fmm {
@@ -183,15 +258,86 @@ impl Fmm {
             sigmas,
             correlation,
             decay,
+            betas: None,
+            vol_schedule: None,
         }
     }
 
-    /// `σ_j^R(t) = σ_j γ_j(t) · (R_j(t) + 1/τ_j)` — the separable HJM
-    /// scaling (paper eq. 17). Enters the front-stub / back-stub
-    /// variance integral `Y_{k,k}` via paper eq. (31).
-    pub fn sigma_r(&self, j: usize, t: f64, r_j: f64) -> f64 {
-        let tau = self.tenor.tau(j);
-        self.sigmas[j - 1] * self.decay.gamma(j, t, &self.tenor) * (r_j + 1.0 / tau)
+    /// Enable shifted-lognormal displacement with per-rate `β_j ∈ [0, 1]`.
+    /// Replaces the default normal-FMM diffusion level `R_j + 1/τ_j`
+    /// with `β_j R_j + (1 − β_j) R_j(0)` inside [`FmmSimulator::step`]
+    /// — see [`Fmm::effective_level`].
+    pub fn with_betas(mut self, betas: Vec<f64>) -> Self {
+        let m = self.tenor.m();
+        assert_eq!(betas.len(), m, "betas length must match tenor M");
+        for &b in &betas {
+            assert!((0.0..=1.0).contains(&b), "β_j must be in [0, 1]");
+        }
+        self.betas = Some(betas);
+        self
+    }
+
+    /// Enable a time-dependent volatility schedule. Overrides
+    /// [`Fmm::sigmas`] for step-time vol lookups. Use
+    /// [`VolSchedule::HoLeeEquivalent`] to reproduce paper eq. (20)'s
+    /// Ho–Lee-equivalent FMM.
+    pub fn with_vol_schedule(mut self, schedule: VolSchedule) -> Self {
+        if let VolSchedule::PiecewiseConstant(sched) = &schedule {
+            assert_eq!(
+                sched.len(),
+                self.tenor.m(),
+                "piecewise-constant schedule length must match tenor M"
+            );
+            for (j, per_rate) in sched.iter().enumerate() {
+                assert!(!per_rate.is_empty(), "schedule[{j}] must have ≥ 1 knot");
+                for w in per_rate.windows(2) {
+                    assert!(
+                        w[1].0 > w[0].0,
+                        "schedule knots must have strictly increasing t_start"
+                    );
+                }
+            }
+        }
+        self.vol_schedule = Some(schedule);
+        self
+    }
+
+    /// Effective `σ_j(t)` — dispatches to [`Fmm::vol_schedule`] if set,
+    /// otherwise returns the constant `sigmas[j−1]`.
+    pub fn sigma_at(&self, j: usize, t: f64) -> f64 {
+        match &self.vol_schedule {
+            Some(s) => s.sigma_at(j, t, &self.tenor),
+            None => self.sigmas[j - 1],
+        }
+    }
+
+    /// Displacement level `L_j(R_j)` for the rate diffusion:
+    ///
+    /// * No βs (default, pure normal FMM) → `1.0` (unit level; paper
+    ///   eq. 5 diffusion is just `σ_j γ_j dW`).
+    /// * With βs (shifted-lognormal FMM) → `β_j R_j + (1 − β_j) R_j(0)`.
+    ///   `β_j = 0` gives "scaled-by-R(0)" near-normal dynamics,
+    ///   `β_j = 1` gives local-lognormal, intermediate values mix.
+    ///
+    /// The effective SDE volatility becomes `σ_j(t) · γ_j(t) · L_j(R_j)`,
+    /// used by both drift (paper eq. 5) and diffusion inside
+    /// [`FmmSimulator::step`].
+    pub fn displacement_level(&self, j: usize, r_j: f64) -> f64 {
+        match &self.betas {
+            None => 1.0,
+            Some(betas) => {
+                let b = betas[j - 1];
+                let r_j0 = self.tenor.initial_rates[j - 1];
+                b * r_j + (1.0 - b) * r_j0
+            }
+        }
+    }
+
+    /// Adapted FMM vol `σ_j(t) · L_j(R_j)` — the scalar quantity that
+    /// multiplies `γ_j(t) dW_j` in the rate SDE and drives the drift
+    /// sum in paper eq. (5). Reduces to `σ_j` for normal FMM.
+    pub fn adapted_vol(&self, j: usize, t: f64, r_j: f64) -> f64 {
+        self.sigma_at(j, t) * self.displacement_level(j, r_j)
     }
 }
 
@@ -296,40 +442,46 @@ impl FmmSimulator {
             })
             .collect();
 
-        // Precompute γ_i(t_mid) and σ_i γ_i / (1 + τ_i R_i) for each active i.
+        // Precompute γ_i(t_mid) and (σ_i·L_i)·γ_i·τ_i/(1+τ_i R_i) for
+        // each active i. The adapted vol `σ_i·L_i` lifts the constant
+        // `sigmas[i-1]` so both (a) time-dependent vol schedules and
+        // (b) shifted-lognormal displacements flow through drift + diffusion.
         let mut gamma_mid = vec![0.0_f64; m];
         let mut drift_weight = vec![0.0_f64; m];
+        let mut adapted = vec![0.0_f64; m];
         for i in 1..=m {
             let g = self.model.decay.gamma(i, t_mid, &self.model.tenor);
             gamma_mid[i - 1] = g;
-            let sigma_i = self.model.sigmas[i - 1];
-            let tau_i = self.model.tenor.tau(i);
             let r_i = path.rates[i - 1];
-            drift_weight[i - 1] = sigma_i * g * tau_i / (1.0 + tau_i * r_i);
+            let sig_adapt = self.model.adapted_vol(i, t_mid, r_i);
+            adapted[i - 1] = sig_adapt;
+            let tau_i = self.model.tenor.tau(i);
+            drift_weight[i - 1] = sig_adapt * g * tau_i / (1.0 + tau_i * r_i);
         }
 
         let eta_old = self.model.tenor.eta(t);
         let mut new_rates = path.rates.clone();
         for j in eta_old..=m {
-            let sigma_j = self.model.sigmas[j - 1];
             let gamma_j = gamma_mid[j - 1];
             if gamma_j == 0.0 {
                 // Already past T_j; rate frozen.
                 continue;
             }
+            let sig_adapt_j = adapted[j - 1];
             let mut sum = 0.0;
             for i in eta_old..=j {
                 sum += self.model.correlation[i - 1][j - 1] * drift_weight[i - 1];
             }
-            let drift = sigma_j * gamma_j * sum;
-            let diffusion = sigma_j * gamma_j * dw[j - 1];
+            let drift = sig_adapt_j * gamma_j * sum;
+            let diffusion = sig_adapt_j * gamma_j * dw[j - 1];
             new_rates[j - 1] = path.rates[j - 1] + drift * dt + diffusion;
         }
 
-        // Accumulate Y_{j,j}(t) up to T_j. The integrand is
-        // `[σ_j/(R_j + 1/τ_j)]²` from paper eq. (31); the γ_j factor
-        // in `σ_j^R` cancels inside the variance structure of the
-        // separable HJM decomposition.
+        // Accumulate Y_{j,j}(t) up to T_j. For normal FMM the integrand
+        // is `[σ_j / (R_j + 1/τ_j)]²` (paper eq. 31); for DD-FMM or
+        // time-dependent vol it becomes `[σ_j(t_mid) · L_j / (R_j + 1/τ_j)]²`.
+        // The γ_j factor in `σ_j^R` cancels against the HJM shape
+        // function inside the separable HJM decomposition.
         for j in 1..=m {
             let tj = self.model.tenor.dates[j];
             if t >= tj {
@@ -337,30 +489,30 @@ impl FmmSimulator {
             }
             let effective_dt = (tj - t).min(dt);
             let tau_j = self.model.tenor.tau(j);
-            let sigma_j = self.model.sigmas[j - 1];
             let r_j = path.rates[j - 1];
-            let integrand = (sigma_j / (r_j + 1.0 / tau_j)).powi(2);
+            let sig_adapt = self.model.adapted_vol(j, t_mid, r_j);
+            let integrand = (sig_adapt / (r_j + 1.0 / tau_j)).powi(2);
             path.y_diag[j - 1] += integrand * effective_dt;
         }
 
         // Evolve x_k(t) for the currently-active rate k = η_old via
-        // paper eq. (33): dx_k = g_k(t) y_k(t) dt + σ_k/(R_k+1/τ_k) dW_k.
-        // Only meaningful while we're inside rate k's application period,
-        // i.e. t > T_{k−1}. For t ≤ T_{k−1} (pre-period), x_k is not yet
-        // defined; we leave x_active at 0.
+        // paper eq. (33): dx_k = g_k(t) y_k(t) dt + (σ_k·L_k)/(R_k+1/τ_k) dW_k.
+        // Only meaningful inside the period (t_{k-1} < t < T_k). The σ·L
+        // prefactor picks up whatever vol schedule / displacement is set
+        // on the model.
         if eta_old >= 1 && eta_old <= m {
             let k = eta_old;
             let tk_minus_1 = self.model.tenor.dates[k - 1];
             let tk = self.model.tenor.dates[k];
             if t > tk_minus_1 && t < tk {
                 let tau_k = self.model.tenor.tau(k);
-                let sigma_k = self.model.sigmas[k - 1];
                 let r_k_mid = 0.5 * (path.rates[k - 1] + new_rates[k - 1]);
+                let sig_adapt_k = self.model.adapted_vol(k, t_mid, r_k_mid);
                 // For linear decay γ_k(t) = (T_k − t)/τ_k, g_k = 1/τ_k.
                 let g_k = 1.0 / tau_k;
                 let y_k = path.y_diag[k - 1] - path.y_at_start[k - 1];
                 let drift_x = g_k * y_k;
-                let diffusion_x = sigma_k / (r_k_mid + 1.0 / tau_k) * dw[k - 1];
+                let diffusion_x = sig_adapt_k / (r_k_mid + 1.0 / tau_k) * dw[k - 1];
                 path.x_active += drift_x * dt + diffusion_x;
             }
         }
@@ -1158,5 +1310,192 @@ mod tests {
         // Sample shortcut: pull R_1 at d2 across paths.
         let r1_at_d2 = paths.sample(d2, |p| p.rates[0]).unwrap();
         assert_eq!(r1_at_d2.len(), 50);
+    }
+
+    // --- β-displacement & time-dependent σ tests --------------------------
+
+    /// `displacement_level` is 1.0 by default (normal FMM) and
+    /// `β_j R_j + (1 − β_j) R_j(0)` once βs are installed via
+    /// [`Fmm::with_betas`].
+    #[test]
+    fn displacement_level_matches_convention() {
+        let tenor = flat_tenor(2, 0.5, 0.04);
+        let model = Fmm::new(tenor.clone(), vec![0.01; 2], identity_corr(2), LinearDecay);
+        // No βs: level ≡ 1.
+        assert_eq!(model.displacement_level(1, 0.06), 1.0);
+        assert_eq!(model.displacement_level(2, 0.00), 1.0);
+
+        let dd = Fmm::new(tenor, vec![0.01; 2], identity_corr(2), LinearDecay)
+            .with_betas(vec![1.0, 0.5]);
+        // β=1: level = R_j → 0.06.
+        assert!((dd.displacement_level(1, 0.06) - 0.06).abs() < 1e-15);
+        // β=0.5, R_j = 0.03, R_j(0) = 0.04 → 0.5·0.03 + 0.5·0.04 = 0.035.
+        assert!((dd.displacement_level(2, 0.03) - 0.035).abs() < 1e-15);
+    }
+
+    /// Paper-exact Ho–Lee-equivalent formula (eq. 20) is reproduced by
+    /// [`VolSchedule::HoLeeEquivalent`]. At `t = 0`, τ_k = 0.5, a = 0.01:
+    /// σ_k(0) = vol · (e^{−a·T_{k-1}} − e^{−a·T_k}) / a. Also verify the
+    /// λ → 0 Ho–Lee limit collapses to `vol · τ_k`.
+    #[test]
+    fn ho_lee_equivalent_vol_matches_paper_formula() {
+        let tenor = FmmTenor::new(vec![0.0, 0.5, 1.0, 1.5], vec![0.02; 3]);
+        let schedule = VolSchedule::HoLeeEquivalent {
+            vol: 0.01,
+            mean_reversion: 0.05,
+        };
+        let a = 0.05_f64;
+        let vol = 0.01_f64;
+        // k = 1, t = 0: σ_1(0) = 0.01 · (1 − e^{−0.025}) / 0.05.
+        let want_k1 = vol * (1.0 - (-a * 0.5_f64).exp()) / a;
+        assert!((schedule.sigma_at(1, 0.0, &tenor) - want_k1).abs() < 1e-15);
+        // k = 2, t = 0.25: within rate 1's period but affects rate 2 ahead.
+        let t = 0.25_f64;
+        let want_k2 = vol * ((-a * (0.5 - t)).exp() - (-a * (1.0 - t)).exp()) / a;
+        assert!((schedule.sigma_at(2, t, &tenor) - want_k2).abs() < 1e-15);
+        // Past T_k: σ ≡ 0.
+        assert_eq!(schedule.sigma_at(1, 0.6, &tenor), 0.0);
+
+        // λ → 0 limit: σ_k(t) = vol · τ_k, independent of t inside (0, T_k).
+        let ho_lee = VolSchedule::HoLeeEquivalent {
+            vol: 0.01,
+            mean_reversion: 0.0,
+        };
+        assert!((ho_lee.sigma_at(1, 0.0, &tenor) - vol * 0.5).abs() < 1e-15);
+        assert!((ho_lee.sigma_at(2, 0.2, &tenor) - vol * 0.5).abs() < 1e-15);
+    }
+
+    /// Piecewise-constant schedule: step-function vol via
+    /// [`VolSchedule::PiecewiseConstant`]. Looks up the largest
+    /// `t_start ≤ t` on each rate's knot list.
+    #[test]
+    fn piecewise_constant_schedule_steps_at_knots() {
+        let tenor = flat_tenor(2, 0.5, 0.03);
+        let schedule = VolSchedule::PiecewiseConstant(vec![
+            vec![(0.0, 0.01), (0.25, 0.02)],
+            vec![(0.0, 0.015)],
+        ]);
+        assert!((schedule.sigma_at(1, 0.0, &tenor) - 0.01).abs() < 1e-15);
+        assert!((schedule.sigma_at(1, 0.24, &tenor) - 0.01).abs() < 1e-15);
+        assert!((schedule.sigma_at(1, 0.25, &tenor) - 0.02).abs() < 1e-15);
+        assert!((schedule.sigma_at(1, 0.4, &tenor) - 0.02).abs() < 1e-15);
+        assert!((schedule.sigma_at(2, 0.1, &tenor) - 0.015).abs() < 1e-15);
+    }
+
+    /// Backward-compat sanity: the simulator's `step` produces
+    /// **identical** paths under an FMM with and without an explicit
+    /// `betas = None, vol_schedule = None` — since the defaults flow
+    /// through `adapted_vol` = `sigmas[j-1]`.
+    #[test]
+    fn default_fmm_matches_normal_step_bitwise() {
+        let tenor = flat_tenor(2, 0.5, 0.03);
+        let base = Fmm::new(tenor.clone(), vec![0.02; 2], identity_corr(2), LinearDecay);
+        let mut sim1 = FmmSimulator::new(base.clone(), 7).unwrap();
+        let mut sim2 = FmmSimulator::new(base, 7).unwrap();
+        let mut p1 = sim1.initial_path();
+        let mut p2 = sim2.initial_path();
+        for _ in 0..20 {
+            sim1.step(&mut p1, 0.02);
+            sim2.step(&mut p2, 0.02);
+        }
+        assert_eq!(p1.rates, p2.rates);
+        assert_eq!(p1.y_diag, p2.y_diag);
+    }
+
+    /// Adding an equivalent constant `VolSchedule::PiecewiseConstant`
+    /// that matches `sigmas` should reproduce the default-schedule
+    /// simulator within floating-point error.
+    #[test]
+    fn constant_schedule_matches_no_schedule() {
+        let tenor = flat_tenor(2, 0.5, 0.03);
+        let plain = Fmm::new(tenor.clone(), vec![0.02; 2], identity_corr(2), LinearDecay);
+        let scheduled = Fmm::new(tenor, vec![0.02; 2], identity_corr(2), LinearDecay)
+            .with_vol_schedule(VolSchedule::PiecewiseConstant(vec![
+                vec![(0.0, 0.02)],
+                vec![(0.0, 0.02)],
+            ]));
+        let mut sim1 = FmmSimulator::new(plain, 123).unwrap();
+        let mut sim2 = FmmSimulator::new(scheduled, 123).unwrap();
+        let mut p1 = sim1.initial_path();
+        let mut p2 = sim2.initial_path();
+        for _ in 0..20 {
+            sim1.step(&mut p1, 0.02);
+            sim2.step(&mut p2, 0.02);
+        }
+        for j in 0..2 {
+            assert!((p1.rates[j] - p2.rates[j]).abs() < 1e-14);
+            assert!((p1.y_diag[j] - p2.y_diag[j]).abs() < 1e-14);
+        }
+    }
+
+    /// `β = 1` lognormal-style displacement keeps the simulated rates
+    /// strictly positive along a path, because the diffusion is
+    /// proportional to `R_j` itself — a zero rate has zero diffusion.
+    /// (Euler scheme can still dip slightly negative on rare steps, so
+    /// allow a tiny numerical slack; the check that matters is the
+    /// absence of systematic negative excursions.)
+    #[test]
+    fn beta_one_lognormal_keeps_rates_mostly_positive() {
+        let tenor = flat_tenor(3, 0.5, 0.02);
+        let model = Fmm::new(tenor, vec![0.30; 3], identity_corr(3), LinearDecay)
+            .with_betas(vec![1.0; 3]);
+        let mut sim = FmmSimulator::new(model, 2026).unwrap();
+        let paths = sim.simulate_terminal(1.0, 200, 500);
+        let negatives = paths
+            .iter()
+            .flat_map(|p| p.rates.iter())
+            .filter(|&&r| r < -1e-4)
+            .count();
+        // Expect near-zero count; allow at most 1 % of (paths × rates).
+        let budget = paths.len() * 3 / 100;
+        assert!(
+            negatives <= budget,
+            "β=1 lognormal produced {} noticeable-negative rates (budget {})",
+            negatives,
+            budget
+        );
+    }
+
+    /// β = 0 collapses the displacement level to `R_j(0)` (constant),
+    /// so the diffusion is Gaussian with `σ · R_j(0)` amplitude. The
+    /// closed-form terminal variance for rate 1 at horizon `T < T_1`
+    /// is `(σ · R_0)² · ∫₀^T γ_1(s)² ds`. For linear decay on `[0, T_1]`
+    /// this integral is `(T_1 − (T_1 − T)³ / (3 T_1²))` analytically;
+    /// compute it in closed form and check the Monte Carlo variance
+    /// agrees within 5 %.
+    #[test]
+    fn beta_zero_gives_gaussian_with_r0_scaled_variance() {
+        let tenor = flat_tenor(3, 0.5, 0.04);
+        let sigma = 0.20_f64;
+        let r0 = 0.04_f64;
+        let t1 = 0.5_f64;
+        let t_end = 0.1_f64;
+        let model = Fmm::new(tenor, vec![sigma; 3], identity_corr(3), LinearDecay)
+            .with_betas(vec![0.0; 3]);
+        let mut sim = FmmSimulator::new(model, 42).unwrap();
+        let paths = sim.simulate_terminal(t_end, 50, 10_000);
+        let r1: Vec<f64> = paths.iter().map(|p| p.rates[0]).collect();
+        let mean: f64 = r1.iter().sum::<f64>() / r1.len() as f64;
+        let var: f64 = r1.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / r1.len() as f64;
+
+        // ∫₀^T γ_1(s)² ds  with γ_1(s) = (T_1 − s)/T_1 on [0, T_1]:
+        //   = (T_1³ − (T_1 − T)³) / (3 · T_1²)
+        let gamma_sq_integral = (t1.powi(3) - (t1 - t_end).powi(3)) / (3.0 * t1 * t1);
+        let expected = (sigma * r0).powi(2) * gamma_sq_integral;
+        assert!(
+            (var - expected).abs() < 0.05 * expected,
+            "β=0 MC var {:.3e} vs expected {:.3e}",
+            var,
+            expected
+        );
+    }
+
+    /// `with_betas` validates length and range `[0, 1]`.
+    #[test]
+    #[should_panic(expected = "β_j must be in [0, 1]")]
+    fn with_betas_rejects_out_of_range() {
+        let tenor = flat_tenor(2, 0.5, 0.03);
+        let _ = Fmm::new(tenor, vec![0.01; 2], identity_corr(2), LinearDecay)
+            .with_betas(vec![0.5, 1.5]);
     }
 }

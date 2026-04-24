@@ -34,7 +34,8 @@
 //!   Completing the Generalised FMM*, Risk August. Section on the
 //!   FMM-fitted HJM and the rate dynamics replacing Libor in §3.
 
-use crate::models::forex::fx_fmm::{FxFmmParams, compute_a_d, compute_a_f, compute_f_linearised};
+use crate::models::common::cir::CirProcess;
+use crate::models::forex::fx_fmm::{FxFmmParams, compute_a_d, compute_a_f};
 use num_complex::Complex64;
 
 /// Components of the FX-FMM1 forward ChF at `(u, τ)`.
@@ -75,12 +76,24 @@ pub struct FxFmm1ForwardChf<'a> {
     params: &'a FxFmmParams,
     pub expiry: f64,
     sub_segments: Vec<SubSegment>,
+    /// Cached `ψ_j^{base}` on the domestic side, computed once at
+    /// construction. The per-rate Simpson integrand multiplies each
+    /// entry by `γ_j(t)` — which is cheap — so the Simpson inner loop
+    /// stays allocation-free.
+    psi_base_d: Vec<f64>,
+    /// Cached `ψ_j^{base}` on the foreign side.
+    psi_base_f: Vec<f64>,
+    /// Cached `E[√σ]`, `E[√v_d]`, `E[√v_f]` evaluators avoid rebuilding
+    /// the three `CirProcess` helpers on every Simpson evaluation.
+    phi_sigma_cir: CirProcess,
+    phi_d_cir: CirProcess,
+    phi_f_cir: CirProcess,
     /// Number of τ-sub-segments used inside each full tenor-boundary
-    /// segment. Default 4. Callers calibrating in a tight inner loop may
-    /// drop this to 2; callers needing long-tenor accuracy (5 Y+) may
-    /// bump to 8.
+    /// segment. Default 1 (midpoint, same cost as FX-HLMM). Callers
+    /// needing per-segment accuracy on the rate contribution can bump
+    /// this to 4 or 8 via [`Self::with_resolution`].
     pub n_substeps_per_period: usize,
-    /// Simpson sub-intervals per full tenor segment for the `∫ f` piece.
+    /// Simpson sub-intervals per sub-segment for the `∫ f` piece.
     pub n_simpson_per_segment: usize,
 }
 
@@ -164,10 +177,30 @@ impl<'a> FxFmm1ForwardChf<'a> {
             prev = tau_j;
         }
 
+        let psi_base_d = params.domestic.psi_base(&params.tenor);
+        let psi_base_f = params.foreign.psi_base(&params.tenor);
+        let phi_d_cir = CirProcess {
+            kappa: params.domestic.lambda,
+            theta: params.domestic.v_0,
+            gamma: params.domestic.eta,
+            sigma_0: params.domestic.v_0,
+        };
+        let phi_f_cir = CirProcess {
+            kappa: params.foreign.lambda,
+            theta: params.foreign.v_0,
+            gamma: params.foreign.eta,
+            sigma_0: params.foreign.v_0,
+        };
+
         Self {
             params,
             expiry,
             sub_segments,
+            psi_base_d,
+            psi_base_f,
+            phi_sigma_cir: params.heston,
+            phi_d_cir,
+            phi_f_cir,
             n_substeps_per_period,
             n_simpson_per_segment,
         }
@@ -229,10 +262,9 @@ impl<'a> FxFmm1ForwardChf<'a> {
 
             // f-contribution: −½(u² + iu) · ∫_{τ_{j-1}}^{τ_j} f(T−s) ds,
             // with `f` continuously time-dependent (unlike HLMM) so we
-            // Simpson-integrate on the sub-segment.
-            let f_integral = simpson_f_integral(
-                p,
-                self.expiry,
+            // Simpson-integrate on the sub-segment. Uses the cached
+            // ψ_base so the inner loop is allocation-free.
+            let f_integral = self.simpson_f_integral(
                 tau_prev,
                 tau_j,
                 seg.start_idx,
@@ -356,32 +388,82 @@ fn advance_d_riccati(
     (d_new, delta_a)
 }
 
-/// Composite Simpson on `∫_{τ₁}^{τ₂} f(T − s) ds` with `n` even
-/// sub-intervals.
-fn simpson_f_integral(
-    params: &FxFmmParams,
-    expiry: f64,
-    tau1: f64,
-    tau2: f64,
-    start_idx: usize,
-    n: usize,
-) -> Complex64 {
-    let h = (tau2 - tau1) / n as f64;
-    let mut acc = 0.0_f64;
-    for k in 0..=n {
-        let s = tau1 + k as f64 * h;
-        let t = expiry - s;
-        let val = compute_f_linearised(params, t, start_idx);
-        let w = if k == 0 || k == n {
-            1.0
-        } else if k % 2 == 1 {
-            4.0
-        } else {
-            2.0
-        };
-        acc += w * val;
+impl<'a> FxFmm1ForwardChf<'a> {
+    /// Composite Simpson on `∫_{τ₁}^{τ₂} f(T − s) ds` using the cached
+    /// `psi_base_d`, `psi_base_f` to avoid per-call allocations. The
+    /// `f(t)` shape is identical to [`compute_f_linearised`] but
+    /// specialised to the cached inputs and the CIR helpers.
+    fn simpson_f_integral(&self, tau1: f64, tau2: f64, start_idx: usize, n: usize) -> Complex64 {
+        let h = (tau2 - tau1) / n as f64;
+        let mut acc = 0.0_f64;
+        for k in 0..=n {
+            let s = tau1 + k as f64 * h;
+            let t = self.expiry - s;
+            let val = self.f_at(t, start_idx);
+            let w = if k == 0 || k == n {
+                1.0
+            } else if k % 2 == 1 {
+                4.0
+            } else {
+                2.0
+            };
+            acc += w * val;
+        }
+        Complex64::new(acc * h / 3.0, 0.0)
     }
-    Complex64::new(acc * h / 3.0, 0.0)
+
+    /// Allocation-free `f(t)` evaluator. Scales the cached `ψ_base`
+    /// vectors by `γ_j(t)` inside the accumulation loop — no Vec
+    /// allocations on the hot Simpson path.
+    fn f_at(&self, t: f64, start_idx: usize) -> f64 {
+        let tenor = &self.params.tenor;
+        let m = tenor.m();
+        if start_idx > m {
+            return 0.0;
+        }
+        let decay_d = &self.params.domestic.decay;
+        let decay_f = &self.params.foreign.decay;
+
+        let phi_xi = self.phi_sigma_cir.sqrt_mean(t);
+        let phi_d = self.phi_d_cir.sqrt_mean(t);
+        let phi_f = self.phi_f_cir.sqrt_mean(t);
+
+        // 2·a·b = 2·√σ·√v_d · Σ γ_j(t) · ψ_{d,j}^base · ρ^d_{j,x}
+        let mut two_ab = 0.0_f64;
+        for j in start_idx..=m {
+            let idx = j - 1;
+            let gamma = decay_d.gamma(j, t, tenor);
+            two_ab += self.psi_base_d[idx] * gamma * self.params.correlations.rho_xi_d[idx];
+        }
+        two_ab *= 2.0 * phi_xi * phi_d;
+
+        let mut two_ac = 0.0_f64;
+        for j in start_idx..=m {
+            let idx = j - 1;
+            let gamma = decay_f.gamma(j, t, tenor);
+            two_ac += self.psi_base_f[idx] * gamma * self.params.correlations.rho_xi_f[idx];
+        }
+        two_ac *= 2.0 * phi_xi * phi_f;
+
+        // 2·b·c = 2·√v_d·√v_f · Σ_{j,k} γ_j·γ_k · ψ^base_{d,j}·ψ^base_{f,k} · ρ^{d,f}_{j,k}
+        let mut two_bc = 0.0_f64;
+        for j in start_idx..=m {
+            let idx_j = j - 1;
+            let gj = decay_d.gamma(j, t, tenor);
+            for k in start_idx..=m {
+                let idx_k = k - 1;
+                let gk = decay_f.gamma(k, t, tenor);
+                two_bc += self.psi_base_d[idx_j]
+                    * gj
+                    * self.psi_base_f[idx_k]
+                    * gk
+                    * self.params.correlations.cross_rate_corr[idx_j][idx_k];
+            }
+        }
+        two_bc *= 2.0 * phi_d * phi_f;
+
+        two_ab - two_ac - two_bc
+    }
 }
 
 /// Approximate `Pd(0, T) = Pf(0, T)` from the shared initial rate curve
@@ -513,7 +595,7 @@ mod tests {
     fn sub_segment_count_reflects_subdivision() {
         let p = toy_params(vec![0.0, 0.3, 0.7, 1.0], vec![0.03, 0.03, 0.03]);
         let default_chf = FxFmm1ForwardChf::new(&p, 1.0);
-        assert_eq!(default_chf.sub_segments.len(), 3 * 1);
+        assert_eq!(default_chf.sub_segments.len(), 3);
         let fine_chf = FxFmm1ForwardChf::with_resolution(&p, 1.0, 4, 32);
         assert_eq!(fine_chf.sub_segments.len(), 3 * 4);
     }
