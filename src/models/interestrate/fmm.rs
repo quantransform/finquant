@@ -153,10 +153,7 @@ impl LinearDecay {
 #[derive(Clone, Debug, PartialEq)]
 pub enum VolSchedule {
     PiecewiseConstant(Vec<Vec<(f64, f64)>>),
-    HoLeeEquivalent {
-        vol: f64,
-        mean_reversion: f64,
-    },
+    HoLeeEquivalent { vol: f64, mean_reversion: f64 },
 }
 
 impl VolSchedule {
@@ -175,7 +172,10 @@ impl VolSchedule {
                 }
                 last
             }
-            VolSchedule::HoLeeEquivalent { vol, mean_reversion } => {
+            VolSchedule::HoLeeEquivalent {
+                vol,
+                mean_reversion,
+            } => {
                 let a = *mean_reversion;
                 let t_km1 = tenor.dates[j - 1];
                 let t_k = tenor.dates[j];
@@ -437,7 +437,12 @@ impl FmmSimulator {
             .iter()
             .enumerate()
             .map(|(i, row)| {
-                let s: f64 = row.iter().zip(z.iter()).take(i + 1).map(|(a, b)| a * b).sum();
+                let s: f64 = row
+                    .iter()
+                    .zip(z.iter())
+                    .take(i + 1)
+                    .map(|(a, b)| a * b)
+                    .sum();
                 s * sqrt_dt
             })
             .collect();
@@ -668,7 +673,10 @@ pub fn front_stub_bond(
 ) -> f64 {
     let tenor = &model.tenor;
     let k = tenor.eta(path.t);
-    assert!(k >= 1 && k <= tenor.m(), "t must be inside some [T_{{k-1}}, T_k]");
+    assert!(
+        k >= 1 && k <= tenor.m(),
+        "t must be inside some [T_{{k-1}}, T_k]"
+    );
     let tk_minus_1 = tenor.dates[k - 1];
     let tk = tenor.dates[k];
     assert!(
@@ -697,8 +705,7 @@ pub fn front_stub_bond(
     let a = p0_t_big_t;
     let b = p0_tk_minus_1_tk.powf(-g_t_big_t);
     let c = (1.0 + tau_k * r_k_start).powf(-g_t_big_t);
-    let exponent = -g_t_big_t * x_k
-        - 0.5 * g_t_big_t * g_t_big_t * y_k
+    let exponent = -g_t_big_t * x_k - 0.5 * g_t_big_t * g_t_big_t * y_k
         + 0.5 * y_at_start * (g_big_t_tk * g_km1_big_t - g_t_tk * g_km1_t);
     a * b * c * exponent.exp()
 }
@@ -1409,11 +1416,10 @@ mod tests {
     fn constant_schedule_matches_no_schedule() {
         let tenor = flat_tenor(2, 0.5, 0.03);
         let plain = Fmm::new(tenor.clone(), vec![0.02; 2], identity_corr(2), LinearDecay);
-        let scheduled = Fmm::new(tenor, vec![0.02; 2], identity_corr(2), LinearDecay)
-            .with_vol_schedule(VolSchedule::PiecewiseConstant(vec![
-                vec![(0.0, 0.02)],
-                vec![(0.0, 0.02)],
-            ]));
+        let scheduled =
+            Fmm::new(tenor, vec![0.02; 2], identity_corr(2), LinearDecay).with_vol_schedule(
+                VolSchedule::PiecewiseConstant(vec![vec![(0.0, 0.02)], vec![(0.0, 0.02)]]),
+            );
         let mut sim1 = FmmSimulator::new(plain, 123).unwrap();
         let mut sim2 = FmmSimulator::new(scheduled, 123).unwrap();
         let mut p1 = sim1.initial_path();
@@ -1437,8 +1443,8 @@ mod tests {
     #[test]
     fn beta_one_lognormal_keeps_rates_mostly_positive() {
         let tenor = flat_tenor(3, 0.5, 0.02);
-        let model = Fmm::new(tenor, vec![0.30; 3], identity_corr(3), LinearDecay)
-            .with_betas(vec![1.0; 3]);
+        let model =
+            Fmm::new(tenor, vec![0.30; 3], identity_corr(3), LinearDecay).with_betas(vec![1.0; 3]);
         let mut sim = FmmSimulator::new(model, 2026).unwrap();
         let paths = sim.simulate_terminal(1.0, 200, 500);
         let negatives = paths
@@ -1470,8 +1476,8 @@ mod tests {
         let r0 = 0.04_f64;
         let t1 = 0.5_f64;
         let t_end = 0.1_f64;
-        let model = Fmm::new(tenor, vec![sigma; 3], identity_corr(3), LinearDecay)
-            .with_betas(vec![0.0; 3]);
+        let model =
+            Fmm::new(tenor, vec![sigma; 3], identity_corr(3), LinearDecay).with_betas(vec![0.0; 3]);
         let mut sim = FmmSimulator::new(model, 42).unwrap();
         let paths = sim.simulate_terminal(t_end, 50, 10_000);
         let r1: Vec<f64> = paths.iter().map(|p| p.rates[0]).collect();

@@ -1553,7 +1553,11 @@ mod test {
                 p.heston.sigma_0,
                 p.correlations.rho_xi_sigma,
                 result.rmse * 10_000.0,
-                if result.optimiser.converged { "✓ " } else { "  " },
+                if result.optimiser.converged {
+                    "✓ "
+                } else {
+                    "  "
+                },
                 result.optimiser.iterations,
             );
             // Per-strike residuals.

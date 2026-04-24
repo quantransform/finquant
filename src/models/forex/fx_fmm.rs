@@ -79,7 +79,11 @@ impl FmmSide {
     pub fn validate(&self, tenor: &FmmTenor) -> Result<(), String> {
         let m = tenor.m();
         if self.sigmas.len() != m {
-            return Err(format!("sigmas length {} vs tenor M = {}", self.sigmas.len(), m));
+            return Err(format!(
+                "sigmas length {} vs tenor M = {}",
+                self.sigmas.len(),
+                m
+            ));
         }
         if self.rate_corr.len() != m {
             return Err("rate_corr must be M×M".to_string());
@@ -183,10 +187,18 @@ impl FxFmmCorrelations {
             return Err(format!("|rho_xi_sigma| = {} > 1", self.rho_xi_sigma));
         }
         if self.rho_xi_d.len() != m {
-            return Err(format!("rho_xi_d length {} vs M = {}", self.rho_xi_d.len(), m));
+            return Err(format!(
+                "rho_xi_d length {} vs M = {}",
+                self.rho_xi_d.len(),
+                m
+            ));
         }
         if self.rho_xi_f.len() != m {
-            return Err(format!("rho_xi_f length {} vs M = {}", self.rho_xi_f.len(), m));
+            return Err(format!(
+                "rho_xi_f length {} vs M = {}",
+                self.rho_xi_f.len(),
+                m
+            ));
         }
         if self.rho_sigma_d.len() != m {
             return Err(format!(
@@ -482,7 +494,12 @@ mod tests {
         let psi0 = psi_at(&params.domestic, &params.tenor, 0.0);
         let sum: f64 = psi0.iter().sum();
         let a_d = compute_a_d(&params, 0.0, 1);
-        assert!((a_d - sum * sum).abs() < 1e-14, "A_d = {} vs (Σψ)² = {}", a_d, sum * sum);
+        assert!(
+            (a_d - sum * sum).abs() < 1e-14,
+            "A_d = {} vs (Σψ)² = {}",
+            a_d,
+            sum * sum
+        );
     }
 
     /// `A_d(t=0)` with zero off-diagonals equals `Σ ψ²_j`.
@@ -517,7 +534,10 @@ mod tests {
         let a_10 = compute_a_d(&params, 0.10, 1);
         let a_25 = compute_a_d(&params, 0.25, 1);
         let a_40 = compute_a_d(&params, 0.40, 1);
-        assert!(a_00 > a_10 && a_10 > a_25 && a_25 > a_40, "A_d not monotone in t");
+        assert!(
+            a_00 > a_10 && a_10 > a_25 && a_25 > a_40,
+            "A_d not monotone in t"
+        );
         // At t = T_1 = 0.5: γ_1 drops to 0, start_idx advances to 2.
         let a_start2 = compute_a_d(&params, 0.5 + 1e-12, 2);
         assert!(a_start2 < a_40);
