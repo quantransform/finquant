@@ -1452,8 +1452,13 @@ mod test {
     fn fmm_initial(pi: &Pillar) -> FxFmmParams {
         let tenor = fmm_tenor_from_market(pi.tenor);
         let m = tenor.m();
+        // Normal-FMM absolute vol. 70 bp matches the fx_hhw EUR-side
+        // HW η_f = 0.012 roughly halved — the FMM spreads vol across
+        // term rates so per-rate σ is smaller than a single-factor HW
+        // short-rate σ. 15 % (lognormal scale) would blow the
+        // risk-neutral rate drift to +2466 bp at 5Y; see paper eq. 5.
         let side = FmmSide {
-            sigmas: vec![0.15; m],
+            sigmas: vec![0.0070; m],
             lambda: 1.0,
             eta: 0.1,
             v_0: 1.0,
@@ -1475,6 +1480,8 @@ mod test {
                 rho_xi_sigma: if pi.c25 > pi.p25 { 0.20 } else { -0.20 },
                 rho_xi_d: vec![-0.15; m],
                 rho_xi_f: vec![-0.15; m],
+                rho_sigma_d: vec![0.30; m],
+                rho_sigma_f: vec![0.30; m],
                 cross_rate_corr: vec![vec![0.25; m]; m],
             },
         }
@@ -1565,6 +1572,268 @@ mod test {
                     None => println!("       K={:.4}  — BS-IV inversion failed", k),
                 }
             }
+        }
+    }
+
+    // =====================================================================
+    // FX-FMM Monte Carlo regression (martingale, σ-eq, tail bounds)
+    // =====================================================================
+
+    use crate::models::forex::fx_fmm_simulator::{FxFmmSimulator, FxFmmState};
+
+    /// Paths at one expiry for the FX-FMM simulator, analogous to
+    /// [`MonteCarlo`] for FX-HHW. We keep the API minimal — just FX
+    /// terminal samples — since the FX-FMM rate block doesn't have a
+    /// "short rate" analogue exposed to the outside world. Domestic and
+    /// foreign short rates are inferred from `R_{η(T), d/f}` per path
+    /// when (rarely) needed.
+    struct FxFmmMonteCarlo {
+        fx: Vec<f64>,
+        rates_d_eta: Vec<f64>,
+    }
+
+    impl FxFmmMonteCarlo {
+        fn run(
+            params: FxFmmParams,
+            expiry_yf: f64,
+            n_paths: usize,
+            n_steps: usize,
+            seed: u64,
+        ) -> Self {
+            let mut sim = FxFmmSimulator::new(params.clone(), seed)
+                .expect("FX-FMM params valid after calibration");
+            let terminals = sim.simulate_terminal(expiry_yf, n_steps, n_paths);
+            let eta = params.tenor.eta(expiry_yf).min(params.tenor.m()).max(1);
+            let fx: Vec<f64> = terminals.iter().map(|s: &FxFmmState| s.fx).collect();
+            let rates_d_eta: Vec<f64> =
+                terminals.iter().map(|s| s.rates_d[eta - 1]).collect();
+            FxFmmMonteCarlo { fx, rates_d_eta }
+        }
+    }
+
+    /// Smaller MC budget than FX-HHW's `MC_PATHS` because FX-FMM's step
+    /// cost is higher (O(M²) rate drift + (2+2M)² Cholesky per step).
+    /// 25 k paths × 200 steps across 4 pillars runs in ~60 s release.
+    const FMM_MC_PATHS: usize = 25_000;
+    const FMM_MC_STEPS_PER_YEAR: usize = 100;
+
+    /// Forward-martingale regression: `E[ξ(T)] ≈ pi.forward` within 1 %.
+    /// The FX-FMM quanto correction (Grzelak–Oosterlee eq. 2.13 applied
+    /// to each foreign rate) is designed to keep this drift small; same
+    /// 100 bp tolerance as FX-HHW.
+    #[test]
+    #[ignore = "FX-FMM MC regression — run with --ignored in --release"]
+    fn fx_fmm_mc_forward_martingale_holds_at_every_expiry() {
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let mc = FxFmmMonteCarlo::run(
+                cal.params,
+                pi.tenor,
+                FMM_MC_PATHS,
+                FMM_MC_STEPS_PER_YEAR * pi.tenor.ceil() as usize,
+                MC_SEED,
+            );
+            let m = mean_of(&mc.fx);
+            assert!(
+                (m - pi.forward).abs() < 0.01 * pi.forward,
+                "T={}Y: FX-FMM E[ξ] {} vs fwd {} — drift {:.2} bp",
+                pi.tenor,
+                m,
+                pi.forward,
+                (m - pi.forward).abs() / pi.forward * 10_000.0,
+            );
+        }
+    }
+
+    /// σ-eq within ±100 bp of vendor σ-eq at pillars with a published
+    /// band (1 Y / 2 Y / 5 Y). Looser than FX-HHW's ±50 bp tolerance
+    /// because the FX-FMM rate block isn't refit per pillar (single-
+    /// curve setup with fixed σ_j = 15 %).
+    #[test]
+    #[ignore = "FX-FMM MC regression — run with --ignored in --release"]
+    fn fx_fmm_mc_tails_align_with_vendor_ci_at_long_tenors() {
+        for pi in pillars() {
+            let Some((expected_p5, expected_p95)) = pi.expected_ci else {
+                continue;
+            };
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let mc = FxFmmMonteCarlo::run(
+                cal.params,
+                pi.tenor,
+                FMM_MC_PATHS,
+                FMM_MC_STEPS_PER_YEAR * pi.tenor.ceil() as usize,
+                MC_SEED,
+            );
+            let mut fx = mc.fx.clone();
+            let (p5, p95) = percentiles(&mut fx, 0.05, 0.95);
+            let model_sig = (p95 / p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+            let expected_sig = (expected_p95 / expected_p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+            assert!(
+                (model_sig - expected_sig).abs() < 100.0e-4,
+                "T={}Y: FX-FMM model σ-eq {:.3}%, vendor {:.3}% (Δ={:.3}%)",
+                pi.tenor,
+                model_sig * 100.0,
+                expected_sig * 100.0,
+                (model_sig - expected_sig) * 100.0,
+            );
+        }
+    }
+
+    /// σ-eq ∈ [0.90 ATM, 2 ATM] — same bounded-tails sanity as SABR
+    /// (looser lower bound than FX-HHW's 0.95 because FMM's fixed rate
+    /// block can pull the width slightly below ATM when the pillar
+    /// smile is especially flat).
+    #[test]
+    #[ignore = "FX-FMM MC regression — run with --ignored in --release"]
+    fn fx_fmm_mc_tails_are_wider_than_atm_but_bounded() {
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let mc = FxFmmMonteCarlo::run(
+                cal.params,
+                pi.tenor,
+                FMM_MC_PATHS,
+                FMM_MC_STEPS_PER_YEAR * pi.tenor.ceil() as usize,
+                MC_SEED,
+            );
+            let mut fx = mc.fx.clone();
+            let (p5, p95) = percentiles(&mut fx, 0.05, 0.95);
+            let sig_eq = (p95 / p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+            assert!(
+                sig_eq > pi.atm * 0.90,
+                "T={}Y: σ-eq {:.3}% < 0.90·ATM {:.3}%",
+                pi.tenor,
+                sig_eq * 100.0,
+                pi.atm * 100.0
+            );
+            assert!(
+                sig_eq < 2.0 * pi.atm,
+                "T={}Y: σ-eq {:.3}% > 2·ATM {:.3}%",
+                pi.tenor,
+                sig_eq * 100.0,
+                pi.atm * 100.0
+            );
+        }
+    }
+
+    /// SOFR-style rate-mean regression: FX-FMM keeps the simulated
+    /// domestic rate `R_{d, η(T)}(T)` close to the market forward rate
+    /// at the pillar. Tolerance 25 bp — looser than FX-HHW's 10 bp
+    /// because the FMM rate is a term rate (6 M accrual) not an
+    /// instantaneous short rate.
+    #[test]
+    #[ignore = "FX-FMM MC regression — run with --ignored in --release"]
+    fn fx_fmm_mc_domestic_rate_tracks_market_curve() {
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let mc = FxFmmMonteCarlo::run(
+                cal.params,
+                pi.tenor,
+                FMM_MC_PATHS,
+                FMM_MC_STEPS_PER_YEAR * pi.tenor.ceil() as usize,
+                MC_SEED,
+            );
+            let r_mean = mean_of(&mc.rates_d_eta);
+            let r_market = curve_at(&sofr_anchors(), pi.tenor);
+            assert!(
+                (r_mean - r_market).abs() < 25.0e-4,
+                "T={}Y: FX-FMM R_d̄ {:.4} vs market {:.4} (Δ={:.1} bp)",
+                pi.tenor,
+                r_mean,
+                r_market,
+                (r_mean - r_market) * 10_000.0,
+            );
+        }
+    }
+
+    /// Diagnostic table: smile RMSE + MC-derived martingale, σ-eq,
+    /// vendor comparison, and rate-drift per pillar. Mirrors
+    /// [`mc_report_table`] for the FX-FMM stack. Pure print — no
+    /// assertions. Run with `--nocapture`.
+    #[test]
+    #[ignore = "FX-FMM MC + smile diagnostic — run with --ignored --nocapture"]
+    fn fx_fmm_mc_report_table() {
+        println!();
+        println!(
+            "   T  | smile RMSE | E[ξ] drift | σ-eq %  | vs ATM | vs vendor  | rates Δ"
+        );
+        println!(
+            "  ----+-----------+------------+---------+--------+------------+---------"
+        );
+        for pi in pillars() {
+            let targets = fmm_targets_from_pillar(&pi, true);
+            let initial = fmm_initial(&pi);
+            let options = NelderMeadOptions {
+                max_iter: 300,
+                ftol: 1.0e-9,
+                xtol: 1.0e-8,
+                step_frac: 0.10,
+            };
+            let cal = calibrate_fmm(initial, &targets, pi.tenor, 1.0e-3, options);
+            let mc = FxFmmMonteCarlo::run(
+                cal.params.clone(),
+                pi.tenor,
+                FMM_MC_PATHS,
+                FMM_MC_STEPS_PER_YEAR * pi.tenor.ceil() as usize,
+                MC_SEED,
+            );
+            let fx_mean = mean_of(&mc.fx);
+            let drift_bp = (fx_mean - pi.forward) / pi.forward * 10_000.0;
+            let mut fx_sorted = mc.fx.clone();
+            let (p5, p95) = percentiles(&mut fx_sorted, 0.05, 0.95);
+            let sig_eq = (p95 / p5).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+            let vs_atm = sig_eq / pi.atm;
+            let vs_vendor = pi.expected_ci.map(|(p5v, p95v)| {
+                let sig_v = (p95v / p5v).ln() / (2.0 * 1.645 * pi.tenor.sqrt());
+                (sig_eq - sig_v) * 10_000.0
+            });
+            let r_mean = mean_of(&mc.rates_d_eta);
+            let r_market = curve_at(&sofr_anchors(), pi.tenor);
+            let r_drift_bp = (r_mean - r_market) * 10_000.0;
+            println!(
+                "  {:>3}Y| {:>5.2} bp  | {:+6.1} bp | {:5.2}%  | {:4.2}× | {}      | {:+5.1} bp",
+                pi.tenor as i32,
+                cal.rmse * 10_000.0,
+                drift_bp,
+                sig_eq * 100.0,
+                vs_atm,
+                match vs_vendor {
+                    Some(v) => format!("{:+7.1} bp", v),
+                    None => "    —     ".to_string(),
+                },
+                r_drift_bp,
+            );
         }
     }
 }

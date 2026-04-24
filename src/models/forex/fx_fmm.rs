@@ -113,17 +113,36 @@ impl FmmSide {
         Ok(())
     }
 
-    /// Time-independent "base" coefficients `ψ_j = τ_j σ_j R_j(0) /
-    /// (1 + τ_j R_j(0))`. The time-dependent `ψ_j(t)` is this times
-    /// `γ_j(t)` (see [`psi_at`]). Kept separate so it can be precomputed
-    /// once and multiplied by `γ_j(t)` at integration time.
+    /// Time-independent "base" coefficients `ψ_j^{base}` for the frozen-
+    /// rate expansion of `d log(1 + τ_j R_j)` — the **normal-FMM**
+    /// (paper eq. 5) convention.
+    ///
+    /// Derivation: under normal FMM with diffusion `dR_j = σ_j γ_j dW`,
+    /// applying Itô to `log(1 + τ_j R_j)` gives
+    /// `d log(1 + τ_j R_j) ≈ τ_j σ_j γ_j / (1 + τ_j R_j) · dW`. Freezing
+    /// `R_j` at `R_j(0)` and extracting the time-independent part:
+    ///
+    /// ```text
+    ///   ψ_j^{base} = τ_j · σ_j / (1 + τ_j · R_j(0))
+    /// ```
+    ///
+    /// The time-dependent `ψ_j(t) = γ_j(t) · ψ_j^{base}` (see
+    /// [`psi_at`]) enters the FX-drift linearisation of Grzelak–Oosterlee
+    /// §3.1.
+    ///
+    /// **Note.** This differs from the LMM / lognormal convention
+    /// `τ σ L(0) / (1 + τ L(0))` by the `R(0)` factor — the paper's
+    /// FMM is genuinely normal, not displaced-lognormal. For `R(0) ≈ 3 %`
+    /// the two formulas differ by ~33×, so `σ_j` must be chosen on the
+    /// absolute-vol scale (~50–100 bp for typical FX rate dynamics), not
+    /// the lognormal scale (~15 %).
     pub fn psi_base(&self, tenor: &FmmTenor) -> Vec<f64> {
         (0..tenor.m())
             .map(|idx| {
                 let j = idx + 1;
                 let tau_j = tenor.tau(j);
                 let r_j0 = tenor.initial_rates[idx];
-                tau_j * self.sigmas[idx] * r_j0 / (1.0 + tau_j * r_j0)
+                tau_j * self.sigmas[idx] / (1.0 + tau_j * r_j0)
             })
             .collect()
     }
@@ -132,6 +151,12 @@ impl FmmSide {
 /// Cross-currency correlation block for FX-FMM. FX-side correlations
 /// cover FX with its own variance and with each currency's rates; the
 /// rate × rate block captures cross-currency dependence.
+///
+/// **Note.** The forward-ChF (`fx_fmm1_chf`) and calibrator only consume
+/// `rho_xi_sigma`, `rho_xi_d`, `rho_xi_f` and `cross_rate_corr` —
+/// `rho_sigma_d`/`rho_sigma_f` don't enter the frozen-rate ψ-linearisation.
+/// The Monte Carlo path simulator (`fx_fmm_simulator`) is the consumer
+/// for the σ × rate correlations.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FxFmmCorrelations {
     /// FX × FX-variance: `ρ_{x, σ}`.
@@ -140,6 +165,12 @@ pub struct FxFmmCorrelations {
     pub rho_xi_d: Vec<f64>,
     /// FX × foreign rate `j`, length `M`.
     pub rho_xi_f: Vec<f64>,
+    /// FX-variance `σ` × domestic rate `j`, length `M`. Only consumed by
+    /// the MC path simulator.
+    pub rho_sigma_d: Vec<f64>,
+    /// FX-variance `σ` × foreign rate `j`, length `M`. Only consumed by
+    /// the MC path simulator.
+    pub rho_sigma_f: Vec<f64>,
     /// `ρ^{d,f}_{i,j}` between `i`-th domestic and `j`-th foreign rate,
     /// shape `[M × M]`. Not necessarily symmetric.
     pub cross_rate_corr: Vec<Vec<f64>>,
@@ -157,6 +188,20 @@ impl FxFmmCorrelations {
         if self.rho_xi_f.len() != m {
             return Err(format!("rho_xi_f length {} vs M = {}", self.rho_xi_f.len(), m));
         }
+        if self.rho_sigma_d.len() != m {
+            return Err(format!(
+                "rho_sigma_d length {} vs M = {}",
+                self.rho_sigma_d.len(),
+                m
+            ));
+        }
+        if self.rho_sigma_f.len() != m {
+            return Err(format!(
+                "rho_sigma_f length {} vs M = {}",
+                self.rho_sigma_f.len(),
+                m
+            ));
+        }
         if self.cross_rate_corr.len() != m {
             return Err("cross_rate_corr rows ≠ M".to_string());
         }
@@ -170,9 +215,15 @@ impl FxFmmCorrelations {
                 }
             }
         }
-        for &c in self.rho_xi_d.iter().chain(self.rho_xi_f.iter()) {
+        for &c in self
+            .rho_xi_d
+            .iter()
+            .chain(self.rho_xi_f.iter())
+            .chain(self.rho_sigma_d.iter())
+            .chain(self.rho_sigma_f.iter())
+        {
             if c.abs() > 1.0 + 1e-12 {
-                return Err("|rho_xi_d or rho_xi_f| > 1".to_string());
+                return Err("|rho_xi_·| or |rho_sigma_·| > 1".to_string());
             }
         }
         Ok(())
@@ -344,6 +395,8 @@ mod tests {
                 rho_xi_sigma: -0.4,
                 rho_xi_d: vec![-0.15, -0.15, -0.15],
                 rho_xi_f: vec![-0.15, -0.15, -0.15],
+                rho_sigma_d: vec![0.30, 0.30, 0.30],
+                rho_sigma_f: vec![0.30, 0.30, 0.30],
                 cross_rate_corr: vec![
                     vec![0.25, 0.25, 0.25],
                     vec![0.25, 0.25, 0.25],
@@ -375,15 +428,16 @@ mod tests {
         assert!(side.validate(&tenor).is_err());
     }
 
-    /// `psi_base` matches `ψ_j = τ_j σ_j R_j(0)/(1+τ_j R_j(0))` —
-    /// independent of `t` and with unit γ.
+    /// `psi_base` matches `ψ_j = τ_j σ_j / (1 + τ_j R_j(0))` — the
+    /// normal-FMM frozen-rate ψ (paper eq. 5 convention), independent
+    /// of `t` and with unit γ.
     #[test]
     fn psi_base_closed_form() {
         let tenor = toy_tenor();
         let side = toy_side();
         let base = side.psi_base(&tenor);
-        // τ = 0.5, σ = 0.15, R = 0.03 → ψ = 0.5·0.15·0.03/(1+0.5·0.03) ≈ 2.22e−3.
-        let expected = 0.5 * 0.15 * 0.03 / (1.0 + 0.5 * 0.03);
+        // τ = 0.5, σ = 0.15, R = 0.03 → ψ = 0.5·0.15/(1+0.5·0.03) ≈ 0.0739.
+        let expected = 0.5 * 0.15 / (1.0 + 0.5 * 0.03);
         for v in &base {
             assert!((v - expected).abs() < 1e-15);
         }

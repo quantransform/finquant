@@ -261,6 +261,8 @@ mod tests {
                 rho_xi_sigma: -0.4,
                 rho_xi_d: vec![-0.15, -0.15],
                 rho_xi_f: vec![-0.15, -0.15],
+                rho_sigma_d: vec![0.30, 0.30],
+                rho_sigma_f: vec![0.30, 0.30],
                 cross_rate_corr: vec![vec![0.25, 0.25], vec![0.25, 0.25]],
             },
         }
