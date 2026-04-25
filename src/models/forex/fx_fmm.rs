@@ -18,11 +18,18 @@
 //!               − √v_f(t) · Σ_{j ≥ η(t)} ψ_{f,j}(t) dW^{f,T}_j
 //! ```
 //!
-//! with frozen-rate coefficients
+//! with frozen-rate coefficients (normal-FMM convention, paper eq. 5):
 //!
 //! ```text
-//!     ψ_{·,j}(t) = τ_j · σ_{·,j} · γ_j(t) · R_{·,j}(0) / (1 + τ_j · R_{·,j}(0))
+//!     ψ_{·,j}(t) = τ_j · σ_{·,j} · γ_j(t) / (1 + τ_j · R_{·,j}(0))
 //! ```
+//!
+//! **Note on σ scale.** The FMM is genuinely normal (absolute-vol
+//! diffusion `σ γ dW`, not `σ γ R dW`), so `σ_j` has units of
+//! "absolute rate vol" — typically **50–100 bp** for FX-desk-style
+//! rates, *not* 15 %. Plugging a lognormal-scale 15 % into a
+//! normal-FMM simulator produces catastrophic rate drift; see
+//! `fx_fmm_simulator` for the MC regression evidence.
 //!
 //! and deterministic coefficients `A_d(t)`, `A_f(t)`, `f(t)` carrying the
 //! full time-dependence through ψ. Unlike FX-HLMM, which had these
