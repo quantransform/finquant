@@ -352,8 +352,8 @@ fn build_joint_correlation(p: &FxFmmParams) -> Vec<Vec<f64>> {
     let m = p.tenor.m();
     let n = 2 + 2 * m;
     let mut c = vec![vec![0.0_f64; n]; n];
-    for i in 0..n {
-        c[i][i] = 1.0;
+    for (i, row) in c.iter_mut().enumerate().take(n) {
+        row[i] = 1.0;
     }
 
     // FX × σ.
