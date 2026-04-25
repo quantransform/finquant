@@ -139,13 +139,34 @@ impl FxHhwState {
     }
 }
 
-/// Path simulator. Euler–Maruyama on `(log ξ, σ, rd, rf)` with
-/// full-truncation for the variance process (clamped to `max(0, σ)` at
-/// each step) — standard for MC'ing the CIR square-root diffusion, see
-/// Andersen (2008) *Simple and efficient simulation of the Heston model*.
+/// Path simulator for the FX-HHW SDE system (Grzelak–Oosterlee
+/// eq. 2.11). Euler–Maruyama on `(log ξ, σ, rd, rf)` with
+/// full-truncation on the CIR variance; seeded ChaCha20 RNG for
+/// reproducibility.
 ///
-/// RNG: seeded ChaCha20 for reproducibility. Callers simulate path-by-path
-/// via [`Self::step`] or run a full time-grid via [`Self::simulate`].
+/// # Papers
+///
+/// * **Grzelak, L. A., Oosterlee, C. W. (2011)** — *On Cross-Currency
+///   Models with Stochastic Volatility and Correlated Interest
+///   Rates*, Applied Mathematical Finance 19(1): 1–35
+///   (`ssrn-1618684` in this repo). §2 eq. (2.11)–(2.13) — SDE,
+///   quanto correction, `ξ·Mf/Md` Q-martingale identity.
+/// * **Heston, S. L. (1993)** — *A Closed-Form Solution for Options
+///   with Stochastic Volatility*, Review of Financial Studies 6(2):
+///   327–343. The underlying square-root-variance model; see
+///   [`crate::models::common::cir`].
+/// * **Andersen, L. (2008)** — *Simple and Efficient Simulation of
+///   the Heston Model*, Journal of Computational Finance 11(3): 1–42.
+///   Full-truncation scheme for the variance path (clamp to
+///   `max(0, σ)` between drift + diffusion updates) — chosen over
+///   exact QE because the paper's parameter set violates Feller.
+/// * **Hull, J., White, A. (1996)** — *Using Hull-White Interest-Rate
+///   Trees*, Journal of Derivatives 3(3): 26–36. Jamshidian-θ fit
+///   used by [`Self::with_theta_fn`] to anchor simulated rate means
+///   to the market forward curve.
+///
+/// Callers simulate path-by-path via [`Self::step`] or run a full
+/// time-grid via [`Self::simulate`].
 pub struct FxHhwSimulator {
     pub params: FxHhwParams,
     chol: [[f64; 4]; 4],

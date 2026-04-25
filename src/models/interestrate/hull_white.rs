@@ -137,6 +137,22 @@ impl HullWhite1F {
 /// The mean-reversion target `θ(t)` is supplied as a closure — constant
 /// by default. Callers who want `E[r(t)] = f(0, t)` (market forward
 /// rate) wire in a Jamshidian fit via [`Self::with_theta_fn`].
+///
+/// # Papers
+///
+/// * **Hull, J., White, A. (1990)** — *Pricing Interest-Rate-Derivative
+///   Securities*, Review of Financial Studies 3(4): 573–592. Original
+///   formulation.
+/// * **Hull, J., White, A. (1996)** — *Using Hull-White Interest-Rate
+///   Trees*, Journal of Derivatives 3(3): 26–36. The deterministic
+///   `θ(t)` fit to the initial yield curve — used here by
+///   [`Self::with_theta_fn`] via the Jamshidian decomposition.
+/// * **Grzelak, L. A., Oosterlee, C. W. (2011)** — *On Cross-Currency
+///   Models with Stochastic Volatility and Correlated Interest
+///   Rates*, Applied Mathematical Finance 19(1): 1–35 (`ssrn-1618684`
+///   in this repo). §2 eq. 2.1 / 2.10 gives the exact formulation
+///   this module implements; the `B(t, T)` duration factor and bond
+///   log-variance match paper eq. (2.10) sign convention.
 pub struct HullWhiteSimulator {
     pub model: HullWhite1F,
     pub r_0: f64,

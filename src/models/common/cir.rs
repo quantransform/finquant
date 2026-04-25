@@ -192,9 +192,23 @@ impl SqrtMeanProxy {
     }
 }
 
-/// Euler–Maruyama simulator for the CIR process, with full-truncation
-/// of negative draws (Andersen 2008). Implements [`SimulationModel`] so
-/// paths can be driven through [`crate::models::common::simulation::simulate_at_dates`].
+/// Euler–Maruyama simulator for the CIR process with full-truncation
+/// of negative draws. Implements [`SimulationModel`] so paths can be
+/// driven through [`crate::models::common::simulation::simulate_at_dates`].
+///
+/// # Papers
+///
+/// * **Cox, J. C., Ingersoll, J. E., Ross, S. A. (1985)** — *A Theory
+///   of the Term Structure of Interest Rates*, Econometrica
+///   53(2): 385–407. Introduces the square-root diffusion.
+/// * **Andersen, L. (2008)** — *Simple and Efficient Simulation of
+///   the Heston Model*, Journal of Computational Finance 11(3): 1–42.
+///   Discusses discretisation bias of the square-root SDE; the
+///   "full-truncation" scheme used here (clamp to `max(0, σ)` after
+///   the Euler step before the diffusion's `√σ` re-evaluation) is its
+///   simplest robust variant, taken over Deelstra–Delbaen's reflection
+///   because it reproduces the Feller-violating parameter regimes used
+///   by FX-HHW (see [`crate::models::forex::fx_hhw`]).
 pub struct CirSimulator {
     pub process: CirProcess,
     rng: ChaCha20Rng,

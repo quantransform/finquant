@@ -9,6 +9,10 @@
 pub mod dupire_local_vol;
 #[cfg(test)]
 pub mod eurusd_worst_case;
+pub mod fx_fmm;
+pub mod fx_fmm1_chf;
+pub mod fx_fmm_calibrator;
+pub mod fx_fmm_simulator;
 pub mod fx_hhw;
 pub mod fx_hhw1_chf;
 pub mod fx_hhw_calibrator;

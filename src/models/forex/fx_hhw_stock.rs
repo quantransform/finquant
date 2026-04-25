@@ -79,6 +79,21 @@ impl FxHhwStockState {
 /// scheme for the first four factors and adds two more for the
 /// stock and its variance, with the quanto corrections from
 /// paper §2.4.
+///
+/// # Papers
+///
+/// * **Grzelak, L. A., Oosterlee, C. W. (2011)** — *On Cross-Currency
+///   Models with Stochastic Volatility and Correlated Interest
+///   Rates*, Applied Mathematical Finance 19(1): 1–35
+///   (`ssrn-1618684` in this repo). §2.4, eq. (2.36)–(2.39): foreign
+///   stock Heston block and its quanto drifts on `(S_f, ω)` under
+///   change of measure from foreign-spot `Z` to domestic-spot `Q`.
+/// * **Heston, S. L. (1993)** — *A Closed-Form Solution for Options
+///   with Stochastic Volatility*, Review of Financial Studies 6(2):
+///   327–343. The foreign equity's stochastic-variance dynamics.
+/// * **Andersen, L. (2008)** — *Simple and Efficient Simulation of
+///   the Heston Model*, Journal of Computational Finance 11(3): 1–42.
+///   Full-truncation on both variance processes.
 pub struct FxHhwStockSimulator {
     pub fx: FxHhwParams,
     pub stock: ForeignStock,
