@@ -1642,8 +1642,7 @@ mod test {
             let terminals = sim.simulate_terminal(expiry_yf, n_steps, n_paths);
             let eta = params.tenor.eta(expiry_yf).min(params.tenor.m()).max(1);
             let fx: Vec<f64> = terminals.iter().map(|s: &FxFmmState| s.fx).collect();
-            let rates_d_eta: Vec<f64> =
-                terminals.iter().map(|s| s.rates_d[eta - 1]).collect();
+            let rates_d_eta: Vec<f64> = terminals.iter().map(|s| s.rates_d[eta - 1]).collect();
             FxFmmMonteCarlo { fx, rates_d_eta }
         }
     }
@@ -1826,12 +1825,8 @@ mod test {
     #[ignore = "FX-FMM MC + smile diagnostic — run with --ignored --nocapture"]
     fn fx_fmm_mc_report_table() {
         println!();
-        println!(
-            "   T  | smile RMSE | E[ξ] drift | σ-eq %  | vs ATM | vs vendor  | rates Δ"
-        );
-        println!(
-            "  ----+-----------+------------+---------+--------+------------+---------"
-        );
+        println!("   T  | smile RMSE | E[ξ] drift | σ-eq %  | vs ATM | vs vendor  | rates Δ");
+        println!("  ----+-----------+------------+---------+--------+------------+---------");
         for pi in pillars() {
             let targets = fmm_targets_from_pillar(&pi, true);
             let initial = fmm_initial(&pi);

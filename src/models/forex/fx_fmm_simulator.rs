@@ -265,12 +265,14 @@ impl FxFmmSimulator {
                 let r_d_mid = 0.5 * (state.rates_d[k - 1] + new_rates_d[k - 1]);
                 let sig_d = side_adapted_vol(&p.domestic, k, r_d_mid);
                 let y_k_d = state.y_diag_d[k - 1] - state.y_at_start_d[k - 1];
-                state.x_active_d += g_k * y_k_d * dt + sig_d / (r_d_mid + 1.0 / tau_k) * dw_d[k - 1];
+                state.x_active_d +=
+                    g_k * y_k_d * dt + sig_d / (r_d_mid + 1.0 / tau_k) * dw_d[k - 1];
 
                 let r_f_mid = 0.5 * (state.rates_f[k - 1] + new_rates_f[k - 1]);
                 let sig_f = side_adapted_vol(&p.foreign, k, r_f_mid);
                 let y_k_f = state.y_diag_f[k - 1] - state.y_at_start_f[k - 1];
-                state.x_active_f += g_k * y_k_f * dt + sig_f / (r_f_mid + 1.0 / tau_k) * dw_f[k - 1];
+                state.x_active_f +=
+                    g_k * y_k_f * dt + sig_f / (r_f_mid + 1.0 / tau_k) * dw_f[k - 1];
             }
         }
 
