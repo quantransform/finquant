@@ -44,6 +44,11 @@
 ### Numerics
 - COS method pricer, CIR process, Newton/optimizer routines, normal/standard-normal utilities
 
+### Deep-learning surrogates ([ml/](ml/))
+- Horvath-style neural networks that replace slow numerical pricers with microsecond-scale `(model params → IV grid)` lookups — the speed lift needed for portfolio XVA over 10⁹+ revaluations
+- Rust ground-truth dumper: `cargo run --release --example dump_hhw_vanilla_training_data`
+- Python training pipeline (Poetry, Pydantic-validated schemas, PyTorch → ONNX, optional Ray Tune HPO) — see [ml/README.md](ml/README.md)
+
 
 [crates-badge]: https://img.shields.io/crates/v/finquant.svg
 [docs-badge]: https://docs.rs/finquant/badge.svg
