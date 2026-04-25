@@ -18,33 +18,31 @@
 >
 > FinQuant is an experimental project, currently incomplete and not fit for production.
 
-## Roadmap (no set agenda yet)
+## Coverage
 
-1. Basic settings 
-   - [x] Calendar inline with QuantLib v1.42
-   - [x] Day counts 
-   - [x] Schedule generator
-2. Markets / Quotes
-   - [x] Forex - forward points
-   - [x] Forex - volatility 
-   - [x] Interest Rate - curves (cash rates, futures, swaps)
-   - [x] Interest Rate - volatility 
-3. Forex markets
-   - Pricer - we want more than just Black Scholes model. For example volatility should not be the key input; the surface should.
-     - Forward
-       - [x] forward points generator
-       - [x] pricing + greeks 
-     - Option
-       - [x] implied vol generator
-       - [x] pricing + greeks
-   - Simulator
-     - [x] Monte Carlo
-4. Interest rate markets
-   - Pricer
-     - [x] Swap
-     - [x] Cap/Floor
-   - Simulator
-     - [x] Monte Carlo
+### Basic settings
+- Calendars inline with QuantLib v1.42 — 40+ jurisdictions (TARGET, US, UK, JPN, CHN, AUS, BRA, CAN, CHE, DEU, FRA, HKG, IND, IDN, ISR, ITA, KOR, MEX, NZL, NOR, POL, RUS, SGP, SWE, TUR, ZAF, …) plus weekends-only and joint-calendar composition
+- Day counters: Act/360, Act/364, Act/365 Fixed, Act/366, Act/Act, 30/360, 30/365, Business/252
+- Schedule generator
+
+### Markets / Quotes
+- Forex: forward points, volatility surface, market context
+- Interest rate: yield curve bootstrapping (cash, futures, swaps; OIS rate helpers), vol surface, market context
+
+### Forex
+- Pricers — surface-driven (not single-vol):
+  - Forward — forward-points generator, pricing + greeks
+  - Option — implied-vol generator, pricing + greeks
+- Models: Black–Scholes, Bachelier, Dupire local vol, SABR (effective, time-dependent, SLV) with calibrators, FX-HHW (+ 1-factor ChF, stock variant, calibrator), FX-FMM (+ 1-factor ChF, simulator, calibrator), FX-HLMM (+ 1-factor ChF, calibrator)
+- Simulators: Monte Carlo across the FX-HHW / FX-FMM / FX-HLMM families
+
+### Interest rate
+- Pricers: Swap, Cap/Floor
+- Models: Hull–White, FMM (Forward Market Model)
+- Simulators: Monte Carlo
+
+### Numerics
+- COS method pricer, CIR process, Newton/optimizer routines, normal/standard-normal utilities
 
 
 [crates-badge]: https://img.shields.io/crates/v/finquant.svg
