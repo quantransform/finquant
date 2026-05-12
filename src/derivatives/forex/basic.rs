@@ -147,7 +147,9 @@ impl FXUnderlying {
     pub fn settles(&self) -> i8 {
         match self {
             // T+1 settlement pairs
-            FXUnderlying::USDCAD | FXUnderlying::USDMXN | FXUnderlying::USDTRY
+            FXUnderlying::USDCAD
+            | FXUnderlying::USDMXN
+            | FXUnderlying::USDTRY
             | FXUnderlying::USDRUB => 1,
             _ => 2,
         }
@@ -350,7 +352,10 @@ mod tests {
             FXUnderlying::USDCAD.near_date(Period::SN, valuation_date)?,
             Some(NaiveDate::from_ymd_opt(2023, 10, 17).unwrap())
         );
-        assert_eq!(FXUnderlying::USDCAD.near_date(Period::Weeks(1), valuation_date)?, None);
+        assert_eq!(
+            FXUnderlying::USDCAD.near_date(Period::Weeks(1), valuation_date)?,
+            None
+        );
 
         Ok(())
     }
@@ -362,7 +367,10 @@ mod tests {
 
         // Before USDCAD cut-off (noon NY = 17:00 UTC) → same day
         let before = NaiveTime::from_hms_opt(16, 59, 0).unwrap();
-        assert_eq!(FXUnderlying::USDCAD.effective_valuation_date(monday, before), monday);
+        assert_eq!(
+            FXUnderlying::USDCAD.effective_valuation_date(monday, before),
+            monday
+        );
 
         // At/after USDCAD cut-off → next business day (Tuesday)
         let after = NaiveTime::from_hms_opt(17, 0, 0).unwrap();
@@ -421,15 +429,33 @@ mod tests {
     #[test]
     fn test_cutoff_utc_all_pairs() {
         // noon New York (UTC-5 standard / UTC-4 DST → use UTC offset of 17:00 UTC as noon NY EDT)
-        assert_eq!(FXUnderlying::USDMXN.cutoff_utc(), NaiveTime::from_hms_opt(17, 0, 0).unwrap());
+        assert_eq!(
+            FXUnderlying::USDMXN.cutoff_utc(),
+            NaiveTime::from_hms_opt(17, 0, 0).unwrap()
+        );
         // noon Istanbul (UTC+3) = 09:00 UTC
-        assert_eq!(FXUnderlying::USDTRY.cutoff_utc(), NaiveTime::from_hms_opt(9, 0, 0).unwrap());
+        assert_eq!(
+            FXUnderlying::USDTRY.cutoff_utc(),
+            NaiveTime::from_hms_opt(9, 0, 0).unwrap()
+        );
         // 12:30 Moscow (UTC+3) = 09:30 UTC
-        assert_eq!(FXUnderlying::USDRUB.cutoff_utc(), NaiveTime::from_hms_opt(9, 30, 0).unwrap());
+        assert_eq!(
+            FXUnderlying::USDRUB.cutoff_utc(),
+            NaiveTime::from_hms_opt(9, 30, 0).unwrap()
+        );
         // standard London close
-        assert_eq!(FXUnderlying::AUDUSD.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
-        assert_eq!(FXUnderlying::USDNOK.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
-        assert_eq!(FXUnderlying::USDSEK.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
+        assert_eq!(
+            FXUnderlying::AUDUSD.cutoff_utc(),
+            NaiveTime::from_hms_opt(22, 0, 0).unwrap()
+        );
+        assert_eq!(
+            FXUnderlying::USDNOK.cutoff_utc(),
+            NaiveTime::from_hms_opt(22, 0, 0).unwrap()
+        );
+        assert_eq!(
+            FXUnderlying::USDSEK.cutoff_utc(),
+            NaiveTime::from_hms_opt(22, 0, 0).unwrap()
+        );
     }
 
     /// USDMXN (T+1) settlement dates — spot is T+1, noon NY (17:00 UTC) cut-off.
@@ -462,7 +488,10 @@ mod tests {
 
         // Before USDTRY cut-off (09:00 UTC) → same day
         let before = NaiveTime::from_hms_opt(8, 59, 0).unwrap();
-        assert_eq!(FXUnderlying::USDTRY.effective_valuation_date(monday, before), monday);
+        assert_eq!(
+            FXUnderlying::USDTRY.effective_valuation_date(monday, before),
+            monday
+        );
 
         // At USDTRY cut-off → next business day
         let at_cutoff = NaiveTime::from_hms_opt(9, 0, 0).unwrap();
@@ -478,7 +507,10 @@ mod tests {
         let monday = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap();
 
         let before = NaiveTime::from_hms_opt(9, 29, 0).unwrap();
-        assert_eq!(FXUnderlying::USDRUB.effective_valuation_date(monday, before), monday);
+        assert_eq!(
+            FXUnderlying::USDRUB.effective_valuation_date(monday, before),
+            monday
+        );
 
         let at_cutoff = NaiveTime::from_hms_opt(9, 30, 0).unwrap();
         assert_eq!(

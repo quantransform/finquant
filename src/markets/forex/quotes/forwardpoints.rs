@@ -103,7 +103,11 @@ impl FXForwardHelper {
             .iter()
             .map(|q| {
                 Ok((
-                    q.tenor.settlement_date_with_lag(self.valuation_date, calendar, self.spot_lag)?,
+                    q.tenor.settlement_date_with_lag(
+                        self.valuation_date,
+                        calendar,
+                        self.spot_lag,
+                    )?,
                     q.value,
                 ))
             })
