@@ -116,10 +116,19 @@ pub fn sample_yield_term_structure() -> YieldTermMarketData {
 pub fn sample_fx_forward_helper() -> FXForwardHelper {
     let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
     let spot_ref = 1.1f64;
+    // 2023-10-17 is a Tuesday; T+1 = 2023-10-18, spot (T+2) = 2023-10-19.
+    // ON value = outright forward pts at T+1 relative to spot (negative = pre-spot).
+    // TN far leg equals the spot date for T+2 pairs, so it is omitted here to avoid
+    // a duplicate settlement date alongside SPOT. Use TN in pricing when you need the
+    // near/far leg structure for a tom-to-spot FX swap.
     FXForwardHelper::new(
         valuation_date,
         spot_ref,
         vec![
+            FXForwardQuote {
+                tenor: Period::ON,
+                value: -0.03f64, // ~-0.3 pip; pre-spot outright pts at T+1
+            },
             FXForwardQuote {
                 tenor: Period::SPOT,
                 value: 0f64,

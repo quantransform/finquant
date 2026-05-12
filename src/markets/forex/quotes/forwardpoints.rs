@@ -8,6 +8,44 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
+/// A single FX forward market quote, keyed by tenor.
+///
+/// ## Bloomberg quote conventions — ON / TN / SN
+///
+/// Bloomberg displays three kinds of pre-spot and at-spot tenors on its FX
+/// Forward screen:
+///
+/// | Tenor | Bloomberg name  | Near leg | Far leg             |
+/// |-------|-----------------|----------|---------------------|
+/// | `ON`  | Overnight       | T        | T+1                 |
+/// | `TN`  | Tom-Next        | T+1      | T+2 (spot, T+2 pairs) |
+/// | `SPOT`| Spot            | —        | T+2                 |
+/// | `SN`  | Spot-Next       | T+2      | T+3                 |
+///
+/// Bloomberg's **"Pts"** column shows the *swap forward points* for each
+/// individual overnight period (not cumulative from spot). The **"Fwds"**
+/// column shows the *outright forward rate* at the far-leg date.
+///
+/// ## What `value` represents in `FXForwardHelper`
+///
+/// `value` is always stored as **outright forward points from spot** (same
+/// unit as the 1W, 1M, … quotes). Positive = above spot; negative = below.
+///
+/// | Tenor | Typical `value` sign      | Interpretation                       |
+/// |-------|---------------------------|--------------------------------------|
+/// | `ON`  | negative (USD high rates) | outright pts at T+1 relative to spot |
+/// | `TN`  | ~0 (equals spot far leg)  | same settlement as `SPOT`            |
+/// | `SPOT`| 0.0                       | reference point                       |
+/// | `SN`  | positive                  | outright pts at T+3 relative to spot |
+///
+/// ## Single outright forward vs 2-leg FX swap
+///
+/// * **Single outright forward**: one cash exchange at the settlement date.
+///   Price by calling `FXForwardHelper::get_forward(settlement_date, cal)`.
+/// * **2-leg FX swap** (e.g. ON, TN, SN): simultaneous buy at the near leg
+///   and sell at the far leg (or vice-versa). Obtain both dates via
+///   `Period::near_date` (near leg) and `Period::settlement_date` (far leg),
+///   then call `get_forward` for each leg separately.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct FXForwardQuote {
     pub tenor: Period,
@@ -218,6 +256,11 @@ mod tests {
             NaiveDate::from_ymd_opt(2023, 10, 17).unwrap()
         );
 
+        // TN far leg equals the spot date for standard T+2 pairs
+        assert_eq!(
+            Period::TN.settlement_date(valuation_date, &calendar)?,
+            NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
+        );
         assert_eq!(
             Period::SPOT.settlement_date(valuation_date, &calendar)?,
             NaiveDate::from_ymd_opt(2023, 10, 18).unwrap()
