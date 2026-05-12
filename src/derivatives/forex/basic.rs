@@ -2,8 +2,10 @@ use crate::error::Result;
 use crate::markets::forex::market_context::FxMarketContext;
 use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
 use crate::time::calendars::{
-    Australia, Calendar, Canada, Japan, JointCalendar, Mexico, NewZealand, Norway, Russia, Sweden,
-    Switzerland, Target, Turkey, UnitedKingdom, UnitedStates,
+    Australia, Brazil, Calendar, Canada, China, CzechRepublic, Denmark, HongKong, Hungary, India,
+    Indonesia, Israel, Japan, JointCalendar, Mexico, NewZealand, Norway, Poland, Romania, Russia,
+    Singapore, SouthAfrica, SouthKorea, Sweden, Switzerland, Taiwan, Target, Thailand, Turkey,
+    UnitedKingdom, UnitedStates,
 };
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual360::Actual360;
@@ -25,10 +27,22 @@ pub enum FXUnderlying {
     EURCHF,
     EURNOK,
     EURSEK,
+    EURAUD,
+    EURNZD,
+    EURDKK,
+    EURPLN,
+    EURHUF,
+    EURCZK,
+    EURRON,
     // GBP crosses
     GBPUSD,
     GBPCAD,
     GBPJPY,
+    GBPAUD,
+    GBPNZD,
+    GBPCHF,
+    GBPNOK,
+    GBPSEK,
     // USD crosses — T+2
     AUDUSD,
     NZDUSD,
@@ -36,13 +50,42 @@ pub enum FXUnderlying {
     USDNOK,
     USDSEK,
     USDJPY,
+    USDSGD,
+    USDHKD,
+    USDCNY,
+    USDPLN,
+    USDHUF,
+    USDCZK,
+    USDZAR,
+    USDKRW,
+    USDINR,
+    USDBRL,
+    USDDKK,
+    USDIDR,
+    USDTWD,
+    USDTHB,
+    USDILS,
+    USDRON,
     // USD crosses — T+1
     USDCAD,
     USDMXN,
     USDTRY,
     USDRUB,
+    // AUD crosses
+    AUDNZD,
+    AUDCAD,
+    AUDCHF,
+    AUDJPY,
+    AUDSGD,
+    // NZD crosses
+    NZDCAD,
+    NZDCHF,
+    NZDJPY,
+    NZDSGD,
     // other crosses
     CADJPY,
+    CHFJPY,
+    CADCHF,
 }
 
 impl FXUnderlying {
@@ -61,6 +104,22 @@ impl FXUnderlying {
             Currency::MXN => Box::new(Mexico),
             Currency::TRY => Box::new(Turkey),
             Currency::RUB => Box::new(Russia::default()),
+            Currency::SGD => Box::new(Singapore),
+            Currency::HKD => Box::new(HongKong),
+            Currency::CNY => Box::new(China),
+            Currency::PLN => Box::new(Poland::default()),
+            Currency::HUF => Box::new(Hungary),
+            Currency::CZK => Box::new(CzechRepublic),
+            Currency::ZAR => Box::new(SouthAfrica),
+            Currency::KRW => Box::new(SouthKorea),
+            Currency::INR => Box::new(India),
+            Currency::BRL => Box::new(Brazil::default()),
+            Currency::DKK => Box::new(Denmark),
+            Currency::IDR => Box::new(Indonesia),
+            Currency::TWD => Box::new(Taiwan),
+            Currency::THB => Box::new(Thailand),
+            Currency::ILS => Box::new(Israel::default()),
+            Currency::RON => Box::new(Romania),
             _ => Box::new(Target),
         }
     }
@@ -70,7 +129,10 @@ impl FXUnderlying {
             FXUnderlying::CADJPY
             | FXUnderlying::USDJPY
             | FXUnderlying::GBPJPY
-            | FXUnderlying::EURJPY => 100f64,
+            | FXUnderlying::EURJPY
+            | FXUnderlying::AUDJPY
+            | FXUnderlying::NZDJPY
+            | FXUnderlying::CHFJPY => 100f64,
             _ => 10000f64,
         }
     }
