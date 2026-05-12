@@ -2,7 +2,8 @@ use crate::error::Result;
 use crate::markets::forex::market_context::FxMarketContext;
 use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
 use crate::time::calendars::{
-    Calendar, Canada, Japan, JointCalendar, Target, UnitedKingdom, UnitedStates,
+    Australia, Calendar, Canada, Japan, JointCalendar, Mexico, NewZealand, Norway, Russia, Sweden,
+    Switzerland, Target, Turkey, UnitedKingdom, UnitedStates,
 };
 use crate::time::daycounters::DayCounters;
 use crate::time::daycounters::actual360::Actual360;
@@ -16,15 +17,31 @@ use strum_macros::{Display, EnumString};
 
 #[derive(Deserialize, Serialize, Display, EnumString, Debug)]
 pub enum FXUnderlying {
+    // EUR crosses
     EURGBP,
     EURUSD,
     EURCAD,
     EURJPY,
+    EURCHF,
+    EURNOK,
+    EURSEK,
+    // GBP crosses
     GBPUSD,
     GBPCAD,
     GBPJPY,
-    USDCAD,
+    // USD crosses — T+2
+    AUDUSD,
+    NZDUSD,
+    USDCHF,
+    USDNOK,
+    USDSEK,
     USDJPY,
+    // USD crosses — T+1
+    USDCAD,
+    USDMXN,
+    USDTRY,
+    USDRUB,
+    // other crosses
     CADJPY,
 }
 
@@ -36,15 +53,24 @@ impl FXUnderlying {
             Currency::USD => Box::new(UnitedStates::default()),
             Currency::JPY => Box::new(Japan),
             Currency::CAD => Box::new(Canada::default()),
+            Currency::AUD => Box::new(Australia::default()),
+            Currency::NZD => Box::new(NewZealand::default()),
+            Currency::CHF => Box::new(Switzerland),
+            Currency::NOK => Box::new(Norway),
+            Currency::SEK => Box::new(Sweden),
+            Currency::MXN => Box::new(Mexico),
+            Currency::TRY => Box::new(Turkey),
+            Currency::RUB => Box::new(Russia::default()),
             _ => Box::new(Target),
         }
     }
 
     pub fn forward_points_converter(&self) -> f64 {
         match self {
-            FXUnderlying::CADJPY => 100f64,
-            FXUnderlying::USDJPY => 100f64,
-            FXUnderlying::GBPJPY => 100f64,
+            FXUnderlying::CADJPY
+            | FXUnderlying::USDJPY
+            | FXUnderlying::GBPJPY
+            | FXUnderlying::EURJPY => 100f64,
             _ => 10000f64,
         }
     }
@@ -58,17 +84,29 @@ impl FXUnderlying {
 
     pub fn settles(&self) -> i8 {
         match self {
-            FXUnderlying::USDCAD => 1,
+            // T+1 settlement pairs
+            FXUnderlying::USDCAD | FXUnderlying::USDMXN | FXUnderlying::USDTRY
+            | FXUnderlying::USDRUB => 1,
             _ => 2,
         }
     }
 
     /// UTC cut-off time after which the effective valuation date advances to the
-    /// next business day. Varies by pair: USDCAD cuts at noon New York (17:00 UTC);
-    /// most other pairs cut at London close (22:00 UTC).
+    /// next business day.
+    ///
+    /// | Pair | Cut-off (UTC) | Local time |
+    /// |------|--------------|------------|
+    /// | USDCAD, USDMXN | 17:00 | noon New York |
+    /// | USDTRY | 09:00 | noon Istanbul (UTC+3) |
+    /// | USDRUB | 09:30 | 12:30 Moscow (UTC+3) |
+    /// | All others | 22:00 | London close |
     pub fn cutoff_utc(&self) -> NaiveTime {
         match self {
-            FXUnderlying::USDCAD => NaiveTime::from_hms_opt(17, 0, 0).unwrap(),
+            FXUnderlying::USDCAD | FXUnderlying::USDMXN => {
+                NaiveTime::from_hms_opt(17, 0, 0).unwrap()
+            }
+            FXUnderlying::USDTRY => NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+            FXUnderlying::USDRUB => NaiveTime::from_hms_opt(9, 30, 0).unwrap(),
             _ => NaiveTime::from_hms_opt(22, 0, 0).unwrap(),
         }
     }
@@ -305,5 +343,91 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_t1_pairs_settles() {
+        assert_eq!(FXUnderlying::USDMXN.settles(), 1);
+        assert_eq!(FXUnderlying::USDTRY.settles(), 1);
+        assert_eq!(FXUnderlying::USDRUB.settles(), 1);
+        // T+2 pairs unchanged
+        assert_eq!(FXUnderlying::AUDUSD.settles(), 2);
+        assert_eq!(FXUnderlying::NZDUSD.settles(), 2);
+        assert_eq!(FXUnderlying::USDCHF.settles(), 2);
+    }
+
+    #[test]
+    fn test_cutoff_utc_all_pairs() {
+        // noon New York (UTC-5 standard / UTC-4 DST → use UTC offset of 17:00 UTC as noon NY EDT)
+        assert_eq!(FXUnderlying::USDMXN.cutoff_utc(), NaiveTime::from_hms_opt(17, 0, 0).unwrap());
+        // noon Istanbul (UTC+3) = 09:00 UTC
+        assert_eq!(FXUnderlying::USDTRY.cutoff_utc(), NaiveTime::from_hms_opt(9, 0, 0).unwrap());
+        // 12:30 Moscow (UTC+3) = 09:30 UTC
+        assert_eq!(FXUnderlying::USDRUB.cutoff_utc(), NaiveTime::from_hms_opt(9, 30, 0).unwrap());
+        // standard London close
+        assert_eq!(FXUnderlying::AUDUSD.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
+        assert_eq!(FXUnderlying::USDNOK.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
+        assert_eq!(FXUnderlying::USDSEK.cutoff_utc(), NaiveTime::from_hms_opt(22, 0, 0).unwrap());
+    }
+
+    /// USDMXN (T+1) settlement dates — spot is T+1, noon NY (17:00 UTC) cut-off.
+    #[test]
+    fn test_settlement_date_usdmxn() -> Result<()> {
+        use crate::time::period::Period;
+
+        let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap(); // Monday
+
+        assert_eq!(
+            FXUnderlying::USDMXN.settlement_date(Period::SPOT, valuation_date)?,
+            NaiveDate::from_ymd_opt(2023, 10, 17).unwrap() // T+1
+        );
+        assert_eq!(
+            FXUnderlying::USDMXN.settlement_date(Period::ON, valuation_date)?,
+            NaiveDate::from_ymd_opt(2023, 10, 17).unwrap() // same as SPOT for T+1
+        );
+        assert_eq!(
+            FXUnderlying::USDMXN.settlement_date(Period::Weeks(1), valuation_date)?,
+            NaiveDate::from_ymd_opt(2023, 10, 24).unwrap()
+        );
+
+        Ok(())
+    }
+
+    /// USDTRY (T+1) cut-off time advances valuation date before noon Istanbul.
+    #[test]
+    fn test_effective_valuation_date_usdtry() {
+        let monday = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap();
+
+        // Before USDTRY cut-off (09:00 UTC) → same day
+        let before = NaiveTime::from_hms_opt(8, 59, 0).unwrap();
+        assert_eq!(FXUnderlying::USDTRY.effective_valuation_date(monday, before), monday);
+
+        // At USDTRY cut-off → next business day
+        let at_cutoff = NaiveTime::from_hms_opt(9, 0, 0).unwrap();
+        assert_eq!(
+            FXUnderlying::USDTRY.effective_valuation_date(monday, at_cutoff),
+            NaiveDate::from_ymd_opt(2023, 10, 17).unwrap()
+        );
+    }
+
+    /// USDRUB (T+1) cut-off is 12:30 Moscow = 09:30 UTC.
+    #[test]
+    fn test_effective_valuation_date_usdrub() {
+        let monday = NaiveDate::from_ymd_opt(2023, 10, 16).unwrap();
+
+        let before = NaiveTime::from_hms_opt(9, 29, 0).unwrap();
+        assert_eq!(FXUnderlying::USDRUB.effective_valuation_date(monday, before), monday);
+
+        let at_cutoff = NaiveTime::from_hms_opt(9, 30, 0).unwrap();
+        assert_eq!(
+            FXUnderlying::USDRUB.effective_valuation_date(monday, at_cutoff),
+            NaiveDate::from_ymd_opt(2023, 10, 17).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_forward_points_converter_eurjpy() {
+        assert_eq!(FXUnderlying::EURJPY.forward_points_converter(), 100f64);
+        assert_eq!(FXUnderlying::EURCHF.forward_points_converter(), 10000f64);
     }
 }
