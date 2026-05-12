@@ -100,8 +100,9 @@ impl Period {
         calendar: &dyn Calendar,
         spot_lag: i64,
     ) -> Result<NaiveDate> {
-        let spot_offset = Duration::try_days(spot_lag)
-            .ok_or_else(|| Error::PeriodOutOfBounds(format!("{spot_lag} spot lag is out of bounds")))?;
+        let spot_offset = Duration::try_days(spot_lag).ok_or_else(|| {
+            Error::PeriodOutOfBounds(format!("{spot_lag} spot lag is out of bounds"))
+        })?;
         let target_date = match self {
             Period::ON => valuation_date,
             Period::TN => valuation_date + ONE_DAY,
@@ -124,8 +125,9 @@ impl Period {
         calendar: &dyn Calendar,
         spot_lag: i64,
     ) -> Result<Option<NaiveDate>> {
-        let spot_offset = Duration::try_days(spot_lag)
-            .ok_or_else(|| Error::PeriodOutOfBounds(format!("{spot_lag} spot lag is out of bounds")))?;
+        let spot_offset = Duration::try_days(spot_lag).ok_or_else(|| {
+            Error::PeriodOutOfBounds(format!("{spot_lag} spot lag is out of bounds"))
+        })?;
         let raw = match self {
             Period::ON => Some(valuation_date),
             Period::TN => Some(valuation_date + ONE_DAY),
@@ -362,7 +364,10 @@ mod tests {
 
         // Standard forward tenors have no near-leg (near = spot implicitly)
         assert_eq!(Period::Weeks(1).near_date(valuation_date, &calendar)?, None);
-        assert_eq!(Period::Months(1).near_date(valuation_date, &calendar)?, None);
+        assert_eq!(
+            Period::Months(1).near_date(valuation_date, &calendar)?,
+            None
+        );
 
         Ok(())
     }
