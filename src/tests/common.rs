@@ -113,6 +113,25 @@ pub fn sample_yield_term_structure() -> YieldTermMarketData {
     )
 }
 
+/// Bloomberg EUR/USD forward curve, valuation 2026-05-12 (pricing date from screenshot).
+/// Spot date is 2026-05-14 ("Value 05/14/26"). Values are approximate Fwds Bid outright rates.
+pub fn bloomberg_eurusd_fx_forward_helper() -> FXForwardHelper {
+    let valuation_date = NaiveDate::from_ymd_opt(2026, 5, 12).unwrap();
+    FXForwardHelper::new(
+        valuation_date,
+        1.17435_f64,
+        vec![
+            FXForwardQuote { tenor: Period::ON,        value: 1.174188 }, // far 05/13/26
+            FXForwardQuote { tenor: Period::TN,        value: 1.174244 }, // far 05/14/26 = spot
+            FXForwardQuote { tenor: Period::SN,        value: 1.174354 }, // far 05/15/26
+            FXForwardQuote { tenor: Period::Weeks(1),  value: 1.174682 }, // far 05/21/26
+            FXForwardQuote { tenor: Period::Weeks(2),  value: 1.175068 }, // far 05/28/26
+            FXForwardQuote { tenor: Period::Months(2), value: 1.177487 }, // far 07/14/26
+            FXForwardQuote { tenor: Period::Months(4), value: 1.180255 }, // far 09/14/26
+        ],
+    )
+}
+
 pub fn sample_fx_forward_helper() -> FXForwardHelper {
     let valuation_date = NaiveDate::from_ymd_opt(2023, 10, 17).unwrap();
     let spot_ref = 1.1f64;

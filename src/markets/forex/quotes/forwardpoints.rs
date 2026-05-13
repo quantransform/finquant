@@ -124,7 +124,7 @@ impl Observable for FXForwardHelper {
 mod tests {
     use crate::error::Result;
     use crate::markets::forex::quotes::forwardpoints::{FXForwardHelper, FXForwardQuote};
-    use crate::tests::common::{sample_fx_forward_helper, setup};
+    use crate::tests::common::{bloomberg_eurusd_fx_forward_helper, sample_fx_forward_helper, setup};
     use crate::time::calendars::JointCalendar;
     use crate::time::calendars::Target;
     use crate::time::calendars::UnitedKingdom;
@@ -388,6 +388,133 @@ mod tests {
         assert!(target_date > valuation_date && target_date < first_settle);
 
         assert_eq!(helper.get_forward(target_date, &calendar)?, None);
+
+        Ok(())
+    }
+
+    /// Far-leg settlement dates from the Bloomberg EUR/USD helper must match the screenshot.
+    #[test]
+    fn test_bloomberg_eurusd_settlement_dates() -> Result<()> {
+        let helper = bloomberg_eurusd_fx_forward_helper();
+        let cal = JointCalendar::new(vec![
+            Box::new(Target),
+            Box::new(UnitedStates::default()),
+        ]);
+        let val = helper.valuation_date;
+
+        assert_eq!(
+            Period::ON.settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 5, 13).unwrap()
+        );
+        assert_eq!(
+            Period::TN.settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 5, 14).unwrap()
+        );
+        assert_eq!(
+            Period::SN.settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 5, 15).unwrap()
+        );
+        assert_eq!(
+            Period::Weeks(1).settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 5, 21).unwrap()
+        );
+        assert_eq!(
+            Period::Weeks(2).settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 5, 28).unwrap()
+        );
+        assert_eq!(
+            Period::Months(2).settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 7, 14).unwrap()
+        );
+        assert_eq!(
+            Period::Months(4).settlement_date(val, &cal)?,
+            NaiveDate::from_ymd_opt(2026, 9, 14).unwrap()
+        );
+
+        Ok(())
+    }
+
+    /// get_forward returns exact Bloomberg Fwds Bid values at each tenor's far-leg date.
+    #[test]
+    fn test_bloomberg_eurusd_get_forward_exact() -> Result<()> {
+        let helper = bloomberg_eurusd_fx_forward_helper();
+        let cal = JointCalendar::new(vec![
+            Box::new(Target),
+            Box::new(UnitedStates::default()),
+        ]);
+
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 5, 13).unwrap(), &cal)?,
+            Some(1.174188)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 5, 14).unwrap(), &cal)?,
+            Some(1.174244)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 5, 15).unwrap(), &cal)?,
+            Some(1.174354)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 5, 21).unwrap(), &cal)?,
+            Some(1.174682)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 5, 28).unwrap(), &cal)?,
+            Some(1.175068)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 7, 14).unwrap(), &cal)?,
+            Some(1.177487)
+        );
+        assert_eq!(
+            helper.get_forward(NaiveDate::from_ymd_opt(2026, 9, 14).unwrap(), &cal)?,
+            Some(1.180255)
+        );
+
+        Ok(())
+    }
+
+    /// Linear interpolation between 1W and 2W Bloomberg tenors.
+    #[test]
+    fn test_bloomberg_eurusd_get_forward_interpolation() -> Result<()> {
+        let helper = bloomberg_eurusd_fx_forward_helper();
+        let cal = JointCalendar::new(vec![
+            Box::new(Target),
+            Box::new(UnitedStates::default()),
+        ]);
+
+        // Midpoint between 1W (2026-05-21, 1.174682) and 2W (2026-05-28, 1.175068)
+        // Target: 2026-05-26 (Tuesday, 5 days after 1W, 2 days before 2W)
+        let target = NaiveDate::from_ymd_opt(2026, 5, 26).unwrap();
+        let result = helper.get_forward(target, &cal)?.unwrap();
+        let expected = 1.174682 + (1.175068 - 1.174682) * 5.0 / 7.0;
+        assert!((result - expected).abs() < 1e-10);
+
+        Ok(())
+    }
+
+    /// ON pre-spot forward is below TN (spot-date), consistent with
+    /// negative ON swap points in the Bloomberg screenshot.
+    #[test]
+    fn test_bloomberg_eurusd_on_below_tn() -> Result<()> {
+        let helper = bloomberg_eurusd_fx_forward_helper();
+        let cal = JointCalendar::new(vec![
+            Box::new(Target),
+            Box::new(UnitedStates::default()),
+        ]);
+
+        let on_fwd = helper
+            .get_forward(NaiveDate::from_ymd_opt(2026, 5, 13).unwrap(), &cal)?
+            .unwrap();
+        let tn_fwd = helper
+            .get_forward(NaiveDate::from_ymd_opt(2026, 5, 14).unwrap(), &cal)?
+            .unwrap();
+
+        assert!(
+            on_fwd < tn_fwd,
+            "ON outright ({on_fwd}) should be below TN/spot ({tn_fwd}) reflecting negative ON swap pts"
+        );
 
         Ok(())
     }
