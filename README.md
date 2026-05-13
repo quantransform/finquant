@@ -48,6 +48,7 @@
 - Horvath-style neural networks that replace slow numerical pricers with microsecond-scale `(model params → IV grid)` lookups — the speed lift needed for portfolio XVA over 10⁹+ revaluations
 - Rust ground-truth dumper: `cargo run --release --example dump_hhw_vanilla_training_data`
 - Python training pipeline (Poetry, Pydantic-validated schemas, PyTorch → ONNX, optional Ray Tune HPO) — see [ml/README.md](ml/README.md)
+- End-to-end XVA harness (1000-trade portfolio, EUR/USD/GBP/JPY, EE/EPE/PFE): `cargo run --release --example xva_portfolio_demo` — methodology in [ml/XVA.md](ml/XVA.md)
 
 
 [crates-badge]: https://img.shields.io/crates/v/finquant.svg

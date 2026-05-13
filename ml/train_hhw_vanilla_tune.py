@@ -13,8 +13,6 @@ This is illustrative — once we have a winning architecture, drop it back
 into `train_hhw_vanilla.py` for the final ONNX export.
 """
 
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
 

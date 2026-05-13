@@ -8,8 +8,6 @@ After training, exports an ONNX model that the Rust XVA engine can load
 via the `ort` crate for microsecond-scale conditional pricing.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import time
