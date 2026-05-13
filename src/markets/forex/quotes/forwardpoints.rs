@@ -455,6 +455,117 @@ mod tests {
         Ok(())
     }
 
+    /// Prices both legs of ON / TN / SN FX swaps and derives swap forward points
+    /// (far_pts − near_pts) for each tenor.
+    ///
+    /// Bloomberg's "Pts" column shows the swap points for each individual overnight
+    /// period. The helper stores *outright* forward points from spot, so:
+    ///   swap_pts = far_fwd_pts − near_fwd_pts
+    ///
+    /// | Swap | Near leg | Far leg    | near_pts | far_pts | swap_pts |
+    /// |------|----------|------------|----------|---------|----------|
+    /// | ON   | T (spot) | T+1        |    0.00  |  −0.03  |  −0.03   |
+    /// | TN   | T+1      | T+2 (spot) |   −0.03  |   0.00  |  +0.03   |
+    /// | SN   | T+2=spot | T+3        |    0.00  |  +0.06  |  +0.06   |
+    #[test]
+    fn test_fx_swap_pricing_on_tn_sn() -> Result<()> {
+        setup();
+        // val = 2023-10-17 (Tue), spot_ref = 1.1 (GBPUSD-like, T+2 standard pair)
+        let helper = sample_fx_forward_helper();
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
+        let val = helper.valuation_date; // 2023-10-17
+
+        // ── ON swap: near = T (valuation_date), far = T+1 ────────────────────
+        // The ON near leg falls on valuation_date; get_forward returns None there,
+        // so the near leg is priced at spot (0 outright forward pts).
+        let on_near = Period::ON.near_date(val, &calendar)?.unwrap();
+        let on_far = Period::ON.settlement_date(val, &calendar)?;
+        assert_eq!(on_near, NaiveDate::from_ymd_opt(2023, 10, 17).unwrap());
+        assert_eq!(on_far, NaiveDate::from_ymd_opt(2023, 10, 18).unwrap());
+        // near is at spot → 0 outright forward pts; near == valuation_date → None
+        assert_eq!(helper.get_forward(on_near, &calendar)?, None);
+        let on_far_pts = helper.get_forward(on_far, &calendar)?.unwrap(); // ON quote: −0.03
+        assert_eq!(on_far_pts, -0.03);
+        // swap_pts = far_pts − near_pts (near priced at spot → near_pts = 0)
+        let on_swap_pts = on_far_pts - 0.0_f64;
+        assert_eq!(on_swap_pts, -0.03);
+
+        // ── TN swap: near = T+1, far = T+2 (spot) ────────────────────────────
+        let tn_near = Period::TN.near_date(val, &calendar)?.unwrap();
+        let tn_far = Period::TN.settlement_date(val, &calendar)?;
+        assert_eq!(tn_near, NaiveDate::from_ymd_opt(2023, 10, 18).unwrap());
+        assert_eq!(tn_far, NaiveDate::from_ymd_opt(2023, 10, 19).unwrap());
+        let tn_near_pts = helper.get_forward(tn_near, &calendar)?.unwrap(); // ON quote: −0.03
+        let tn_far_pts = helper.get_forward(tn_far, &calendar)?.unwrap(); // SPOT quote: 0.0
+        assert_eq!(tn_near_pts, -0.03);
+        assert_eq!(tn_far_pts, 0.0);
+        let tn_swap_pts = tn_far_pts - tn_near_pts; // 0.03
+        assert!((tn_swap_pts - 0.03).abs() < f64::EPSILON);
+
+        // ── SN swap: near = T+2 (spot), far = T+3 ────────────────────────────
+        let sn_near = Period::SN.near_date(val, &calendar)?.unwrap();
+        let sn_far = Period::SN.settlement_date(val, &calendar)?;
+        assert_eq!(sn_near, NaiveDate::from_ymd_opt(2023, 10, 19).unwrap());
+        assert_eq!(sn_far, NaiveDate::from_ymd_opt(2023, 10, 20).unwrap());
+        let sn_near_pts = helper.get_forward(sn_near, &calendar)?.unwrap(); // SPOT quote: 0.0
+        let sn_far_pts = helper.get_forward(sn_far, &calendar)?.unwrap(); // SN quote: 0.06
+        assert_eq!(sn_near_pts, 0.0);
+        assert_eq!(sn_far_pts, 0.06);
+        let sn_swap_pts = sn_far_pts - sn_near_pts; // 0.06
+        assert_eq!(sn_swap_pts, 0.06);
+
+        Ok(())
+    }
+
+    /// Prices pure forward outright contracts at standard tenors.
+    ///
+    /// A forward outright is a single cash exchange at the far-leg settlement date
+    /// (no near leg). This is what Bloomberg's "Fwds" column shows.
+    ///
+    ///   outright_rate = spot_ref + forward_pts / converter
+    ///
+    /// | Tenor | Fwd pts | Outright (spot = 1.1, converter = 10000) |
+    /// |-------|---------|------------------------------------------|
+    /// | 1W    |   0.39  | 1.100039                                 |
+    /// | 1M    |   1.83  | 1.100183                                 |
+    /// | 3M    |   8.05  | 1.100805                                 |
+    /// | 6M    |  13.12  | 1.101312                                 |
+    /// | 1Y    |  16.18  | 1.101618                                 |
+    #[test]
+    fn test_forward_outright_pricing() -> Result<()> {
+        setup();
+        let helper = sample_fx_forward_helper(); // val = 2023-10-17, spot_ref = 1.1
+        let converter = 10_000_f64; // GBPUSD-like: 4 decimal places
+        let calendar = JointCalendar::new(vec![
+            Box::new(UnitedStates::default()),
+            Box::new(UnitedKingdom::default()),
+        ]);
+        let val = helper.valuation_date;
+
+        let cases: &[(Period, f64, f64)] = &[
+            (Period::Weeks(1), 0.39, 1.100_039),
+            (Period::Months(1), 1.83, 1.100_183),
+            (Period::Months(3), 8.05, 1.100_805),
+            (Period::Months(6), 13.12, 1.101_312),
+            (Period::Years(1), 16.18, 1.101_618),
+        ];
+        for &(tenor, expected_pts, expected_outright) in cases {
+            let settle = tenor.settlement_date(val, &calendar)?;
+            let pts = helper.get_forward(settle, &calendar)?.unwrap();
+            assert_eq!(pts, expected_pts, "fwd pts mismatch for {tenor:?}");
+            let outright = helper.spot_ref + pts / converter;
+            assert!(
+                (outright - expected_outright).abs() < 1e-9,
+                "outright mismatch for {tenor:?}: got {outright}, expected {expected_outright}"
+            );
+        }
+
+        Ok(())
+    }
+
     #[test]
     fn test_notify_observers_prune_and_notify() -> Result<()> {
         // Create one dead observer (dropped before notification) and one live observer.
