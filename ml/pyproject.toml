@@ -1,0 +1,31 @@
+[project]
+name = "finquant-ml"
+version = "0.1.0"
+description = "Deep learning surrogates for finquant stochastic-volatility pricers"
+authors = [{ name = "Jeremy Wang", email = "j.wang@quantransform.co.uk" }]
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "torch>=2.5",
+    "numpy>=2.1",
+    "onnx>=1.17",
+    "onnxruntime>=1.20",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+# Hyperparameter sweeps via Ray Tune. Install with:
+#   poetry install --with tune
+tune = ["ray[tune]>=2.40"]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.tune]
+optional = true
+
+[tool.poetry.group.tune.dependencies]
+ray = { extras = ["tune"], version = ">=2.40" }
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
